@@ -98,7 +98,8 @@ class ModelManager:
         try:
             # ✅ Use aiohttp for truly async requests
             import aiohttp
-            async with aiohttp.ClientSession() as session:
+            timeout = aiohttp.ClientTimeout(total=None)
+            async with aiohttp.ClientSession(timeout=timeout) as session:
                 async with session.post(
                     self.model_info["url"]["generate"],
                     json={"model": self.model_info["model"], "prompt": prompt, "stream": False}

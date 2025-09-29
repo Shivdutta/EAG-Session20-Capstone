@@ -73,6 +73,7 @@ async def main():
     print(BANNER)
     
     # 🔧 FIX: Load server configs and initialize MultiMCP properly
+
     log_step("📥 Loading MCP Servers...")
     server_configs = load_server_configs()
     multi_mcp = MultiMCP(server_configs)  # ✅ Pass server_configs

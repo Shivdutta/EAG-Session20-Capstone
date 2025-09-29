@@ -1,6 +1,33 @@
 import React, { useState, useEffect, useRef } from 'react';
 
-const API_BASE_URL = 'http://localhost:8000/api';
+export const API_BASE_URL = (() => {
+  // Check if we're in the browser environment
+  if (typeof window !== 'undefined') {
+    const hostname = window.location.hostname;
+    
+    // If running on localhost, use local API
+    if (hostname === 'localhost' || hostname === '127.0.0.1') {
+      console.log('Using localhost API URL');
+      return 'http://localhost:8000/api';
+    }
+    
+    // If running on Azure (sifura.azurewebsites.net), use Azure API
+    if (hostname.includes('azurewebsites.net') || hostname === 'sifura.azurewebsites.net') {
+      console.log('Using Azure API URL');
+      return 'https://myapp-backend-api.azurewebsites.net/api';
+    }
+  }
+  
+  // Check build-time environment variable as fallback
+  if (process.env.REACT_APP_API_URL) {
+    console.log('Using build-time env API URL:', process.env.REACT_APP_API_URL);
+    return process.env.REACT_APP_API_URL;
+  }
+  
+  // Default fallback to Azure production API
+  console.log('Using default Azure API URL');
+  return 'https://myapp-backend-api.azurewebsites.net/api';
+})();
 
 const SIPGoalPlanningForm = () => {
   // State management
@@ -14,7 +41,11 @@ const SIPGoalPlanningForm = () => {
   const [errors, setErrors] = useState({});
   const [validationResult, setValidationResult] = useState(null);
   const [calculationResult, setCalculationResult] = useState(null);
-  const [currentStep, setCurrentStep] = useState('form'); // 'form', 'validation', 'streaming', 'results', 'fund_recommendation', 'fund_recommendation_result'
+  const [currentStep, setCurrentStep] = useState('form');
+  
+  // Session tracking state variables
+  const [sipSessionId, setSipSessionId] = useState('');
+  const [fundSessionId, setFundSessionId] = useState('');
   
   // Streaming states
   const [isStreaming, setIsStreaming] = useState(false);
@@ -24,6 +55,9 @@ const SIPGoalPlanningForm = () => {
   const [htmlReportContent, setHtmlReportContent] = useState('');
   const [streamingProgress, setStreamingProgress] = useState(0);
   const [currentAgent, setCurrentAgent] = useState('');
+  
+  // NEW: AgentLoop processing phase tracking
+  const [isInAgentLoopProcessing, setIsInAgentLoopProcessing] = useState(false);
   
   // Fund recommendation state
   const [reportPathForRecommendation, setReportPathForRecommendation] = useState('');
@@ -45,24 +79,228 @@ const SIPGoalPlanningForm = () => {
   const [fundRecommendationError, setFundRecommendationError] = useState(false);
   
   const eventSourceRef = useRef(null);
+  const abortControllerRef = useRef(null);
   const logsEndRef = useRef(null);
   const fundLogsEndRef = useRef(null);
+
+  // LOG-BASED PROGRESS ANALYSIS FUNCTIONS
+  const analyzeLogsForSIPProgress = (logs) => {
+    let progress = 0;
+    let agent = '';
+    
+    // Check logs from most recent to oldest to get current state
+    for (let i = logs.length - 1; i >= 0; i--) {
+      const message = logs[i].message.toLowerCase();
+      
+      // Completion check first (highest priority)
+      if (message.includes('query processed successfully') || 
+          message.includes('stream completed') ||
+          message.includes('processing completed')) {
+        return { progress: 100, agent: '' };
+      }
+      
+      // File generation
+      if (message.includes('comprehensive_report.html')) {
+        return { progress: 90, agent: 'FileGeneration' };
+      }
+      
+      // Agent processing stages (most recent agent wins)
+      if (message.includes('reportgeneratoragent')) {
+        return { progress: 85, agent: 'ReportGeneratorAgent' };
+      }
+      
+      if (message.includes('formatteragent')) {
+        return { progress: 80, agent: 'FormatterAgent' };
+      }
+      
+      if (message.includes('coderagent')) {
+        return { progress: 75, agent: 'CoderAgent' };
+      }
+      
+      if (message.includes('distilleragent')) {
+        return { progress: 70, agent: 'DistillerAgent' };
+      }
+      
+      if (message.includes('qaagent')) {
+        return { progress: 65, agent: 'QAAgent' };
+      }
+      
+      if (message.includes('thinkeragent')) {
+        return { progress: 55, agent: 'ThinkerAgent' };
+      }
+      
+      if (message.includes('retrieveragent')) {
+        return { progress: 45, agent: 'RetrieverAgent' };
+      }
+      
+      if (message.includes('planneragent')) {
+        return { progress: 35, agent: 'PlannerAgent' };
+      }
+      
+      if (message.includes('sipgoalplanneragent')) {
+        return { progress: 25, agent: 'SIPGoalPlannerAgent' };
+      }
+      
+      // AgentLoop4 processing
+      if (message.includes('processing with agentloop4')) {
+        return { progress: 20, agent: 'AgentLoop4' };
+      }
+      
+      // Connection and setup
+      if (message.includes('connection established')) {
+        return { progress: 5, agent: 'Connection' };
+      }
+    }
+    
+    return { progress, agent };
+  };
+
+  // FIXED: Enhanced fund progress analysis with ReportGeneratorAgent
+  const analyzeLogsForFundProgress = (logs) => {
+    let progress = 0;
+    let agent = '';
+    
+    // Check logs from most recent to oldest to get current state
+    for (let i = logs.length - 1; i >= 0; i--) {
+      const message = logs[i].message.toLowerCase();
+      
+      // Completion check first (highest priority)
+      if (message.includes('fund recommendation completed')) {
+        return { progress: 100, agent: '' };
+      }
+      
+      // File generation
+      if (message.includes('fund recommendation file') || 
+          message.includes('fund_recommendation_report.html')) {
+        return { progress: 95, agent: 'FileGeneration' };
+      }
+      
+      // Agent processing stages (most recent agent wins)
+      // FIX: Add ReportGeneratorAgent detection
+      if (message.includes('reportgeneratoragent')) {
+        return { progress: 90, agent: 'ReportGeneratorAgent' };
+      }
+      
+      if (message.includes('formatteragent')) {
+        return { progress: 85, agent: 'FormatterAgent' };
+      }
+      
+      if (message.includes('distilleragent')) {
+        return { progress: 75, agent: 'DistillerAgent' };
+      }
+      
+      if (message.includes('qaagent')) {
+        return { progress: 70, agent: 'QAAgent' };
+      }
+      
+      if (message.includes('thinkeragent')) {
+        return { progress: 60, agent: 'ThinkerAgent' };
+      }
+      
+      if (message.includes('retrieveragent')) {
+        return { progress: 45, agent: 'RetrieverAgent' };
+      }
+      
+      // Handle both "PlannerAgent" and "Executing PlannerAgent" patterns
+      if (message.includes('executing planneragent') || message.includes('planneragent')) {
+        return { progress: 40, agent: 'PlannerAgent' };
+      }
+      
+      if (message.includes('fundrecommendationagent')) {
+        return { progress: 30, agent: 'FundRecommendationAgent' };
+      }
+      
+      if (message.includes('fundrecommendationorchestrator')) {
+        return { progress: 15, agent: 'FundRecommendationOrchestrator' };
+      }
+      
+      // Connection
+      if (message.includes('fund recommendation connection')) {
+        return { progress: 5, agent: 'Connection' };
+      }
+    }
+    
+    return { progress, agent };
+  };
 
   // Auto-scroll logs to bottom
   useEffect(() => {
     logsEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [streamLogs]);
 
-  // Auto-scroll fund recommendation logs to bottom
   useEffect(() => {
     fundLogsEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [fundRecommendationLogs]);
 
-  // Load initial configuration and preserve in session
+  // LOG-BASED PROGRESS TRACKING - Update SIP progress based on logs
+  useEffect(() => {
+    if (streamLogs.length > 0 && isStreaming) {
+      const { progress, agent } = analyzeLogsForSIPProgress(streamLogs);
+      
+      // Only update if we have meaningful progress
+      if (progress > 0) {
+        setStreamingProgress(progress);
+      }
+      
+      // Only update agent if streaming and we have an active agent
+      if (agent && progress < 100) {
+        setCurrentAgent(agent);
+      } else if (progress === 100) {
+        setCurrentAgent('');
+      }
+    }
+  }, [streamLogs, isStreaming]);
+
+  // LOG-BASED PROGRESS TRACKING - Update Fund progress based on logs  
+  useEffect(() => {
+    if (fundRecommendationLogs.length > 0) {
+      const { progress, agent } = analyzeLogsForFundProgress(fundRecommendationLogs);
+      
+      // Only update if we have meaningful progress and are actively streaming
+      if (progress > 0 && isFundRecommendationStreaming) {
+        setFundRecommendationProgress(progress);
+      }
+      
+      // Only update agent if streaming and we have an active agent
+      if (isFundRecommendationStreaming && agent && progress < 100) {
+        setFundCurrentAgent(agent);
+      } else if (progress === 100 || !isFundRecommendationStreaming) {
+        setFundCurrentAgent('');
+      }
+    }
+  }, [fundRecommendationLogs, isFundRecommendationStreaming]);
+
+  // Clear agent when streaming stops
+  useEffect(() => {
+    if (!isStreaming) {
+      // Small delay to show completion state
+      const timer = setTimeout(() => {
+        if (streamingProgress === 100) {
+          setCurrentAgent('');
+        }
+      }, 2000);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [isStreaming, streamingProgress]);
+
+  useEffect(() => {
+    if (!isFundRecommendationStreaming) {
+      // Small delay to show completion state
+      const timer = setTimeout(() => {
+        if (fundRecommendationProgress === 100) {
+          setFundCurrentAgent('');
+        }
+      }, 2000);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [isFundRecommendationStreaming, fundRecommendationProgress]);
+
+  // Load initial configuration
   useEffect(() => {
     const loadInitialConfig = async () => {
       try {
-        // Try to fetch from API first, fall back to mock data if it fails
         try {
           const response = await fetch(`${API_BASE_URL}/form-config`);
           if (!response.ok) {
@@ -73,7 +311,6 @@ const SIPGoalPlanningForm = () => {
           console.log('Loaded configuration from API');
         } catch (apiError) {
           console.warn('API not available, using mock data for demo');
-          // Mock configuration for demo purposes
           const mockConfig = {
             title: "SIP Goal Planning Calculator",
             description: "Configure your systematic investment plan based on your financial goals",
@@ -125,7 +362,9 @@ const SIPGoalPlanningForm = () => {
                   options: [
                     { value: "very_low", label: "Very Low Risk (5% returns)" },
                     { value: "low", label: "Low Risk (7% returns)" },
+                    { value: "low_moderate", label: "Low-Moderate Risk (8% returns)" },
                     { value: "moderate", label: "Moderate Risk (10% returns)" },
+                    { value: "high_moderate", label: "High-Moderate Risk (11% returns)" },
                     { value: "high", label: "High Risk (12% returns)" },
                     { value: "very_high", label: "Very High Risk (15% returns)" }
                   ]
@@ -164,7 +403,6 @@ const SIPGoalPlanningForm = () => {
           setConditionalFields(data.conditional_fields || []);
         } catch (apiError) {
           console.warn('API not available, using mock conditional fields');
-          // Mock conditional fields based on goal type
           const mockConditionalFields = {
             "Retirement": [
               {
@@ -230,14 +468,12 @@ const SIPGoalPlanningForm = () => {
           setConditionalFields(mockConditionalFields[formData.goal_type] || []);
         }
         
-        // Clear existing conditional field values
         const newFormData = { ...formData };
         conditionalFields.forEach(field => {
           delete newFormData[field.name];
         });
         setFormData(newFormData);
         
-        // Reset validation and results
         setValidationResult(null);
         setCalculationResult(null);
         setCurrentStep('form');
@@ -254,7 +490,7 @@ const SIPGoalPlanningForm = () => {
     };
 
     loadConditionalFields();
-  }, [formData.goal_type]); // Only depend on goal_type
+  }, [formData.goal_type]);
 
   // Handle form input changes
   const handleInputChange = (e) => {
@@ -270,7 +506,6 @@ const SIPGoalPlanningForm = () => {
       [name]: newValue
     }));
 
-    // Clear field-specific errors
     if (errors[name]) {
       setErrors(prev => ({
         ...prev,
@@ -314,7 +549,6 @@ const SIPGoalPlanningForm = () => {
         }
       } catch (apiError) {
         console.warn('API not available, using mock validation');
-        // Mock validation for demo
         const mockTimeHorizon = calculateMockTimeHorizon();
         const mockValidationResult = {
           valid: true,
@@ -357,31 +591,102 @@ const SIPGoalPlanningForm = () => {
     }
   };
 
-  // Add log entry without agent detection
+  // Session ID extraction utility function
+  const extract_session_id_from_path = (filePath) => {
+    if (!filePath) return null;
+    try {
+      const normalized = filePath.replace(/\\/g, '/');
+      const match = normalized.match(/media\/generated\/([^\/]+)\//);
+      return match ? match[1] : null;
+    } catch (error) {
+      console.error('Error extracting session ID:', error);
+      return null;
+    }
+  };
+
+  // FIXED: Use local variable to avoid React state timing issues
+  let agentLoopActive = false; // Local tracking variable
+  
+  const parseAndFilterLogMessage = (message) => {
+    console.log('FILTER CHECK:', message, 'Local AgentLoop active:', agentLoopActive);
+    
+    // Check for start boundary
+    if (message.includes('Processing with AgentLoop4')) {
+      console.log('BOUNDARY START DETECTED');
+      agentLoopActive = true; // Set local variable immediately
+      setIsInAgentLoopProcessing(true); // Also update React state for UI
+      return message; // Show the boundary message
+    }
+    
+    // Check for end boundary  
+    if (message.includes('Query processed successfully')) {
+      console.log('BOUNDARY END DETECTED');
+      agentLoopActive = false; // Clear local variable immediately
+      setIsInAgentLoopProcessing(false); // Also update React state for UI
+      return message; // Show the boundary message
+    }
+    
+    // If we're between the boundaries, only show "(text only)" messages
+    if (agentLoopActive) {
+      console.log('IN AGENTLOOP - FILTERING MODE');
+      if (message.includes('(text only)')) {
+        console.log('TEXT ONLY FOUND - SHOWING');
+        // Store the entire sentence containing "(text only)"
+        const entireSentence = message;
+        
+        // Remove "(text only)" from the stored sentence
+        const cleanedSentence = entireSentence.replace(/\s*\(text only\)\s*/gi, '').trim();
+        
+        // Prefix "Executing " and return
+        return `Executing ${cleanedSentence}`;
+      }
+      console.log('NOT TEXT ONLY - FILTERING OUT:', message);
+      // Filter out everything else during AgentLoop processing
+      return null;
+    }
+    
+    console.log('OUTSIDE BOUNDARIES - SHOWING');
+    // Outside the boundaries, show everything
+    return message;
+  };
+
+  // Add log entry with filtering
   const addLogEntry = (type, message, timestamp) => {
+    const processedMessage = parseAndFilterLogMessage(message);
+    
+    if (processedMessage === null) {
+      return;
+    }
+    
     const logEntry = {
       id: Date.now() + Math.random(),
       type,
-      message,
+      message: processedMessage,
       timestamp: timestamp || new Date().toLocaleTimeString()
     };
     
     setStreamLogs(prev => [...prev, logEntry]);
   };
 
-  // Add fund recommendation log entry
+  // Add fund recommendation log entry with filtering
   const addFundLogEntry = (type, message, timestamp) => {
+    const processedMessage = parseAndFilterLogMessage(message);
+    
+    if (processedMessage === null) {
+      return;
+    }
+    
     const logEntry = {
       id: Date.now() + Math.random(),
       type,
-      message,
+      message: processedMessage,
       timestamp: timestamp || new Date().toLocaleTimeString()
     };
     
     setFundRecommendationLogs(prev => [...prev, logEntry]);
   };
 
-  // Fetch HTML report content with proper error handling
+  // Fetch HTML report content with error handling
   const fetchHtmlReport = async (filePath) => {
     try {
       addLogEntry('info', `Loading HTML report from: ${filePath}`, new Date().toLocaleTimeString());
@@ -391,7 +696,6 @@ const SIPGoalPlanningForm = () => {
       let fileLoadSuccess = false;
       
       try {
-        // Method 1: Try to read file directly if in artifacts environment with file system API
         if (typeof window !== 'undefined' && window.fs && window.fs.readFile) {
           const fileContent = await window.fs.readFile(filePath, { encoding: 'utf8' });
           htmlContent = fileContent;
@@ -403,7 +707,6 @@ const SIPGoalPlanningForm = () => {
         }
       } catch (fsError) {
         try {
-          // Method 2: Try to fetch via HTTP endpoint from backend
           const response = await fetch(`${API_BASE_URL}/download-report?filepath=${encodeURIComponent(filePath)}`, {
             method: 'GET',
             headers: {
@@ -420,60 +723,22 @@ const SIPGoalPlanningForm = () => {
             throw new Error(`HTTP ${response.status}: ${response.statusText}`);
           }
         } catch (httpError) {
-          try {
-            // Method 3: Try alternative endpoint pattern
-            const altResponse = await fetch(`${API_BASE_URL}/reports/${generatedFileName}`, {
-              method: 'GET',
-              headers: {
-                'Accept': 'text/html'
-              }
-            });
-            
-            if (altResponse.ok) {
-              htmlContent = await altResponse.text();
-              loadMethod = 'alternative endpoint';
-              fileLoadSuccess = true;
-              addLogEntry('success', 'Successfully loaded HTML report via alternative endpoint', new Date().toLocaleTimeString());
-            } else {
-              throw new Error(`Alternative endpoint failed: ${altResponse.status}`);
-            }
-          } catch (altError) {
-            // Method 4: Try to construct and fetch from static file path
-            try {
-              const staticPath = filePath.replace(/\\/g, '/').replace(/^.*\/media\//, '/media/');
-              const staticResponse = await fetch(staticPath);
-              
-              if (staticResponse.ok) {
-                htmlContent = await staticResponse.text();
-                loadMethod = 'static file path';
-                fileLoadSuccess = true;
-                addLogEntry('success', 'Successfully loaded HTML report via static path', new Date().toLocaleTimeString());
-              } else {
-                throw new Error(`Static path failed: ${staticResponse.status}`);
-              }
-            } catch (staticError) {
-              // Set error state when file loading fails
-              addLogEntry('error', 'Error in processing - File not found', new Date().toLocaleTimeString());
-              addLogEntry('error', `All methods failed: FS(${fsError.message}), HTTP(${httpError.message}), Alt(${altError.message}), Static(${staticError.message})`, new Date().toLocaleTimeString());
-              
-              setSipGoalError(true);
-              setSipGoalCompleted(false);
-              setErrors({ general: 'Error in processing - File not found. Please regenerate the report.' });
-              
-              htmlContent = generateMockHtmlReport();
-              loadMethod = 'fallback mock';
-            }
-          }
+          addLogEntry('error', 'Error in processing - File not found', new Date().toLocaleTimeString());
+          
+          setSipGoalError(true);
+          setSipGoalCompleted(false);
+          setErrors({ general: 'Error in processing - File not found. Please regenerate the report.' });
+          
+          htmlContent = generateMockHtmlReport();
+          loadMethod = 'fallback mock';
         }
       }
       
-      // Only append filename if using real content
       if (fileLoadSuccess && loadMethod !== 'fallback mock') {
         htmlContent = appendFilenameToHtmlReport(htmlContent);
       }
       
       setHtmlReportContent(htmlContent);
-      // Store the file path for display
       setGeneratedFilePath(filePath);
       setReportPathForRecommendation(filePath);
       
@@ -485,18 +750,16 @@ const SIPGoalPlanningForm = () => {
       console.error('Error fetching HTML report:', error);
       addLogEntry('error', `Error in processing - Failed to load HTML report: ${error.message}`, new Date().toLocaleTimeString());
       
-      // Set error state when critical error occurs
       setSipGoalError(true);
       setSipGoalCompleted(false);
       setErrors({ general: 'Error in processing - Failed to load report. Please regenerate.' });
       
-      // Final fallback to mock content
       addLogEntry('info', 'Using mock report as final fallback', new Date().toLocaleTimeString());
       setHtmlReportContent(generateMockHtmlReport());
     }
   };
 
-  // Fetch Fund Recommendation HTML report content with proper error handling
+  // Fetch Fund Recommendation HTML report content
   const fetchFundRecommendationHtmlReport = async (filePath) => {
     try {
       addFundLogEntry('info', `Loading Fund Recommendation HTML report from: ${filePath}`, new Date().toLocaleTimeString());
@@ -506,7 +769,6 @@ const SIPGoalPlanningForm = () => {
       let fileLoadSuccess = false;
       
       try {
-        // Method 1: Try to read file directly if in artifacts environment with file system API
         if (typeof window !== 'undefined' && window.fs && window.fs.readFile) {
           const fileContent = await window.fs.readFile(filePath, { encoding: 'utf8' });
           htmlContent = fileContent;
@@ -518,7 +780,6 @@ const SIPGoalPlanningForm = () => {
         }
       } catch (fsError) {
         try {
-          // Method 2: Try to fetch via HTTP endpoint from backend
           const response = await fetch(`${API_BASE_URL}/download-report?filepath=${encodeURIComponent(filePath)}`, {
             method: 'GET',
             headers: {
@@ -535,9 +796,7 @@ const SIPGoalPlanningForm = () => {
             throw new Error(`HTTP ${response.status}: ${response.statusText}`);
           }
         } catch (httpError) {
-          // Set error state when file loading fails
           addFundLogEntry('error', 'Error in processing - Fund recommendation file not found', new Date().toLocaleTimeString());
-          addFundLogEntry('error', `Errors: FS(${fsError.message}), HTTP(${httpError.message})`, new Date().toLocaleTimeString());
           
           setFundRecommendationError(true);
           setFundRecommendationCompleted(false);
@@ -548,13 +807,11 @@ const SIPGoalPlanningForm = () => {
         }
       }
       
-      // Only append filename if using real content
       if (fileLoadSuccess && loadMethod !== 'fallback mock') {
         htmlContent = appendFilenameToHtmlReport(htmlContent, filePath);
       }
       
       setFundRecommendationHtmlContent(htmlContent);
-      // Store the file path for display
       setFundRecommendationFilePath(filePath);
       
       if (fileLoadSuccess) {
@@ -565,12 +822,10 @@ const SIPGoalPlanningForm = () => {
       console.error('Error fetching Fund Recommendation HTML report:', error);
       addFundLogEntry('error', `Error in processing - Failed to load Fund Recommendation HTML report: ${error.message}`, new Date().toLocaleTimeString());
       
-      // Set error state when critical error occurs
       setFundRecommendationError(true);
       setFundRecommendationCompleted(false);
       setErrors({ general: 'Error in processing fund recommendation - Failed to load report. Please regenerate.' });
       
-      // Final fallback to mock content
       addFundLogEntry('info', 'Using mock fund recommendation report as final fallback', new Date().toLocaleTimeString());
       setFundRecommendationHtmlContent(generateMockFundRecommendationReport());
     }
@@ -581,18 +836,16 @@ const SIPGoalPlanningForm = () => {
     const displayPath = filePath || generatedFilePath || generatedFileName;
     if (!displayPath) return htmlContent;
     
-    // Check if filename is already in the content to avoid duplication
     if (htmlContent.includes(displayPath)) {
       return htmlContent;
     }
     
-    // Create filename footer HTML
     const filenameFooter = `
-      <div style="margin-top: 40px; padding: 20px; background: #f8f9fa; border-radius: 8px; border-top: 3px solid #007bff; text-align: center;">
-        <p style="margin: 0; color: #495057; font-size: 0.9rem; font-family: monospace;">
+      <div style="margin-top: 20px; padding: 12px; background: #f8f9fa; border-radius: 4px; border-top: 2px solid #007bff; text-align: center;">
+        <p style="margin: 0; color: #495057; font-size: 0.8rem; font-family: monospace;">
           <strong>Report Path:</strong> ${displayPath}
         </p>
-        <p style="margin: 5px 0 0 0; color: #6c757d; font-size: 0.8rem;">
+        <p style="margin: 3px 0 0 0; color: #6c757d; font-size: 0.7rem;">
           Generated on ${new Date().toLocaleString()}
         </p>
       </div>
@@ -600,7 +853,6 @@ const SIPGoalPlanningForm = () => {
     </body>
     </html>`;
     
-    // Replace the closing tags with our footer + closing tags
     return htmlContent.replace(
       /<\/div>\s*<\/body>\s*<\/html>\s*$/i,
       filenameFooter
@@ -619,17 +871,13 @@ const SIPGoalPlanningForm = () => {
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>SIP Investment Report</title>
         <style>
-            body { font-family: Arial, sans-serif; margin: 0; padding: 20px; background: #f5f5f5; }
-            .container { max-width: 800px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
-            .header { text-align: center; margin-bottom: 30px; color: #2c5aa0; }
-            .summary { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; border-radius: 8px; margin: 20px 0; }
-            .metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin: 20px 0; }
-            .metric { background: #f8f9fa; padding: 15px; border-radius: 8px; text-align: center; border-left: 4px solid #007bff; }
-            .metric-value { font-size: 1.5rem; font-weight: bold; color: #007bff; }
-            .chart-placeholder { background: #e9ecef; height: 200px; border-radius: 8px; display: flex; align-items: center; justify-content: center; margin: 20px 0; color: #6c757d; }
-            table { width: 100%; border-collapse: collapse; margin: 20px 0; }
-            th, td { padding: 12px; text-align: left; border-bottom: 1px solid #dee2e6; }
-            th { background: #f8f9fa; font-weight: 600; }
+            body { font-family: Arial, sans-serif; margin: 0; padding: 12px; background: #f5f5f5; }
+            .container { max-width: 800px; margin: 0 auto; background: white; padding: 16px; border-radius: 6px; box-shadow: 0 2px 6px rgba(0,0,0,0.1); }
+            .header { text-align: center; margin-bottom: 16px; color: #2c5aa0; }
+            .summary { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 12px; border-radius: 4px; margin: 12px 0; }
+            .metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin: 12px 0; }
+            .metric { background: #f8f9fa; padding: 10px; border-radius: 4px; text-align: center; border-left: 3px solid #007bff; }
+            .metric-value { font-size: 1.2rem; font-weight: bold; color: #007bff; }
         </style>
     </head>
     <body>
@@ -680,8 +928,6 @@ const SIPGoalPlanningForm = () => {
 
   // Generate mock Fund Recommendation HTML report for demo
   const generateMockFundRecommendationReport = () => {
-    const displayPath = fundRecommendationFilePath || fundRecommendationFileName || 'fund_recommendation_report.html';
-    
     return `
     <!DOCTYPE html>
     <html lang="en">
@@ -690,12 +936,12 @@ const SIPGoalPlanningForm = () => {
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>Fund Recommendation Report</title>
         <style>
-            body { font-family: Arial, sans-serif; margin: 0; padding: 20px; background: #f5f5f5; }
-            .container { max-width: 1000px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
-            .header { text-align: center; margin-bottom: 30px; color: #2c5aa0; }
-            .summary { background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; padding: 20px; border-radius: 8px; margin: 20px 0; }
-            .fund-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin: 20px 0; }
-            .fund-card { background: #f8f9fa; padding: 20px; border-radius: 8px; border-left: 4px solid #10b981; }
+            body { font-family: Arial, sans-serif; margin: 0; padding: 12px; background: #f5f5f5; }
+            .container { max-width: 1000px; margin: 0 auto; background: white; padding: 16px; border-radius: 6px; box-shadow: 0 2px 6px rgba(0,0,0,0.1); }
+            .header { text-align: center; margin-bottom: 16px; color: #2c5aa0; }
+            .summary { background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; padding: 12px; border-radius: 4px; margin: 12px 0; }
+            .fund-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 12px; margin: 12px 0; }
+            .fund-card { background: #f8f9fa; padding: 12px; border-radius: 4px; border-left: 3px solid #10b981; }
         </style>
     </head>
     <body>
@@ -726,9 +972,8 @@ const SIPGoalPlanningForm = () => {
     `;
   };
 
-  // Handle streaming calculation with completion tracking
+  // Handle streaming calculation with proper abort controller
   const handleCalculation = async () => {
-    // Check if already completed and not in error state
     if (sipGoalCompleted && !sipGoalError) {
       console.log('SIP Goal already completed successfully, skipping re-trigger');
       setCurrentStep('results');
@@ -744,8 +989,11 @@ const SIPGoalPlanningForm = () => {
       setStreamingProgress(0);
       setCurrentStep('streaming');
       setErrors({});
-      // Reset error state when starting calculation
       setSipGoalError(false);
+      
+      // Create abort controller for cancellation
+      const abortController = new AbortController();
+      abortControllerRef.current = abortController;
       
       const response = await fetch(`${API_BASE_URL}/calculate-sip`, {
         method: 'POST',
@@ -753,7 +1001,8 @@ const SIPGoalPlanningForm = () => {
           'Content-Type': 'application/json',
           'Accept': 'text/event-stream',
         },
-        body: JSON.stringify(formData)
+        body: JSON.stringify(formData),
+        signal: abortController.signal // Add abort signal
       });
 
       if (!response.ok) {
@@ -772,6 +1021,12 @@ const SIPGoalPlanningForm = () => {
             break;
           }
 
+          // Check if aborted
+          if (abortController.signal.aborted) {
+            console.log('Stream aborted by user');
+            break;
+          }
+
           const chunk = decoder.decode(value);
           const lines = chunk.split('\n');
           
@@ -786,40 +1041,26 @@ const SIPGoalPlanningForm = () => {
                 handleStreamEvent(eventData);
                 continue;
               } catch (jsonError) {
-                // Handle raw text messages
-                let progressIncremented = false;
-                
-                const agents = ['PlannerAgent', 'RetrieverAgent', 'ThinkerAgent', 'QAAgent', 'DistillerAgent', 'FormatterAgent', 'ReportGeneratorAgent'];
-                
-                for (const agent of agents) {
-                  if (rawData.includes(agent)) {
-                    setCurrentAgent(agent);
-                    setStreamingProgress(prev => Math.min(prev + 10, 85));
-                    addLogEntry('info', `Executing ${agent}`, new Date().toLocaleTimeString());
-                    progressIncremented = true;
-                    break;
+                // Apply filtering to ALL raw messages during streaming
+                const filteredMessage = parseAndFilterLogMessage(rawData);
+                if (filteredMessage) {
+                  if (rawData.includes('comprehensive_report.html')) {
+                    setGeneratedFileName('comprehensive_report.html');
+                    const pathMatch = rawData.match(/media[\\\/]generated[\\\/][\w\\\/]+[\\\/]comprehensive_report\.html/);
+                    if (pathMatch) {
+                      setGeneratedFilePath(pathMatch[0]);
+                      setReportPathForRecommendation(pathMatch[0]);
+                      fetchHtmlReport(pathMatch[0]);
+                    }
                   }
-                }
-                
-                if (!progressIncremented && rawData.includes('completed')) {
-                  setStreamingProgress(prev => Math.min(prev + 5, 85));
-                  addLogEntry('success', rawData, new Date().toLocaleTimeString());
-                }
-                
-                if (rawData.includes('comprehensive_report.html')) {
-                  setGeneratedFileName('comprehensive_report.html');
-                  const pathMatch = rawData.match(/media[\\\/]generated[\\\/][\w\\\/]+[\\\/]comprehensive_report\.html/);
-                  if (pathMatch) {
-                    setGeneratedFilePath(pathMatch[0]);
-                    setReportPathForRecommendation(pathMatch[0]);
-                    fetchHtmlReport(pathMatch[0]);
-                  }
-                  setStreamingProgress(90);
-                  addLogEntry('success', 'Generated comprehensive_report.html', new Date().toLocaleTimeString());
-                }
-                
-                if (rawData.length > 3 && !rawData.startsWith('{') && !progressIncremented) {
-                  addLogEntry('info', rawData, new Date().toLocaleTimeString());
+                  
+                  // Only add to logs if it passed filtering
+                  setStreamLogs(prev => [...prev, {
+                    id: Date.now() + Math.random(),
+                    type: rawData.includes('completed') ? 'success' : 'info',
+                    message: filteredMessage,
+                    timestamp: new Date().toLocaleTimeString()
+                  }]);
                 }
               }
             }
@@ -827,23 +1068,25 @@ const SIPGoalPlanningForm = () => {
         }
       } finally {
         reader.releaseLock();
+        abortControllerRef.current = null;
       }
       
     } catch (error) {
+      if (error.name === 'AbortError') {
+        addLogEntry('warning', 'Stream cancelled by user', new Date().toLocaleTimeString());
+        return;
+      }
+      
       const errorMessage = error.message || 'Stream connection failed';
       setErrors({ general: `Calculation failed: ${errorMessage}` });
       addLogEntry('error', `${errorMessage}`, new Date().toLocaleTimeString());
       console.error('Calculation error:', error);
-      // Set error state to allow re-triggering
       setSipGoalError(true);
     } finally {
       setIsStreaming(false);
+      abortControllerRef.current = null;
       
       if (streamingProgress >= 90) {
-        setStreamingProgress(100);
-        setCurrentAgent('');
-        
-        // Mark SIP goal as completed successfully
         setSipGoalCompleted(true);
         setSipGoalError(false);
         
@@ -870,7 +1113,7 @@ const SIPGoalPlanningForm = () => {
     }
   };
 
-  // Handle individual stream events with improved progress tracking
+  // Enhanced SIP Stream Event Handler
   const handleStreamEvent = (eventData) => {
     const { type, data, timestamp } = eventData;
     const timeStr = new Date((timestamp || Date.now() / 1000) * 1000).toLocaleTimeString();
@@ -878,41 +1121,38 @@ const SIPGoalPlanningForm = () => {
     switch (type) {
       case 'connection_established':
         addLogEntry('info', 'Connection established', timeStr);
-        setCurrentAgent('SIPGoalPlannerAgent');
-        setStreamingProgress(10);
         break;
         
       case 'prompt_generated':
         addLogEntry('info', 'Prompt generated, starting agent execution...', timeStr);
-        setCurrentAgent('SIPGoalPlannerAgent');
-        setStreamingProgress(25);
         break;
         
       case 'file_generated':
-        if (data.filename) {
+        if (data.filename === 'comprehensive_report.html') {
           setGeneratedFileName(data.filename);
+          
+          // Extract and store SIP session ID
           if (data.filepath) {
+            const sessionId = data.session_id || extract_session_id_from_path(data.filepath);
+            if (sessionId) {
+              setSipSessionId(sessionId);
+              console.log(`SIP Session ID tracked: ${sessionId}`);
+            }
+            
             setGeneratedFilePath(data.filepath);
             setReportPathForRecommendation(data.filepath);
-          }
-          addLogEntry('success', `Generated file: ${data.filename}`, timeStr);
-          
-          if (data.filename.endsWith('.html') || data.filepath?.endsWith('.html')) {
-            const filePath = data.filepath || data.filename;
-            addLogEntry('info', `Fetching HTML report for display...`, timeStr);
-            setCurrentAgent('ReportGeneratorAgent');
-            fetchHtmlReport(filePath);
+            addLogEntry('success', `Generated SIP file: ${data.filename} (Session: ${sessionId})`, timeStr);
+            
+            // Fetch HTML report for SIP
+            addLogEntry('info', `Fetching SIP HTML report for display...`, timeStr);
+            fetchHtmlReport(data.filepath);
           }
         }
-        setStreamingProgress(90);
         break;
         
       case 'stream_complete':
         addLogEntry('success', 'Stream completed successfully', timeStr);
-        setCurrentAgent('');
-        setStreamingProgress(100);
         
-        // Mark SIP goal as completed successfully
         setSipGoalCompleted(true);
         setSipGoalError(false);
         
@@ -940,87 +1180,43 @@ const SIPGoalPlanningForm = () => {
       case 'stream_error':
       case 'fatal_error':
         addLogEntry('error', `${data.error || data.message}`, timeStr);
-        setCurrentAgent('');
         setErrors({ general: data.error || data.message });
-        // Set error state to allow re-triggering
         setSipGoalError(true);
         break;
         
       case 'stream_end':
         addLogEntry('info', 'Stream ended', timeStr);
-        setCurrentAgent('');
         break;
         
-      // Better agent processing detection
       case 'agent_processing':
         if (data.agent) {
-          setCurrentAgent(data.agent);
-          setStreamingProgress(prev => Math.min(prev + 10, 85));
           addLogEntry('info', `Processing with ${formatAgentName(data.agent)}`, timeStr);
         }
         break;
         
       case 'agent_response':
         const message = data.message || '';
-        
-        // Better agent detection from messages with progress updates
-        const agentPatterns = [
-          { pattern: /PlannerAgent/i, agent: 'PlannerAgent', progress: 40 },
-          { pattern: /SIPGoalPlannerAgent/i, agent: 'SIPGoalPlannerAgent', progress: 30 },
-          { pattern: /RetrieverAgent/i, agent: 'RetrieverAgent', progress: 50 },
-          { pattern: /ThinkerAgent/i, agent: 'ThinkerAgent', progress: 60 },
-          { pattern: /QAAgent/i, agent: 'QAAgent', progress: 70 },
-          { pattern: /DistillerAgent/i, agent: 'DistillerAgent', progress: 55 },
-          { pattern: /FormatterAgent/i, agent: 'FormatterAgent', progress: 75 },
-          { pattern: /ReportGeneratorAgent/i, agent: 'ReportGeneratorAgent', progress: 80 }
-        ];
-        
-        for (const { pattern, agent, progress } of agentPatterns) {
-          if (pattern.test(message)) {
-            setCurrentAgent(agent);
-            setStreamingProgress(prev => Math.max(prev, progress));
-            addLogEntry('info', `Executing ${formatAgentName(agent)}`, timeStr);
-            break;
-          }
+        if (parseAndFilterLogMessage(message)) {
+          addLogEntry('info', message, timeStr);
         }
-        
-        addLogEntry('info', message, timeStr);
         break;
         
       default:
         if (data && typeof data === 'object') {
           const message = data.message || JSON.stringify(data);
-          
-          // Additional fallback agent detection with progressive updates
-          const agentKeywords = [
-            { keyword: 'PlannerAgent', progress: 40 },
-            { keyword: 'SIPGoalPlannerAgent', progress: 30 },
-            { keyword: 'RetrieverAgent', progress: 50 },
-            { keyword: 'DistillerAgent', progress: 55 },
-            { keyword: 'ThinkerAgent', progress: 60 },
-            { keyword: 'QAAgent', progress: 70 },
-            { keyword: 'FormatterAgent', progress: 75 },
-            { keyword: 'ReportGeneratorAgent', progress: 80 }
-          ];
-          
-          for (const { keyword, progress } of agentKeywords) {
-            if (message.includes(keyword)) {
-              setCurrentAgent(keyword);
-              setStreamingProgress(prev => Math.max(prev, progress));
-              addLogEntry('info', `Processing with ${formatAgentName(keyword)}`, timeStr);
-              break;
-            }
+          if (parseAndFilterLogMessage(message)) {
+            addLogEntry('info', message, timeStr);
           }
-          
-          addLogEntry('info', message, timeStr);
         } else if (data && data.message) {
-          addLogEntry('info', data.message, timeStr);
+          if (parseAndFilterLogMessage(data.message)) {
+            addLogEntry('info', data.message, timeStr);
+          }
         }
         break;
     }
   };
 
-  // Handle fund recommendation stream events with proper agent detection
+  // Enhanced Fund Recommendation Stream Event Handler
   const handleFundRecommendationStreamEvent = (eventData) => {
     const { type, data, timestamp } = eventData;
     const timeStr = new Date((timestamp || Date.now() / 1000) * 1000).toLocaleTimeString();
@@ -1028,121 +1224,123 @@ const SIPGoalPlanningForm = () => {
     switch (type) {
       case 'connection_established':
         addFundLogEntry('info', 'Fund recommendation connection established', timeStr);
-        setFundCurrentAgent('FundRecommendationOrchestrator');
-        setFundRecommendationProgress(10);
+        if (data.sip_session_reference) {
+          addFundLogEntry('info', `Using SIP session reference: ${data.sip_session_reference}`, timeStr);
+        }
         break;
         
       case 'file_generated':
-        if (data.filename) {
+        if (data.filename === 'comprehensive_report.html') {
           setFundRecommendationFileName(data.filename);
-          if (data.filepath) {
-            setFundRecommendationFilePath(data.filepath);
-          }
-          addFundLogEntry('success', `Generated fund recommendation file: ${data.filename}`, timeStr);
           
-          if (data.filename.endsWith('.html') || data.filepath?.endsWith('.html')) {
-            const filePath = data.filepath || data.filename;
-            addFundLogEntry('info', `Fetching Fund Recommendation HTML report for display...`, timeStr);
-            fetchFundRecommendationHtmlReport(filePath);
+          if (data.filepath) {
+            const sessionId = data.session_id || extract_session_id_from_path(data.filepath);
+            if (sessionId) {
+              setFundSessionId(sessionId);
+              setFundRecommendationFilePath(data.filepath);
+              
+              // Verify this is different from SIP session
+              if (sipSessionId && sessionId === sipSessionId) {
+                addFundLogEntry('warning', 
+                  `Session ID matches SIP session (${sessionId}) - potential issue`, timeStr);
+              } else {
+                addFundLogEntry('success', 
+                  `Generated fund file: ${data.filename} in session ${sessionId} (different from SIP: ${sipSessionId})`, timeStr);
+              }
+              
+              // Additional metadata logging
+              if (data.original_sip_session) {
+                addFundLogEntry('info', 
+                  `Fund session ${sessionId} vs SIP session ${data.original_sip_session}`, timeStr);
+              }
+              
+              // Fetch the fund recommendation HTML
+              addFundLogEntry('info', `Fetching Fund Recommendation HTML report...`, timeStr);
+              fetchFundRecommendationHtmlReport(data.filepath);
+            }
           }
         }
-        setFundRecommendationProgress(95);
         break;
         
       case 'stream_complete':
         addFundLogEntry('success', 'Fund recommendation completed successfully', timeStr);
-        setFundCurrentAgent('');
-        setFundRecommendationProgress(100);
         
-        // Mark fund recommendation as completed successfully
         setFundRecommendationCompleted(true);
         setFundRecommendationError(false);
         
         if (data.result) {
           setFundRecommendationResult(data.result);
+          
+          // Log session comparison information
+          if (data.result.session_comparison) {
+            addFundLogEntry('info', 
+              `Session comparison: ${data.result.session_comparison}`, timeStr);
+          }
         }
         
+        // Enhanced redirect logic with session verification
         setTimeout(() => {
-          setCurrentStep('fund_recommendation_result');
-          addFundLogEntry('info', 'Automatically redirected to Fund Recommendation Result tab', new Date().toLocaleTimeString());
+          // Get the most recent session data
+          const currentFundSessionId = fundSessionId;
+          const currentSipSessionId = sipSessionId;
+          
+          // Always redirect if we have a fund session, even if verification isn't perfect
+          if (currentFundSessionId) {
+            setCurrentStep('fund_recommendation_result');
+            if (currentFundSessionId !== currentSipSessionId) {
+              addFundLogEntry('info', `Redirected to Fund Recommendation Results (Fund: ${currentFundSessionId}, SIP: ${currentSipSessionId})`, timeStr);
+            } else {
+              addFundLogEntry('warning', `Session IDs match but redirecting anyway (${currentFundSessionId})`, timeStr);
+            }
+          } else {
+            // Fallback: redirect anyway since fund recommendation completed
+            setCurrentStep('fund_recommendation_result');
+            addFundLogEntry('warning', 'Session ID not available, redirecting based on completion', timeStr);
+          }
         }, 2000);
         break;
         
       case 'stream_error':
       case 'fatal_error':
         addFundLogEntry('error', `${data.error || data.message}`, timeStr);
-        setFundCurrentAgent('');
         setErrors({ general: data.error || data.message });
-        // Set error state to allow re-triggering
         setFundRecommendationError(true);
         break;
         
-      // Enhanced agent processing detection
       case 'agent_processing':
         if (data.agent) {
-          setFundCurrentAgent(data.agent);
-          setFundRecommendationProgress(prev => Math.min(prev + 10, 85));
           addFundLogEntry('info', `Processing with ${formatAgentName(data.agent)}`, timeStr);
         }
         break;
         
       case 'agent_response':
         const message = data.message || '';
-        
-        // Better agent detection from messages
-        const agentPatterns = [
-          { pattern: /FundRecommendationAgent/i, agent: 'FundRecommendationAgent' },
-          { pattern: /RetrieverAgent/i, agent: 'RetrieverAgent' },
-          { pattern: /ThinkerAgent/i, agent: 'ThinkerAgent' },
-          { pattern: /QAAgent/i, agent: 'QAAgent' },
-          { pattern: /DistillerAgent/i, agent: 'DistillerAgent' },
-          { pattern: /FormatterAgent/i, agent: 'FormatterAgent' },
-          { pattern: /ReportGeneratorAgent/i, agent: 'ReportGeneratorAgent' },
-          { pattern: /FundRecommendationOrchestrator/i, agent: 'FundRecommendationOrchestrator' }
-        ];
-        
-        for (const { pattern, agent } of agentPatterns) {
-          if (pattern.test(message)) {
-            setFundCurrentAgent(agent);
-            setFundRecommendationProgress(prev => Math.min(prev + 5, 85));
-            addFundLogEntry('info', `Executing ${formatAgentName(agent)}`, timeStr);
-            break;
-          }
+        if (parseAndFilterLogMessage(message)) {
+          addFundLogEntry('info', message, timeStr);
         }
-        
-        addFundLogEntry('info', message, timeStr);
         break;
         
       default:
         if (data && data.message) {
           const message = data.message;
-          
-          // Additional fallback agent detection
-          const agentKeywords = ['FundRecommendationAgent', 'RetrieverAgent', 'ThinkerAgent', 'QAAgent', 'DistillerAgent'];
-          for (const keyword of agentKeywords) {
-            if (message.includes(keyword)) {
-              setFundCurrentAgent(keyword);
-              setFundRecommendationProgress(prev => Math.min(prev + 5, 85));
-              addFundLogEntry('info', `Processing with ${formatAgentName(keyword)}`, timeStr);
-              break;
-            }
+          if (parseAndFilterLogMessage(message)) {
+            addFundLogEntry('info', message, timeStr);
           }
-          
-          addFundLogEntry('info', message, timeStr);
         }
         break;
     }
   };
 
-  // Handle fund recommendation with completion tracking
+  // FIXED: Enhanced fund recommendation handler with proper completion checking
   const handleFundRecommendation = async (reportPath) => {
-    // Check if already completed and not in error state
+    // FIX: Check completion status and handle appropriately
     if (fundRecommendationCompleted && !fundRecommendationError) {
-      console.log('Fund Recommendation already completed successfully, skipping re-trigger');
+      console.log('Fund Recommendation already completed successfully, navigating to results');
       setCurrentStep('fund_recommendation_result');
       return;
     }
 
+    // FIX: Only start processing if not completed or has error
     try {
       setIsFundRecommendationStreaming(true);
       setFundRecommendationLogs([]);
@@ -1153,7 +1351,6 @@ const SIPGoalPlanningForm = () => {
       setFundRecommendationHtmlContent('');
       setCurrentStep('fund_recommendation');
       setErrors({});
-      // Reset error state when starting fund recommendation
       setFundRecommendationError(false);
       
       const response = await fetch(`${API_BASE_URL}/fund-recommendation`, {
@@ -1198,7 +1395,27 @@ const SIPGoalPlanningForm = () => {
                 handleFundRecommendationStreamEvent(eventData);
                 continue;
               } catch (jsonError) {
-                addFundLogEntry('info', rawData, new Date().toLocaleTimeString());
+                // Apply filtering to raw messages
+                const filteredMessage = parseAndFilterLogMessage(rawData);
+                if (filteredMessage) {
+                  // Check for fund recommendation file generation
+                  if (rawData.toLowerCase().includes('fund') && rawData.includes('.html')) {
+                    const pathMatch = rawData.match(/media[\\\/]generated[\\\/][\w\\\/]+[\\\/][^\\\/]*\.html/);
+                    if (pathMatch) {
+                      setFundRecommendationFilePath(pathMatch[0]);
+                      addFundLogEntry('info', `Fund recommendation file generated: ${pathMatch[0]}`, new Date().toLocaleTimeString());
+                      fetchFundRecommendationHtmlReport(pathMatch[0]);
+                    }
+                  }
+                  
+                  // Only add to logs if it passed filtering
+                  setFundRecommendationLogs(prev => [...prev, {
+                    id: Date.now() + Math.random(),
+                    type: rawData.includes('completed') ? 'success' : 'info',
+                    message: filteredMessage,
+                    timestamp: new Date().toLocaleTimeString()
+                  }]);
+                }
               }
             }
           }
@@ -1212,33 +1429,63 @@ const SIPGoalPlanningForm = () => {
       setErrors({ general: `Fund recommendation failed: ${errorMessage}` });
       addFundLogEntry('error', errorMessage, new Date().toLocaleTimeString());
       console.error('Fund recommendation error:', error);
-      // Set error state to allow re-triggering
       setFundRecommendationError(true);
     } finally {
       setIsFundRecommendationStreaming(false);
       
-      if (fundRecommendationProgress >= 90) {
-        setFundRecommendationProgress(100);
-        setFundCurrentAgent('');
+      // FIX: Only mark as completed if we reached sufficient progress
+      if (fundRecommendationProgress >= 90 || fundRecommendationFilePath) {
         addFundLogEntry('success', 'Fund recommendation completed', new Date().toLocaleTimeString());
+        setFundRecommendationCompleted(true);
+        setFundRecommendationError(false);
       }
     }
   };
 
-  // Stop streaming
+  // Stop streaming with proper abort controller and state cleanup
   const stopStreaming = () => {
-    if (eventSourceRef.current) {
-      eventSourceRef.current.close();
-      eventSourceRef.current = null;
+    console.log('User clicked Stop - aborting SIP calculation...');
+    
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
     }
+    
+    // Immediately clear all streaming states
     setIsStreaming(false);
-    addLogEntry('warning', 'Stream stopped by user', new Date().toLocaleTimeString());
+    setCurrentAgent(''); // This stops the spinner immediately
+    setIsInAgentLoopProcessing(false);
+    setStreamingProgress(0); // Reset progress
+    
+    // Add termination log
+    addLogEntry('warning', 'Stream stopped by user - Process terminated', new Date().toLocaleTimeString());
+    
+    // Optional: Send explicit termination request to backend
+    fetch(`${API_BASE_URL}/terminate-process`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'sip_calculation' })
+    }).catch(err => console.log('Termination request failed (expected):', err));
   };
 
   // Stop fund recommendation streaming
   const stopFundRecommendationStreaming = () => {
+    console.log('User clicked Stop - aborting Fund Recommendation...');
+    
+    // Immediately clear all fund streaming states
     setIsFundRecommendationStreaming(false);
-    addFundLogEntry('warning', 'Fund recommendation stream stopped by user', new Date().toLocaleTimeString());
+    setFundCurrentAgent(''); // This stops the spinner immediately
+    setFundRecommendationProgress(0); // Reset progress
+    
+    // Add termination log
+    addFundLogEntry('warning', 'Fund recommendation stream stopped by user - Process terminated', new Date().toLocaleTimeString());
+    
+    // Optional: Send explicit termination request to backend
+    fetch(`${API_BASE_URL}/terminate-process`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'fund_recommendation' })
+    }).catch(err => console.log('Fund termination request failed (expected):', err));
   };
 
   // Check if form is complete
@@ -1260,8 +1507,9 @@ const SIPGoalPlanningForm = () => {
     return true;
   };
 
-  // Reset form to start over - enhanced to clear all tracking states
+  // Enhanced Reset Function
   const handleStartOver = () => {
+    // Existing reset logic...
     setFormData({ currency: 'INR' });
     setConditionalFields([]);
     setValidationResult(null);
@@ -1276,6 +1524,7 @@ const SIPGoalPlanningForm = () => {
     setStreamingProgress(0);
     setCurrentAgent('');
     setIsStreaming(false);
+    setIsInAgentLoopProcessing(false);
     
     setReportPathForRecommendation('');
     setFundRecommendationLogs([]);
@@ -1287,18 +1536,21 @@ const SIPGoalPlanningForm = () => {
     setFundRecommendationFilePath('');
     setFundRecommendationHtmlContent('');
     
-    // Reset completion tracking states
     setSipGoalCompleted(false);
     setFundRecommendationCompleted(false);
     setSipGoalError(false);
     setFundRecommendationError(false);
+    
+    // NEW: Reset session tracking
+    setSipSessionId('');
+    setFundSessionId('');
     
     if (eventSourceRef.current) {
       eventSourceRef.current.close();
       eventSourceRef.current = null;
     }
     
-    console.log('Form reset completed - all data cleared including completion tracking');
+    console.log('Form reset completed - all data cleared including session tracking');
   };
 
   // Navigation handlers
@@ -1318,6 +1570,7 @@ const SIPGoalPlanningForm = () => {
     }
   };
 
+  // FIXED: Enhanced navigation logic for proper tab 5 <-> tab 6 handling
   const handlePrevious = () => {
     switch (currentStep) {
       case 'validation':
@@ -1333,7 +1586,9 @@ const SIPGoalPlanningForm = () => {
         setCurrentStep('results');
         break;
       case 'fund_recommendation_result':
-        setCurrentStep('fund_recommendation');
+        // FIX: Always go back to results tab, never re-trigger processing
+        setCurrentStep('results');
+        addFundLogEntry('info', 'Navigated back to SIP Goal Results tab', new Date().toLocaleTimeString());
         break;
     }
   };
@@ -1357,9 +1612,47 @@ const SIPGoalPlanningForm = () => {
       'FundRecommendationOrchestrator': 'Fund Recommendation Orchestrator',
       'ReportReader': 'Report Reader Agent',
       'TemplateProcessor': 'Template Processor Agent',
-      'TemplateLoader': 'Template Loader Agent'
+      'TemplateLoader': 'Template Loader Agent',
+      'Connection': 'Connection',
+      'AgentLoop4': 'AgentLoop4',
+      'FileGeneration': 'File Generation'
     };
     return agentNames[agent] || 'Processing Agent';
+  };
+
+  // Session debugging display function
+  const renderSessionDebugging = () => {
+    if (!sipSessionId && !fundSessionId) return null;
+    
+    return (
+      <div className="session-debugging" style={{
+        background: '#f8f9fa',
+        border: '1px solid #dee2e6', 
+        borderRadius: '4px',
+        padding: '12px',
+        marginBottom: '12px'
+      }}>
+        <h5 style={{margin: '0 0 10px 0', color: '#495057'}}>Session Information</h5>
+        <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px'}}>
+          <div>
+            <label style={{fontWeight: '600', color: '#6c757d', fontSize: '0.8rem'}}>
+              SIP Session ID:
+            </label>
+            <div style={{fontFamily: 'monospace', fontSize: '0.85rem'}}>
+              {sipSessionId || 'Not set'}
+            </div>
+          </div>
+          <div>
+            <label style={{fontWeight: '600', color: '#6c757d', fontSize: '0.8rem'}}>
+              Fund Session ID:
+            </label>
+            <div style={{fontFamily: 'monospace', fontSize: '0.85rem'}}>
+              {fundSessionId || 'Not set'}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
   };
 
   // Render form field
@@ -1421,6 +1714,45 @@ const SIPGoalPlanningForm = () => {
     return `${symbols[currency] || '₹'} ${amount?.toLocaleString() || '0'}`;
   };
 
+  // Render captured parameters for Tab 2
+  const renderCapturedParameters = () => {
+    const allParameters = { ...formData };
+    
+    if (validationResult) {
+      allParameters.time_horizon_years = validationResult.time_horizon_years;
+      allParameters.total_months = validationResult.total_months;
+    }
+
+    return (
+      <div className="captured-parameters">
+        <h4>All Captured Parameters</h4>
+        <div className="parameters-grid">
+          {Object.entries(allParameters).map(([key, value]) => {
+            if (value === null || value === undefined || value === '') return null;
+            
+            const displayKey = key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+            
+            let displayValue = value;
+            if (key.includes('amount') && typeof value === 'number') {
+              displayValue = formatCurrency(value, formData.currency);
+            } else if (typeof value === 'number') {
+              displayValue = value.toLocaleString();
+            } else if (typeof value === 'string') {
+              displayValue = value;
+            }
+            
+            return (
+              <div key={key} className="parameter-item">
+                <label className="parameter-label">{displayKey}:</label>
+                <span className="parameter-value">{displayValue}</span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
+
   // Render loading state
   if (loading && !formConfig) {
     return (
@@ -1464,23 +1796,11 @@ const SIPGoalPlanningForm = () => {
           <span className="step-number">5</span>
           <span className="step-label">Fund Recommendation Processing</span>
         </div>
-        <div className={`step ${currentStep === 'fund_recommendation_result' ? 'active' : ''}`}>
+        <div className={`step ${currentStep === 'fund_recommendation_result' ? 'active fund-result-step' : ''}`}>
           <span className="step-number">6</span>
           <span className="step-label">Fund Recommendation Result</span>
         </div>
       </div>
-
-      {/* New SIP Calculation button for all steps (except form) */}
-      {currentStep !== 'form' && (
-        <div className="new-calculation-button-container">
-          <button 
-            onClick={handleStartOver}
-            className="btn-new-calculation"
-          >
-            New SIP Calculation
-          </button>
-        </div>
-      )}
 
       {/* Form Section */}
       {currentStep === 'form' && (
@@ -1518,7 +1838,7 @@ const SIPGoalPlanningForm = () => {
         </div>
       )}
 
-      {/* Validation Results Section */}
+      {/* TAB 2: Validation Results Section */}
       {currentStep === 'validation' && validationResult && (
         <div className="validation-section">
           <h3 className="section-title">Form Validation Results</h3>
@@ -1534,9 +1854,17 @@ const SIPGoalPlanningForm = () => {
               <p><strong>Goal Type:</strong> {formData.goal_type}</p>
               <p><strong>Target Amount:</strong> {formatCurrency(formData.target_amount_min, formData.currency)}</p>
             </div>
+            
+            {renderCapturedParameters()}
           </div>
 
           <div className="form-actions">
+            <button 
+              onClick={handleStartOver}
+              className="btn-new-calculation"
+            >
+              New SIP Calculation
+            </button>
             <button 
               onClick={handlePrevious}
               className="btn-secondary"
@@ -1554,7 +1882,7 @@ const SIPGoalPlanningForm = () => {
         </div>
       )}
 
-      {/* SIP Goal Processing Section */}
+      {/* TAB 3: SIP Goal Processing Section */}
       {currentStep === 'streaming' && (
         <div className="streaming-section">
           <h3 className="section-title">SIP Goal Processing in Progress</h3>
@@ -1579,6 +1907,14 @@ const SIPGoalPlanningForm = () => {
             <span className="progress-text">{streamingProgress}%</span>
           </div>
           
+          {/* Generated Report Path - ONE LINE */}
+          {generatedFilePath && (
+            <div className="report-path-display-inline">
+              <span className="report-path-label">Generated Report Path:</span>
+              <span className="report-path-value">{generatedFilePath}</span>
+            </div>
+          )}
+          
           <div className="streaming-logs">
             <div className="logs-header">
               <h4>Processing Logs</h4>
@@ -1602,6 +1938,12 @@ const SIPGoalPlanningForm = () => {
 
           <div className="form-actions">
             <button 
+              onClick={handleStartOver}
+              className="btn-new-calculation"
+            >
+              New SIP Calculation
+            </button>
+            <button 
               onClick={handlePrevious}
               className="btn-secondary"
               disabled={isStreaming}
@@ -1620,12 +1962,11 @@ const SIPGoalPlanningForm = () => {
         </div>
       )}
 
-      {/* SIP Goal Results Section */}
+      {/* TAB 4: SIP Goal Results Section */}
       {currentStep === 'results' && (
         <div className="results-section">
           <h3 className="section-title">Your SIP Goal Calculation Report</h3>
           
-          {/* Error handling with regenerate option */}
           {sipGoalError && (
             <div className="error-section">
               <div className="error-message">
@@ -1646,11 +1987,11 @@ const SIPGoalPlanningForm = () => {
             </div>
           )}
           
-          {/* Display file path */}
+          {/* Generated Report Path - ONE LINE */}
           {generatedFilePath && !sipGoalError && (
-            <div className="file-path-display">
-              <label className="file-path-label">Generated Report Path:</label>
-              <div className="file-path-text">{generatedFilePath}</div>
+            <div className="report-path-display-inline">
+              <span className="report-path-label">Generated Report Path:</span>
+              <span className="report-path-value">{generatedFilePath}</span>
             </div>
           )}
           
@@ -1696,21 +2037,47 @@ const SIPGoalPlanningForm = () => {
 
           <div className="form-actions">
             <button 
+              onClick={handleStartOver}
+              className="btn-new-calculation"
+            >
+              New SIP Calculation
+            </button>
+            <button 
               onClick={handlePrevious}
               className="btn-secondary"
             >
               Previous
             </button>
             
+            {/* FIXED: Enhanced button logic based on completion state */}
             {reportPathForRecommendation && !sipGoalError && (
               <button 
-                onClick={() => handleFundRecommendation(reportPathForRecommendation)}
+                onClick={() => {
+                  if (fundRecommendationCompleted && !fundRecommendationError) {
+                    // If already completed successfully, go directly to results
+                    setCurrentStep('fund_recommendation_result');
+                    console.log('Navigating to completed fund recommendation results');
+                  } else if (fundRecommendationError) {
+                    // If there was an error, restart the process
+                    setFundRecommendationError(false);
+                    setFundRecommendationCompleted(false);
+                    setFundRecommendationHtmlContent('');
+                    setFundRecommendationFilePath('');
+                    handleFundRecommendation(reportPathForRecommendation);
+                    console.log('Restarting fund recommendation due to previous error');
+                  } else {
+                    // If not started or incomplete, start the process
+                    handleFundRecommendation(reportPathForRecommendation);
+                    console.log('Starting new fund recommendation process');
+                  }
+                }}
                 className="btn-primary"
-                disabled={fundRecommendationCompleted && !fundRecommendationError}
               >
                 {fundRecommendationCompleted && !fundRecommendationError 
                   ? 'View Fund Recommendations' 
-                  : 'Get Fund Recommendations'}
+                  : fundRecommendationError 
+                    ? 'Retry Fund Recommendations'
+                    : 'Get Fund Recommendations'}
               </button>
             )}
           </div>
@@ -1722,9 +2089,10 @@ const SIPGoalPlanningForm = () => {
         <div className="fund-recommendation-section">
           <h3 className="section-title">Fund Recommendation Processing</h3>
           
-          <div className="report-path-display">
-            <h4>Analyzing SIP Report:</h4>
-            <p className="report-path">{reportPathForRecommendation}</p>
+          {/* Analyzing SIP Report - ONE LINE */}
+          <div className="report-path-display-inline">
+            <span className="report-path-label">Analyzing SIP Report:</span>
+            <span className="report-path-value">{reportPathForRecommendation}</span>
           </div>
 
           {fundCurrentAgent && (
@@ -1746,6 +2114,14 @@ const SIPGoalPlanningForm = () => {
             </div>
             <span className="progress-text">{fundRecommendationProgress}%</span>
           </div>
+
+          {/* Fund Recommendation Report Path - ONE LINE */}
+          {fundRecommendationFilePath && (
+            <div className="report-path-display-inline">
+              <span className="report-path-label">Generated Report Path:</span>
+              <span className="report-path-value">{fundRecommendationFilePath}</span>
+            </div>
+          )}
 
           <div className="streaming-logs">
             <div className="logs-header">
@@ -1770,6 +2146,12 @@ const SIPGoalPlanningForm = () => {
 
           <div className="form-actions">
             <button 
+              onClick={handleStartOver}
+              className="btn-new-calculation"
+            >
+              New SIP Calculation
+            </button>
+            <button 
               onClick={handlePrevious}
               className="btn-secondary"
               disabled={isFundRecommendationStreaming}
@@ -1788,12 +2170,14 @@ const SIPGoalPlanningForm = () => {
         </div>
       )}
 
-      {/* Fund Recommendation Result Section with error handling */}
+      {/* FIXED: TAB 6 Fund Recommendation Result Section - ENHANCED DISPLAY */}
       {currentStep === 'fund_recommendation_result' && (
         <div className="fund-result-section">
           <h3 className="section-title">Fund Recommendation Results</h3>
           
-          {/* Error handling with regenerate option */}
+          {/* Add session debugging display before the error section */}
+          {renderSessionDebugging()}
+          
           {fundRecommendationError && (
             <div className="error-section">
               <div className="error-message">
@@ -1804,6 +2188,8 @@ const SIPGoalPlanningForm = () => {
                   onClick={() => {
                     setFundRecommendationError(false);
                     setFundRecommendationCompleted(false);
+                    setFundRecommendationHtmlContent('');
+                    setFundRecommendationFilePath('');
                     setCurrentStep('results');
                   }}
                   className="btn-regenerate"
@@ -1814,27 +2200,27 @@ const SIPGoalPlanningForm = () => {
             </div>
           )}
           
-          {/* Display fund recommendation file path */}
+          {/* Fund Recommendation Report Path - ONE LINE */}
           {fundRecommendationFilePath && !fundRecommendationError && (
-            <div className="file-path-display">
-              <label className="file-path-label">Generated Fund Recommendation Path:</label>
-              <div className="file-path-text">{fundRecommendationFilePath}</div>
+            <div className="report-path-display-inline">
+              <span className="report-path-label">Generated Report Path:</span>
+              <span className="report-path-value">{fundRecommendationFilePath}</span>
             </div>
           )}
           
-          {/* HTML report display similar to SIP results */}
+          {/* ENHANCED: Fund Recommendation HTML Report Display */}
           {fundRecommendationHtmlContent && !fundRecommendationError && (
-            <div className="html-report-section">
-              <div className="report-header">
+            <div className="html-report-section fund-report-section">
+              <div className="report-header fund-report-header">
                 <h4>Fund Recommendation Report</h4>
                 <div className="report-controls">
                   {(fundRecommendationFilePath || fundRecommendationFileName) && (
-                    <span className="report-filename">
+                    <span className="report-filename fund-report-filename">
                       {fundRecommendationFilePath || fundRecommendationFileName}
                     </span>
                   )}
                   <button 
-                    className="btn-download"
+                    className="btn-download fund-btn-download"
                     onClick={() => {
                       const blob = new Blob([fundRecommendationHtmlContent], { type: 'text/html' });
                       const url = URL.createObjectURL(blob);
@@ -1847,7 +2233,7 @@ const SIPGoalPlanningForm = () => {
                       URL.revokeObjectURL(url);
                     }}
                   >
-                    Download Report
+                    Download Fund Report
                   </button>
                 </div>
               </div>
@@ -1863,9 +2249,10 @@ const SIPGoalPlanningForm = () => {
             </div>
           )}
 
-          {!fundRecommendationHtmlContent && !fundRecommendationError && (
+          {/* FIX: Enhanced fallback display when HTML content is not available */}
+          {!fundRecommendationHtmlContent && !fundRecommendationError && fundRecommendationCompleted && (
             <div className="fund-results">
-              <h4>Fund Recommendation Analysis</h4>
+              <h4>Fund Recommendation Analysis Completed</h4>
               <div className="fund-results-content">
                 <p>Fund recommendation analysis completed successfully.</p>
                 
@@ -1879,27 +2266,91 @@ const SIPGoalPlanningForm = () => {
                         readOnly 
                         className="form-input file-input"
                       />
-                      <button className="btn-download">Open File</button>
+                      <button 
+                        className="btn-download"
+                        onClick={() => {
+                          if (fundRecommendationFilePath) {
+                            fetchFundRecommendationHtmlReport(fundRecommendationFilePath);
+                          }
+                        }}
+                      >
+                        Load Report
+                      </button>
                     </div>
+                  </div>
+                )}
+                
+                {/* Show message if no file path available */}
+                {!fundRecommendationFilePath && !fundRecommendationFileName && (
+                  <div className="fund-status-message">
+                    <p>Fund recommendation processing completed, but report file path not available.</p>
+                    <button 
+                      onClick={() => setCurrentStep('fund_recommendation')}
+                      className="btn-secondary"
+                    >
+                      View Processing Logs
+                    </button>
                   </div>
                 )}
               </div>
             </div>
           )}
 
+          {/* Show loading state if still processing */}
+          {!fundRecommendationCompleted && !fundRecommendationError && (
+            <div className="fund-loading-state">
+              <div className="loading-message">
+                <div className="spinner"></div>
+                <p>Fund recommendation is still processing...</p>
+                <button 
+                  onClick={() => setCurrentStep('fund_recommendation')}
+                  className="btn-secondary"
+                >
+                  View Processing Status
+                </button>
+              </div>
+            </div>
+          )}
+
           <div className="form-actions">
+            <button 
+              onClick={handleStartOver}
+              className="btn-new-calculation"
+            >
+              New SIP Calculation
+            </button>
             <button 
               onClick={handlePrevious}
               className="btn-secondary"
             >
-              Back to Processing
+              Back to SIP Results
             </button>
-            <button 
-              onClick={handleStartOver}
-              className="btn-primary"
-            >
-              New SIP Calculation
-            </button>
+            
+            {/* FIX: Enhanced action buttons based on state */}
+            {fundRecommendationError && (
+              <button 
+                onClick={() => {
+                  if (reportPathForRecommendation) {
+                    setFundRecommendationError(false);
+                    setFundRecommendationCompleted(false);
+                    handleFundRecommendation(reportPathForRecommendation);
+                  }
+                }}
+                className="btn-primary"
+                disabled={!reportPathForRecommendation}
+              >
+                Retry Fund Recommendation
+              </button>
+            )}
+            
+            {!fundRecommendationHtmlContent && fundRecommendationFilePath && !fundRecommendationError && (
+              <button 
+                onClick={() => fetchFundRecommendationHtmlReport(fundRecommendationFilePath)}
+                className="btn-primary"
+              >
+                Reload Report
+              </button>
+            )}
           </div>
         </div>
       )}
@@ -1908,27 +2359,22 @@ const SIPGoalPlanningForm = () => {
         .sip-form-container {
           max-width: 1200px;
           margin: 0 auto;
-          padding: 20px;
+          padding: 12px;
           font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
         }
 
-        /* New SIP Calculation button styling */
-        .new-calculation-button-container {
-          display: flex;
-          justify-content: flex-start;
-          margin-bottom: 20px;
-        }
-
+        /* Button styling */
         .btn-new-calculation {
           background: #dc3545;
           color: white;
-          padding: 10px 20px;
+          padding: 8px 16px;
           border: none;
-          border-radius: 6px;
+          border-radius: 4px;
           font-size: 0.9rem;
           font-weight: 600;
           cursor: pointer;
           transition: all 0.2s;
+          margin-right: auto; /* Pushes other buttons to the right */
         }
 
         .btn-new-calculation:hover {
@@ -1936,46 +2382,186 @@ const SIPGoalPlanningForm = () => {
           transform: translateY(-1px);
         }
 
-        /* File path display styling */
-        .file-path-display {
+        /* ONE LINE Report Path Display */
+        .report-path-display-inline {
           background: #f8f9fa;
-          border: 1px solid #e5e7eb;
-          border-radius: 8px;
-          padding: 15px;
-          margin-bottom: 20px;
-        }
-
-        .file-path-label {
-          display: block;
-          font-weight: 600;
-          color: #374151;
-          margin-bottom: 8px;
-          font-size: 0.9rem;
-        }
-
-        .file-path-text {
-          background: white;
-          border: 1px solid #d1d5db;
-          border-radius: 6px;
+          border: 1px solid #dee2e6;
+          border-radius: 4px;
           padding: 10px 12px;
-          font-family: monospace;
+          margin-bottom: 12px;
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          flex-wrap: nowrap;
+        }
+
+        .report-path-label {
+          font-weight: 600;
+          color: #495057;
           font-size: 0.85rem;
+          white-space: nowrap;
+          flex-shrink: 0;
+        }
+
+        .report-path-value {
+          background: #6c757d;
+          color: white;
+          padding: 6px 10px;
+          border-radius: 3px;
+          font-family: 'Courier New', monospace;
+          font-size: 0.75rem;
+          border: 1px solid #6c757d;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          flex: 1;
+          min-width: 0;
+        }
+
+        /* Tab 6 Blue Theme */
+        .fund-result-step {
+          background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+        }
+
+        .fund-result-step .step-number {
+          background: #1d4ed8;
+          color: white;
+          border-color: #1e40af;
+        }
+
+        .fund-result-step .step-label {
+          color: white;
+          font-weight: 600;
+        }
+
+        .fund-result-section {
+          background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+          border: 1px solid #93c5fd;
+          position: relative;
+        }
+
+        .fund-report-section {
+          border: 1px solid rgba(59, 130, 246, 0.3);
+        }
+
+        .fund-report-header {
+          background: rgba(59, 130, 246, 0.1);
+          border-bottom: 1px solid rgba(59, 130, 246, 0.2);
+        }
+
+        .fund-report-header h4 {
+          color: #1e40af;
+        }
+
+        .fund-report-filename {
+          background: rgba(59, 130, 246, 0.2);
+          color: #1e40af;
+        }
+
+        .fund-btn-download {
+          background: #3b82f6;
+          color: white;
+        }
+
+        .fund-btn-download:hover {
+          background: #2563eb;
+        }
+
+        /* Fund loading state */
+        .fund-loading-state {
+          text-align: center;
+          padding: 40px 20px;
+          background: white;
+          border: 1px solid #e5e7eb;
+          border-radius: 4px;
+          margin-bottom: 14px;
+        }
+
+        .loading-message {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 15px;
+        }
+
+        .fund-status-message {
+          background: #f0f9ff;
+          border: 1px solid #bae6fd;
+          border-radius: 4px;
+          padding: 14px;
+          margin-top: 12px;
+          text-align: center;
+        }
+
+        .fund-status-message p {
+          margin: 0 0 10px 0;
+          color: #1e40af;
+        }
+
+        /* Captured parameters styling */
+        .captured-parameters {
+          margin-top: 16px;
+          background: white;
+          border: 1px solid #e5e7eb;
+          border-radius: 6px;
+          padding: 16px;
+          box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+
+        .captured-parameters h4 {
+          margin: 0 0 12px 0;
           color: #1f2937;
-          word-break: break-all;
-          line-height: 1.4;
+          font-size: 1rem;
+          border-bottom: 2px solid #3b82f6;
+          padding-bottom: 6px;
+          font-weight: 600;
+        }
+
+        .parameters-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+          gap: 10px;
+        }
+
+        .parameter-item {
+          display: flex;
+          flex-direction: column;
+          background: #f8f9fa;
+          padding: 10px;
+          border-radius: 4px;
+          border-left: 3px solid #3b82f6;
+          transition: all 0.2s;
+        }
+
+        .parameter-item:hover {
+          background: #e9ecef;
+          transform: translateY(-1px);
+        }
+
+        .parameter-label {
+          font-weight: 600;
+          color: #495057;
+          font-size: 0.8rem;
+          margin-bottom: 3px;
+        }
+
+        .parameter-value {
+          color: #212529;
+          font-size: 0.95rem;
+          font-weight: 500;
         }
 
         /* Error section styling */
         .error-section {
           background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
           border: 1px solid #f87171;
-          border-radius: 8px;
-          padding: 20px;
-          margin-bottom: 25px;
+          border-radius: 4px;
+          padding: 12px;
+          margin-bottom: 16px;
         }
 
         .error-actions {
-          margin-top: 15px;
+          margin-top: 10px;
           display: flex;
           justify-content: center;
         }
@@ -1983,10 +2569,10 @@ const SIPGoalPlanningForm = () => {
         .btn-regenerate {
           background: #ef4444;
           color: white;
-          padding: 12px 24px;
+          padding: 8px 16px;
           border: none;
-          border-radius: 8px;
-          font-size: 1rem;
+          border-radius: 4px;
+          font-size: 0.9rem;
           font-weight: 600;
           cursor: pointer;
           transition: all 0.2s;
@@ -1995,15 +2581,14 @@ const SIPGoalPlanningForm = () => {
         .btn-regenerate:hover {
           background: #dc2626;
           transform: translateY(-1px);
-          box-shadow: 0 4px 8px rgba(220, 38, 38, 0.3);
         }
 
         .error-message {
           background: #fee2e2;
           color: #dc2626;
-          padding: 15px 20px;
-          border-radius: 8px;
-          margin-bottom: 20px;
+          padding: 10px 14px;
+          border-radius: 4px;
+          margin-bottom: 12px;
           border: 1px solid #fecaca;
           text-align: center;
           font-weight: 600;
@@ -2013,8 +2598,8 @@ const SIPGoalPlanningForm = () => {
           display: flex;
           justify-content: center;
           align-items: flex-start;
-          margin-bottom: 40px;
-          gap: 20px;
+          margin-bottom: 20px;
+          gap: 12px;
           flex-wrap: wrap;
         }
 
@@ -2024,7 +2609,7 @@ const SIPGoalPlanningForm = () => {
           align-items: center;
           opacity: 0.5;
           transition: opacity 0.3s;
-          min-width: 120px;
+          min-width: 100px;
           text-align: center;
         }
 
@@ -2033,16 +2618,16 @@ const SIPGoalPlanningForm = () => {
         }
 
         .step-number {
-          width: 45px;
-          height: 45px;
+          width: 36px;
+          height: 36px;
           border-radius: 50%;
           background: #e5e7eb;
           display: flex;
           align-items: center;
           justify-content: center;
           font-weight: bold;
-          margin-bottom: 12px;
-          font-size: 1.1rem;
+          margin-bottom: 6px;
+          font-size: 0.9rem;
           border: 2px solid transparent;
         }
 
@@ -2050,15 +2635,15 @@ const SIPGoalPlanningForm = () => {
           background: #3b82f6;
           color: white;
           border-color: #1d4ed8;
-          box-shadow: 0 4px 8px rgba(59, 130, 246, 0.3);
+          box-shadow: 0 3px 6px rgba(59, 130, 246, 0.3);
         }
 
         .step-label {
-          font-size: 0.85rem;
+          font-size: 0.75rem;
           color: #6b7280;
           text-align: center;
-          max-width: 120px;
-          line-height: 1.3;
+          max-width: 100px;
+          line-height: 1.2;
           font-weight: 500;
           word-wrap: break-word;
         }
@@ -2071,40 +2656,35 @@ const SIPGoalPlanningForm = () => {
         .form-section, .results-section, .validation-section, .fund-result-section {
           background: white;
           border: 1px solid #e5e7eb;
-          border-radius: 12px;
-          padding: 30px;
-          margin-bottom: 20px;
-          box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+          border-radius: 6px;
+          padding: 18px;
+          margin-bottom: 12px;
+          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
         }
 
         .streaming-section, .fund-recommendation-section {
           background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
           border: 1px solid #bae6fd;
-          border-radius: 12px;
-          padding: 30px;
-          margin-bottom: 20px;
-          box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-        }
-
-        .fund-result-section {
-          background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
-          border: 1px solid #bbf7d0;
+          border-radius: 6px;
+          padding: 18px;
+          margin-bottom: 12px;
+          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
         }
 
         .section-title {
-          font-size: 1.5rem;
+          font-size: 1.2rem;
           font-weight: 600;
           color: #1f2937;
-          margin-bottom: 25px;
+          margin-bottom: 16px;
           border-bottom: 2px solid #3b82f6;
-          padding-bottom: 10px;
+          padding-bottom: 6px;
         }
 
         .fields-grid {
           display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-          gap: 20px;
-          margin-bottom: 30px;
+          grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+          gap: 14px;
+          margin-bottom: 20px;
         }
 
         .form-group {
@@ -2115,7 +2695,7 @@ const SIPGoalPlanningForm = () => {
         .form-label {
           font-weight: 500;
           color: #374151;
-          margin-bottom: 8px;
+          margin-bottom: 5px;
         }
 
         .required {
@@ -2124,10 +2704,10 @@ const SIPGoalPlanningForm = () => {
 
         .form-select, .form-input {
           width: 100%;
-          padding: 12px 15px;
+          padding: 8px 10px;
           border: 2px solid #d1d5db;
-          border-radius: 8px;
-          font-size: 1rem;
+          border-radius: 4px;
+          font-size: 0.9rem;
           transition: all 0.2s;
         }
 
@@ -2145,21 +2725,35 @@ const SIPGoalPlanningForm = () => {
 
         .field-error {
           color: #ef4444;
-          font-size: 0.875rem;
-          margin-top: 5px;
+          font-size: 0.75rem;
+          margin-top: 3px;
         }
 
         .form-actions {
           display: flex;
-          gap: 15px;
-          justify-content: flex-end;
-          margin-top: 30px;
+          gap: 10px;
+          justify-content: space-between;
+          align-items: center;
+          margin-top: 20px;
+          position: relative;
+        }
+
+        .form-actions .btn-new-calculation {
+          margin-right: 0;
+        }
+
+        .form-actions > .btn-new-calculation ~ * {
+          margin-left: auto;
+        }
+
+        .form-actions > .btn-new-calculation:first-child ~ .btn-secondary:first-of-type {
+          margin-left: auto;
         }
 
         .btn-primary, .btn-secondary, .btn-stop, .btn-download {
-          padding: 12px 24px;
-          border-radius: 8px;
-          font-size: 1rem;
+          padding: 8px 16px;
+          border-radius: 4px;
+          font-size: 0.9rem;
           font-weight: 600;
           cursor: pointer;
           transition: all 0.2s;
@@ -2193,8 +2787,8 @@ const SIPGoalPlanningForm = () => {
         .btn-stop {
           background: #ef4444;
           color: white;
-          padding: 8px 16px;
-          font-size: 0.875rem;
+          padding: 5px 10px;
+          font-size: 0.8rem;
         }
 
         .btn-stop:hover {
@@ -2204,7 +2798,7 @@ const SIPGoalPlanningForm = () => {
         .btn-download {
           background: #10b981;
           color: white;
-          margin-left: 10px;
+          margin-left: 8px;
         }
 
         .btn-download:hover {
@@ -2214,15 +2808,15 @@ const SIPGoalPlanningForm = () => {
         .progress-bar-container {
           display: flex;
           align-items: center;
-          gap: 15px;
-          margin-bottom: 25px;
+          gap: 10px;
+          margin-bottom: 16px;
         }
 
         .progress-bar {
           flex: 1;
-          height: 8px;
+          height: 5px;
           background: #e5e7eb;
-          border-radius: 4px;
+          border-radius: 2px;
           overflow: hidden;
         }
 
@@ -2230,89 +2824,89 @@ const SIPGoalPlanningForm = () => {
           height: 100%;
           background: linear-gradient(90deg, #3b82f6, #1d4ed8);
           transition: width 0.3s ease;
-          border-radius: 4px;
+          border-radius: 2px;
         }
 
         .progress-text {
           font-weight: 600;
           color: #1f2937;
-          min-width: 40px;
+          min-width: 32px;
         }
 
         .current-agent {
           display: flex;
           align-items: center;
-          gap: 20px;
+          gap: 14px;
           background: white;
           border: 1px solid #e5e7eb;
-          border-radius: 8px;
-          padding: 20px;
-          margin-bottom: 25px;
-          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+          border-radius: 4px;
+          padding: 14px;
+          margin-bottom: 16px;
+          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
         }
 
         .agent-spinner {
-          width: 40px;
-          height: 40px;
-          border: 4px solid #e5e7eb;
-          border-top: 4px solid #3b82f6;
+          width: 28px;
+          height: 28px;
+          border: 3px solid #e5e7eb;
+          border-top: 3px solid #3b82f6;
           border-radius: 50%;
           animation: spin 1s linear infinite;
           flex-shrink: 0;
         }
 
         .agent-info h4 {
-          margin: 0 0 5px 0;
+          margin: 0 0 3px 0;
           color: #1f2937;
-          font-size: 1rem;
+          font-size: 0.85rem;
           font-weight: 600;
         }
 
         .agent-info p {
           margin: 0;
           color: #3b82f6;
-          font-size: 1.1rem;
+          font-size: 0.95rem;
           font-weight: 500;
         }
 
         .streaming-logs {
           background: white;
           border: 1px solid #e5e7eb;
-          border-radius: 8px;
-          margin-bottom: 20px;
+          border-radius: 4px;
+          margin-bottom: 14px;
         }
 
         .logs-header {
           display: flex;
           justify-content: space-between;
           align-items: center;
-          padding: 15px 20px;
+          padding: 10px 14px;
           border-bottom: 1px solid #e5e7eb;
           background: #f9fafb;
-          border-radius: 8px 8px 0 0;
+          border-radius: 4px 4px 0 0;
         }
 
         .logs-header h4 {
           margin: 0;
           color: #1f2937;
-          font-size: 1.1rem;
+          font-size: 0.95rem;
         }
 
         .logs-container {
-          height: 300px;
+          height: 200px;
           overflow-y: auto;
-          padding: 15px;
+          padding: 10px;
           background: #fafafa;
-          border-radius: 0 0 8px 8px;
+          border-radius: 0 0 4px 4px;
         }
 
         .log-entry {
           display: flex;
-          gap: 15px;
-          padding: 8px 12px;
-          margin-bottom: 4px;
-          border-radius: 6px;
-          font-size: 0.9rem;
+          gap: 10px;
+          padding: 5px 8px;
+          margin-bottom: 2px;
+          border-radius: 3px;
+          font-size: 0.8rem;
           border-left: 3px solid transparent;
         }
 
@@ -2343,8 +2937,8 @@ const SIPGoalPlanningForm = () => {
         .log-timestamp {
           font-family: monospace;
           color: #6b7280;
-          min-width: 80px;
-          font-size: 0.8rem;
+          min-width: 65px;
+          font-size: 0.7rem;
         }
 
         .log-message {
@@ -2354,15 +2948,15 @@ const SIPGoalPlanningForm = () => {
         .generated-file, .generated-file-result {
           background: #f0f9ff;
           border: 1px solid #bae6fd;
-          border-radius: 8px;
-          padding: 20px;
-          margin-bottom: 20px;
+          border-radius: 4px;
+          padding: 14px;
+          margin-bottom: 14px;
         }
 
         .file-display {
           display: flex;
           align-items: center;
-          gap: 10px;
+          gap: 8px;
         }
 
         .file-display .form-input {
@@ -2376,21 +2970,21 @@ const SIPGoalPlanningForm = () => {
         .validation-success {
           background: #dbeafe;
           color: #1d4ed8;
-          padding: 15px;
-          border-radius: 8px;
-          margin-bottom: 20px;
+          padding: 10px;
+          border-radius: 4px;
+          margin-bottom: 14px;
           font-weight: 600;
         }
 
         .validation-details {
           background: white;
-          padding: 20px;
-          border-radius: 8px;
-          margin-bottom: 20px;
+          padding: 14px;
+          border-radius: 4px;
+          margin-bottom: 14px;
         }
 
         .validation-details p {
-          margin: 8px 0;
+          margin: 5px 0;
         }
 
         .results-section {
@@ -2401,8 +2995,8 @@ const SIPGoalPlanningForm = () => {
         .html-report-section {
           background: white;
           border: 1px solid rgba(255, 255, 255, 0.3);
-          border-radius: 12px;
-          margin-bottom: 30px;
+          border-radius: 6px;
+          margin-bottom: 20px;
           overflow: hidden;
         }
 
@@ -2410,7 +3004,7 @@ const SIPGoalPlanningForm = () => {
           display: flex;
           justify-content: space-between;
           align-items: center;
-          padding: 20px;
+          padding: 14px;
           background: rgba(255, 255, 255, 0.1);
           border-bottom: 1px solid rgba(255, 255, 255, 0.2);
         }
@@ -2418,26 +3012,26 @@ const SIPGoalPlanningForm = () => {
         .report-header h4 {
           margin: 0;
           color: #f8fafc;
-          font-size: 1.3rem;
+          font-size: 1.1rem;
         }
 
         .report-controls {
           display: flex;
           align-items: center;
-          gap: 15px;
+          gap: 10px;
         }
 
         .report-filename {
           background: rgba(255, 255, 255, 0.2);
-          padding: 8px 12px;
-          border-radius: 6px;
-          font-size: 0.9rem;
+          padding: 5px 8px;
+          border-radius: 3px;
+          font-size: 0.8rem;
           color: #e2e8f0;
           font-family: monospace;
         }
 
         .html-report-container {
-          height: 600px;
+          height: 400px;
           background: white;
         }
 
@@ -2448,78 +3042,37 @@ const SIPGoalPlanningForm = () => {
           background: white;
         }
 
-        .report-path-display {
-          background: white;
-          padding: 20px;
-          border-radius: 8px;
-          margin-bottom: 20px;
-          border: 1px solid #e5e7eb;
-        }
-
-        .report-path-display h4 {
-          margin: 0 0 10px 0;
-          color: #1f2937;
-        }
-
-        .report-path {
-          background: #f3f4f6;
-          padding: 10px 15px;
-          border-radius: 6px;
-          font-family: monospace;
-          font-size: 0.9rem;
-          color: #374151;
-          border: 1px solid #d1d5db;
-        }
-
         .fund-results {
           background: white;
           border: 1px solid #e5e7eb;
-          border-radius: 8px;
-          padding: 20px;
-          margin-bottom: 20px;
+          border-radius: 4px;
+          padding: 14px;
+          margin-bottom: 14px;
         }
 
         .fund-results h4 {
-          margin: 0 0 15px 0;
+          margin: 0 0 10px 0;
           color: #1f2937;
-          font-size: 1.2rem;
+          font-size: 1rem;
         }
 
         .fund-results-content {
           color: #374151;
         }
 
-        .fund-result-section .html-report-section {
-          border: 1px solid rgba(34, 197, 94, 0.3);
-        }
-
-        .fund-result-section .report-header {
-          background: rgba(34, 197, 94, 0.1);
-          border-bottom: 1px solid rgba(34, 197, 94, 0.2);
-        }
-
-        .fund-result-section .report-header h4 {
-          color: #065f46;
-        }
-
-        .fund-result-section .report-filename {
-          background: rgba(34, 197, 94, 0.2);
-          color: #065f46;
-        }
-
         .loading-container, .error-container {
           text-align: center;
-          padding: 60px 20px;
+          padding: 40px 20px;
         }
 
         .spinner {
           border: 4px solid #f3f3f3;
           border-top: 4px solid #3b82f6;
           border-radius: 50%;
-          width: 50px;
-          height: 50px;
+          width: 36px;
+          height: 36px;
           animation: spin 1s linear infinite;
-          margin: 0 auto 20px;
+          margin: 0 auto 14px;
         }
 
         @keyframes spin {
@@ -2529,7 +3082,7 @@ const SIPGoalPlanningForm = () => {
 
         @media (max-width: 768px) {
           .sip-form-container {
-            padding: 15px;
+            padding: 8px;
           }
           
           .fields-grid {
@@ -2542,12 +3095,12 @@ const SIPGoalPlanningForm = () => {
 
           .progress-indicator {
             flex-wrap: wrap;
-            gap: 10px;
+            gap: 8px;
           }
 
           .step-label {
-            font-size: 0.8rem;
-            max-width: 100px;
+            font-size: 0.7rem;
+            max-width: 80px;
           }
 
           .file-display {
@@ -2556,27 +3109,109 @@ const SIPGoalPlanningForm = () => {
           }
 
           .logs-container {
-            height: 200px;
+            height: 160px;
           }
 
           .report-controls {
             flex-direction: column;
-            gap: 10px;
+            gap: 8px;
           }
 
           .current-agent {
             flex-direction: column;
             text-align: center;
-            gap: 15px;
+            gap: 10px;
           }
 
           .html-report-container {
-            height: 400px;
+            height: 300px;
           }
 
-          .file-path-text {
+          .report-path-value {
+            font-size: 0.7rem;
+          }
+
+          .parameters-grid {
+            grid-template-columns: 1fr;
+          }
+
+          .report-path-display-inline {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 6px;
+          }
+
+          .report-path-display-inline .report-path-value {
+            width: 100%;
+            white-space: normal;
+            word-break: break-all;
+          }
+
+          .section-title {
+            font-size: 1.1rem;
+          }
+
+          .step-number {
+            width: 32px;
+            height: 32px;
             font-size: 0.8rem;
           }
+        }
+
+        /* Compact spacing for minimized vertical scroll */
+        .section-title {
+          margin-bottom: 12px;
+        }
+
+        .form-section, .results-section, .validation-section, .fund-result-section,
+        .streaming-section, .fund-recommendation-section {
+          padding: 16px;
+          margin-bottom: 10px;
+        }
+
+        .progress-indicator {
+          margin-bottom: 16px;
+        }
+
+        .captured-parameters {
+          margin-top: 12px;
+          padding: 14px;
+        }
+
+        .validation-details {
+          margin-bottom: 12px;
+        }
+
+        .html-report-section {
+          margin-bottom: 16px;
+        }
+
+        .streaming-logs {
+          margin-bottom: 12px;
+        }
+
+        .progress-bar-container {
+          margin-bottom: 14px;
+        }
+
+        .current-agent {
+          margin-bottom: 14px;
+          padding: 12px;
+        }
+
+        .error-section {
+          margin-bottom: 14px;
+          padding: 10px;
+        }
+
+        .generated-file, .generated-file-result {
+          margin-bottom: 12px;
+          padding: 12px;
+        }
+
+        .fund-results {
+          margin-bottom: 12px;
+          padding: 12px;
         }
       `}</style>
     </div>

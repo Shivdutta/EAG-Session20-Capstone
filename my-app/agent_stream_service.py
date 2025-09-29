@@ -307,6 +307,11 @@ class AgentStreamService:
             if queue_callback in self.active_callbacks:
                 self.active_callbacks.remove(queue_callback)
 
+    async def process_query_stream_return_context(self, query: str):
+        """Process query and return execution context for session ID extraction"""
+        execution_context = await self.agent_loop.run(query, [], [])
+        return execution_context
+
     async def _process_with_stream_capture(self, query: str, file_manifest: list, uploaded_files: list, callback):
         """Process query with streaming output capture"""
         try:

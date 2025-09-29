@@ -11,6 +11,7 @@ from agentLoop.session_serializer import SessionSerializer
 from agentLoop.graph_validator import GraphValidator
 from utils.utils import log_step, log_error
 import pdb
+import uuid
 
 class ExecutionContextManager:
     def __init__(self, plan_graph: dict, session_id: str = None, original_query: str = None, file_manifest: list = None, debug_mode: bool = False):
@@ -18,7 +19,9 @@ class ExecutionContextManager:
         self.plan_graph = nx.DiGraph()
         
         # Store metadata
-        self.plan_graph.graph['session_id'] = session_id or str(int(time.time()))[-8:]
+        #self.plan_graph.graph['session_id'] = session_id or str(int(time.time()))[-8:]
+        self.plan_graph.graph['session_id'] = session_id or f"{str(int(time.time()))[-8:]}{str(uuid.uuid4()).replace('-', '')[:8]}"
+        #self.plan_graph.graph['session_id'] = session_id or str(int(time.time()))
         self.plan_graph.graph['original_query'] = original_query
         self.plan_graph.graph['file_manifest'] = file_manifest or []
         self.plan_graph.graph['created_at'] = datetime.utcnow().isoformat()

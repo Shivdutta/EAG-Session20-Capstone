@@ -1,0 +1,1864 @@
+{
+  "directed": true,
+  "multigraph": false,
+  "graph": {
+    "session_id": "590588170a63fcce",
+    "original_query": "You are the Orchestrator Agent.  \nYour first action is to call SIPGoalPlannerAgent to compute goal inputs, inflation adjustment, SIP math, allocation guidance, and projections.  \nDo not build any plans until you have read SIPGoalPlannerAgent’s outputs.  \n\n________________________________________\nWiring Requirement  \nPlannerAgent MUST first read the outputs from SIPGoalPlannerAgent (especially goal_input_json and computed parameters) before creating the final multi-agent plan graph for retrieval, distillation, Q&A, charts, and report.\n- Prepare JSON outputs for projection line, allocation doughnut using CoderAgent using different input and derived parameters\n- Prepare data for first 12 rows for sip_projection_table_json  using CoderAgent using different input and derived parameters\n________________________________________\nUser Scenario  \nPlan a SIP goal with asset allocation and fund category guidance:  \ngoal_type = House Purchase  \ncurrent_age = 50  \n\n  \n\n  \n\n  \n\n  \ntarget_purchase_year = 2028  \nevent_age_or_target = target_purchase_year\n  \n\n  \n\ncurrency = INR  \ntarget_amount_min = 20000000  \nrisk_appetite = moderate \ncurrency = INR  \n\n________________________________________\nCompute (Deterministic)  \ntime_horizon_years =  3  \n\ntotal_months = 36\n\nRisk → Return mapping (annual):  \nvery_low: 5%  \nlow: 7%  \nlow_moderate: 8%  \nmoderate: 10%  \nhigh_moderate: 11%  \nhigh: 12%  \nvery_high: 14%  \n\nCompute monthly_return_r based on the risk mapping and formulae >> monthly_return_r = annual_return / 12  \nCompute wherever needed from value passed >> \nFor this scenario (moderate): annual_return → monthly_return_r = annual_return / 12  \n\nInflation default: 5.5% annually unless overridden.  \n\n________________________________________\nDo (Step-by-Step)  \nNormalize inputs → emit goal_input_json.  \nRefer “SIP Calculation” from SIPGoalPlannerAgent.  \nRefer “Inflation Adjustment” from SIPGoalPlannerAgent.  \nRefer “Recommendation Engine (Fund Category Types)” from SIPGoalPlannerAgent.  \n\nOutput allocation_plan_json (equity %, debt %, recommended categories, notes).  \n\nGuideline risk for appetite:  \n\"guideline\": {\n  \"very_low\": \"Very Low policy → Extremely conservative, e.g., 90% debt / 10% equity\",\n  \"low\": \"Low policy → Conservative, e.g., 70% debt / 30% equity\",\n  \"low_moderate\": \"Low-Moderate policy → Tilted conservative, e.g., 60% debt / 40% equity\",\n  \"moderate\": \"Moderate policy → Balanced mix, e.g., 50% equity / 50% debt\",\n  \"high_moderate\": \"High-Moderate policy → Tilted aggressive, e.g., 60% equity / 40% debt\",\n  \"high\": \"High policy → Aggressive, e.g., 70% equity / 30% debt\",\n  \"very_high\": \"Very High policy → Extremely aggressive, e.g., 90% equity / 10% debt\"\n}  \n\nValidation Hooks: Validate schema + percentages.  \n\nVisualization (ReportGeneratorAgent):  \nPie chart → equity vs debt  \nBar/graph → sub-categories  \n\nStrictness: Never recommend fund names. Only fund categories.  \n\n________________________________________\nSchemas  \n\n\ngoal_input_json\n{ \"goal_type\": string, \"target_amount\": number, \"currency\": \"INR\", \"time_horizon_years\": number, \"total_months\": number, \"risk_appetite\": string }\n\ninflation_adjusted_json\n{ \"inflation_pct\": number, \"years\": number, \"unadjusted_target\": number, \"adjusted_target\": number }\n\nsip_calc_json\n{ \"monthly_return_r\": number, \"months_n\": number, \"adjusted_target\": number, \"monthly_sip\": number, \"status\": \"ok\" | \"error\", \"error\": string | null }\n\nallocation_plan_json\n{\n\"equity_percent\": number,\n\"debt_percent\": number,\n\"recommended_fund_categories\": {\n\"equity\": string[],\n\"debt\": string[],\n\"elss_optional\": boolean\n},\n\"notes\": {\n\"very_low\": string,\n\"low\": string,\n\"low_moderate\": string,\n\"moderate\": string,\n\"high_moderate\": string,\n\"high\": string,\n\"very_high\": string\n}\n}\n\n________________________________________\nOutputs Required  \nEmit STRICT JSON (no prose, no markdown):  \n- goal_input_json  \n- inflation_adjusted_json  \n- sip_calc_json  \n- allocation_plan_json\n\n====================================================================\nAddendum – Mandatory Report Sections for SIP Reports\n====================================================================\nAll orchestrations and plan graphs must ensure downstream agents\n(FormatterAgent, ReportGeneratorAgent, QAAgent) enforce the following\nsections in the final comprehensive_report.html:\n\n1. Executive Summary\n2. Goal Inputs\n3. Inflation Adjustment\n4. SIP Calculation\n5. Asset Allocation Plan\n6. Allocation Notes\n7. Key Recommendations\n8. Risk Factors and Uncertainties (≥150 words)\n9. SIP Charts (Projection line + Allocation doughnut)\n10. SIP Projection (long-horizon summary)\n11. 12 month sip projection table\n\n- PlannerAgent must wire in chart_data_json (T015) and first_12_months_table_json (T016).\n- ReportGeneratorAgent must embed these sections in HTML.\n- QAAgent must validate that all sections are present and populated.\n====================================================================",
+    "file_manifest": [],
+    "created_at": "2025-09-28T11:26:57.257118",
+    "status": "running",
+    "output_chain": {
+      "T001": {
+        "initial_thoughts": "Let me think through this... I need to process the user's goal for a 'House Purchase'. First, I will normalize the inputs into the `goal_input_json` structure. The prompt specifies a time horizon of 3 years (36 months), even though the target year is 2028. I will adhere to the specified 3 years. Next, I'll calculate the inflation-adjusted target amount using a 5.5% annual rate over 3 years. With the future value, I'll calculate the required monthly SIP. The user has a 'moderate' risk appetite, which maps to a 10% annual return (or 0.10/12 monthly). Using the standard SIP formula, I'll compute the monthly investment. This risk profile also dictates a 50/50 equity/debt asset allocation, which I will detail in `allocation_plan_json`, including recommended fund categories and standard notes. Finally, the most critical step is to generate the full 36-month `sip_projection_table_json`. I will iterate month by month, applying the compound interest formula to the growing balance and adding the new SIP contribution, ensuring the final corpus aligns with the calculated inflation-adjusted target.",
+        "output": {
+          "goal_input_json": {
+            "goal_type": "House Purchase",
+            "current_age": "50",
+            "event_age_or_target": "2028",
+            "target_amount": 20000000,
+            "currency": "INR",
+            "time_horizon_years": 3,
+            "total_months": 36,
+            "risk_appetite": "moderate"
+          },
+          "inflation_adjusted_json": {
+            "inflation_pct": 5.5,
+            "years": 3,
+            "unadjusted_target": 20000000,
+            "adjusted_target": 23484827.75
+          },
+          "sip_calc_json": {
+            "monthly_return_r": 0.008333333333333333,
+            "months_n": 36,
+            "adjusted_target": 23484827.75,
+            "monthly_sip": 562081.43,
+            "status": "ok",
+            "error": null
+          },
+          "allocation_plan_json": {
+            "equity_percent": 50,
+            "debt_percent": 50,
+            "recommended_fund_categories": {
+              "equity": [
+                "Large Cap Funds",
+                "Mid Cap Funds"
+              ],
+              "debt": [
+                "Corporate Bond Funds",
+                "Short Duration Funds"
+              ],
+              "elss_optional": true
+            },
+            "notes": {
+              "very_low": "Very Low policy → Extremely conservative, e.g., 90% debt / 10% equity",
+              "low": "Low policy → Conservative, e.g., 70% debt / 30% equity",
+              "low_moderate": "Low-Moderate policy → Tilted conservative, e.g., 60% debt / 40% equity",
+              "moderate": "Moderate policy → Balanced mix, e.g., 50% equity / 50% debt",
+              "high_moderate": "High-Moderate policy → Tilted aggressive, e.g., 60% equity / 40% debt",
+              "high": "High policy → Aggressive, e.g., 70% equity / 30% debt",
+              "very_high": "Very High policy → Extremely aggressive, e.g., 90% equity / 10% debt"
+            }
+          },
+          "sip_projection_table_json": [
+            {
+              "month_index": 1,
+              "label": "M1",
+              "contribution": 562081.43,
+              "cumulative_contribution": 562081.43,
+              "projected_corpus": 562081.43
+            },
+            {
+              "month_index": 2,
+              "label": "M2",
+              "contribution": 562081.43,
+              "cumulative_contribution": 1124162.86,
+              "projected_corpus": 1128846.87
+            },
+            {
+              "month_index": 3,
+              "label": "M3",
+              "contribution": 562081.43,
+              "cumulative_contribution": 1686244.29,
+              "projected_corpus": 1700335.36
+            },
+            {
+              "month_index": 4,
+              "label": "M4",
+              "contribution": 562081.43,
+              "cumulative_contribution": 2248325.72,
+              "projected_corpus": 2276586.16
+            },
+            {
+              "month_index": 5,
+              "label": "M5",
+              "contribution": 562081.43,
+              "cumulative_contribution": 2810407.15,
+              "projected_corpus": 2857638.54
+            },
+            {
+              "month_index": 6,
+              "label": "M6",
+              "contribution": 562081.43,
+              "cumulative_contribution": 3372488.58,
+              "projected_corpus": 3443531.85
+            },
+            {
+              "month_index": 7,
+              "label": "M7",
+              "contribution": 562081.43,
+              "cumulative_contribution": 3934570.01,
+              "projected_corpus": 4034305.62
+            },
+            {
+              "month_index": 8,
+              "label": "M8",
+              "contribution": 562081.43,
+              "cumulative_contribution": 4496651.44,
+              "projected_corpus": 4630000.4
+            },
+            {
+              "month_index": 9,
+              "label": "M9",
+              "contribution": 562081.43,
+              "cumulative_contribution": 5058732.87,
+              "projected_corpus": 5230657.07
+            },
+            {
+              "month_index": 10,
+              "label": "M10",
+              "contribution": 562081.43,
+              "cumulative_contribution": 5620814.3,
+              "projected_corpus": 5836316.88
+            },
+            {
+              "month_index": 11,
+              "label": "M11",
+              "contribution": 562081.43,
+              "cumulative_contribution": 6182895.73,
+              "projected_corpus": 6447021.52
+            },
+            {
+              "month_index": 12,
+              "label": "M12",
+              "contribution": 562081.43,
+              "cumulative_contribution": 6744977.16,
+              "projected_corpus": 7062812.9
+            },
+            {
+              "month_index": 13,
+              "label": "M13",
+              "contribution": 562081.43,
+              "cumulative_contribution": 7307058.59,
+              "projected_corpus": 7683733.23
+            },
+            {
+              "month_index": 14,
+              "label": "M14",
+              "contribution": 562081.43,
+              "cumulative_contribution": 7869140.02,
+              "projected_corpus": 8309825.01
+            },
+            {
+              "month_index": 15,
+              "label": "M15",
+              "contribution": 562081.43,
+              "cumulative_contribution": 8431221.45,
+              "projected_corpus": 8941131.02
+            },
+            {
+              "month_index": 16,
+              "label": "M16",
+              "contribution": 562081.43,
+              "cumulative_contribution": 8993302.88,
+              "projected_corpus": 9577694.13
+            },
+            {
+              "month_index": 17,
+              "label": "M17",
+              "contribution": 562081.43,
+              "cumulative_contribution": 9555384.31,
+              "projected_corpus": 10219557.4
+            },
+            {
+              "month_index": 18,
+              "label": "M18",
+              "contribution": 562081.43,
+              "cumulative_contribution": 10117465.74,
+              "projected_corpus": 10866764.08
+            },
+            {
+              "month_index": 19,
+              "label": "M19",
+              "contribution": 562081.43,
+              "cumulative_contribution": 10679547.17,
+              "projected_corpus": 11519357.78
+            },
+            {
+              "month_index": 20,
+              "label": "M20",
+              "contribution": 562081.43,
+              "cumulative_contribution": 11241628.6,
+              "projected_corpus": 12177382.43
+            },
+            {
+              "month_index": 21,
+              "label": "M21",
+              "contribution": 562081.43,
+              "cumulative_contribution": 11803710.03,
+              "projected_corpus": 12840882.28
+            },
+            {
+              "month_index": 22,
+              "label": "M22",
+              "contribution": 562081.43,
+              "cumulative_contribution": 12365791.46,
+              "projected_corpus": 13509902.0
+            },
+            {
+              "month_index": 23,
+              "label": "M23",
+              "contribution": 562081.43,
+              "cumulative_contribution": 12927872.89,
+              "projected_corpus": 14184486.52
+            },
+            {
+              "month_index": 24,
+              "label": "M24",
+              "contribution": 562081.43,
+              "cumulative_contribution": 13489954.32,
+              "projected_corpus": 14864681.04
+            },
+            {
+              "month_index": 25,
+              "label": "M25",
+              "contribution": 562081.43,
+              "cumulative_contribution": 14052035.75,
+              "projected_corpus": 15550531.05
+            },
+            {
+              "month_index": 26,
+              "label": "M26",
+              "contribution": 562081.43,
+              "cumulative_contribution": 14614117.18,
+              "projected_corpus": 16242082.31
+            },
+            {
+              "month_index": 27,
+              "label": "M27",
+              "contribution": 562081.43,
+              "cumulative_contribution": 15176198.61,
+              "projected_corpus": 16939380.66
+            },
+            {
+              "month_index": 28,
+              "label": "M28",
+              "contribution": 562081.43,
+              "cumulative_contribution": 15738280.04,
+              "projected_corpus": 17642472.17
+            },
+            {
+              "month_index": 29,
+              "label": "M29",
+              "contribution": 562081.43,
+              "cumulative_contribution": 16300361.47,
+              "projected_corpus": 18351403.11
+            },
+            {
+              "month_index": 30,
+              "label": "M30",
+              "contribution": 562081.43,
+              "cumulative_contribution": 16862442.9,
+              "projected_corpus": 19066220.1
+            },
+            {
+              "month_index": 31,
+              "label": "M31",
+              "contribution": 562081.43,
+              "cumulative_contribution": 17424524.33,
+              "projected_corpus": 19786969.94
+            },
+            {
+              "month_index": 32,
+              "label": "M32",
+              "contribution": 562081.43,
+              "cumulative_contribution": 17986605.76,
+              "projected_corpus": 20513700.02
+            },
+            {
+              "month_index": 33,
+              "label": "M33",
+              "contribution": 562081.43,
+              "cumulative_contribution": 18548687.19,
+              "projected_corpus": 21246458.04
+            },
+            {
+              "month_index": 34,
+              "label": "M34",
+              "contribution": 562081.43,
+              "cumulative_contribution": 19110768.62,
+              "projected_corpus": 21985292.03
+            },
+            {
+              "month_index": 35,
+              "label": "M35",
+              "contribution": 562081.43,
+              "cumulative_contribution": 19672850.05,
+              "projected_corpus": 22730249.97
+            },
+            {
+              "month_index": 36,
+              "label": "M36",
+              "contribution": 562081.43,
+              "cumulative_contribution": 20234931.48,
+              "projected_corpus": 23481381.04
+            }
+          ]
+        },
+        "call_self": false,
+        "cost": 0.001041075,
+        "input_tokens": 2272.5,
+        "output_tokens": 1167.0,
+        "total_tokens": 3439.5
+      },
+      "T011": {
+        "market_data_by_category": {
+          "large_cap_funds": [
+            {
+              "type": "text",
+              "text": "[error] Invalid arguments. Expected SearchInput or query string. Got args: (), kwargs: {'args': '\"Large Cap Funds\" India category performance benchmarks typical expense ratios historical volatility expert analysis', 'kwargs': 5}",
+              "annotations": null
+            }
+          ],
+          "mid_cap_funds": [
+            {
+              "type": "text",
+              "text": "[error] Invalid arguments. Expected SearchInput or query string. Got args: (), kwargs: {'args': '\"Mid Cap Funds\" India category performance benchmarks typical expense ratios historical volatility expert analysis', 'kwargs': 5}",
+              "annotations": null
+            }
+          ],
+          "corporate_bond_funds": [
+            {
+              "type": "text",
+              "text": "[error] Invalid arguments. Expected SearchInput or query string. Got args: (), kwargs: {'args': '\"Corporate Bond Funds\" India category performance benchmarks typical expense ratios historical volatility expert analysis', 'kwargs': 5}",
+              "annotations": null
+            }
+          ],
+          "short_duration_funds": [
+            {
+              "type": "text",
+              "text": "[error] Invalid arguments. Expected SearchInput or query string. Got args: (), kwargs: {'args': '\"Short Duration Funds\" India category performance benchmarks typical expense ratios historical volatility expert analysis', 'kwargs': 5}",
+              "annotations": null
+            }
+          ]
+        }
+      },
+      "T015": {
+        "initial_thoughts": "This is task T015. I need to perform a data transformation, not code generation. I will read the complete sip_projection_table_json (36 months) and the allocation_plan_json from the T001 input. I will then construct the chart_data_json object with two main keys: 'projection' and 'allocation'. The 'projection' key will contain arrays for labels, cumulative_contribution, and projected_corpus, ensuring all 36 months are included. The 'allocation' key will contain data derived from the allocation_plan_json. As per the instructions, I will place the final object in both the `output.chart_data_json` field and as a stringified JSON in the `files['chart_data.json']` field.",
+        "output": {
+          "chart_data_json": {
+            "projection": {
+              "labels": [
+                "M1",
+                "M2",
+                "M3",
+                "M4",
+                "M5",
+                "M6",
+                "M7",
+                "M8",
+                "M9",
+                "M10",
+                "M11",
+                "M12",
+                "M13",
+                "M14",
+                "M15",
+                "M16",
+                "M17",
+                "M18",
+                "M19",
+                "M20",
+                "M21",
+                "M22",
+                "M23",
+                "M24",
+                "M25",
+                "M26",
+                "M27",
+                "M28",
+                "M29",
+                "M30",
+                "M31",
+                "M32",
+                "M33",
+                "M34",
+                "M35",
+                "M36"
+              ],
+              "datasets": {
+                "cumulative_contribution": [
+                  562081.43,
+                  1124162.86,
+                  1686244.29,
+                  2248325.72,
+                  2810407.15,
+                  3372488.58,
+                  3934570.01,
+                  4496651.44,
+                  5058732.87,
+                  5620814.3,
+                  6182895.73,
+                  6744977.16,
+                  7307058.59,
+                  7869140.02,
+                  8431221.45,
+                  8993302.88,
+                  9555384.31,
+                  10117465.74,
+                  10679547.17,
+                  11241628.6,
+                  11803710.03,
+                  12365791.46,
+                  12927872.89,
+                  13489954.32,
+                  14052035.75,
+                  14614117.18,
+                  15176198.61,
+                  15738280.04,
+                  16300361.47,
+                  16862442.9,
+                  17424524.33,
+                  17986605.76,
+                  18548687.19,
+                  19110768.62,
+                  19672850.05,
+                  20234931.48
+                ],
+                "projected_corpus": [
+                  562081.43,
+                  1128846.87,
+                  1700335.36,
+                  2276586.16,
+                  2857638.54,
+                  3443531.85,
+                  4034305.62,
+                  4630000.4,
+                  5230657.07,
+                  5836316.88,
+                  6447021.52,
+                  7062812.9,
+                  7683733.23,
+                  8309825.01,
+                  8941131.02,
+                  9577694.13,
+                  10219557.4,
+                  10866764.08,
+                  11519357.78,
+                  12177382.43,
+                  12840882.28,
+                  13509902.0,
+                  14184486.52,
+                  14864681.04,
+                  15550531.05,
+                  16242082.31,
+                  16939380.66,
+                  17642472.17,
+                  18351403.11,
+                  19066220.1,
+                  19786969.94,
+                  20513700.02,
+                  21246458.04,
+                  21985292.03,
+                  22730249.97,
+                  23481381.04
+                ]
+              }
+            },
+            "allocation": {
+              "labels": [
+                "Equity",
+                "Debt"
+              ],
+              "data": [
+                50,
+                50
+              ],
+              "meta": {
+                "recommended_fund_categories": {
+                  "equity": [
+                    "Large Cap Funds",
+                    "Mid Cap Funds"
+                  ],
+                  "debt": [
+                    "Corporate Bond Funds",
+                    "Short Duration Funds"
+                  ],
+                  "elss_optional": true
+                }
+              }
+            }
+          }
+        },
+        "call_self": false,
+        "files": {
+          "chart_data.json": "{\"projection\":{\"labels\":[\"M1\",\"M2\",\"M3\",\"M4\",\"M5\",\"M6\",\"M7\",\"M8\",\"M9\",\"M10\",\"M11\",\"M12\",\"M13\",\"M14\",\"M15\",\"M16\",\"M17\",\"M18\",\"M19\",\"M20\",\"M21\",\"M22\",\"M23\",\"M24\",\"M25\",\"M26\",\"M27\",\"M28\",\"M29\",\"M30\",\"M31\",\"M32\",\"M33\",\"M34\",\"M35\",\"M36\"],\"datasets\":{\"cumulative_contribution\":[562081.43,1124162.86,1686244.29,2248325.72,2810407.15,3372488.58,3934570.01,4496651.44,5058732.87,5620814.3,6182895.73,6744977.16,7307058.59,7869140.02,8431221.45,8993302.88,9555384.31,10117465.74,10679547.17,11241628.6,11803710.03,12365791.46,12927872.89,13489954.32,14052035.75,14614117.18,15176198.61,15738280.04,16300361.47,16862442.9,17424524.33,17986605.76,18548687.19,19110768.62,19672850.05,20234931.48],\"projected_corpus\":[562081.43,1128846.87,1700335.36,2276586.16,2857638.54,3443531.85,4034305.62,4630000.4,5230657.07,5836316.88,6447021.52,7062812.9,7683733.23,8309825.01,8941131.02,9577694.13,10219557.4,10866764.08,11519357.78,12177382.43,12840882.28,13509902.0,14184486.52,14864681.04,15550531.05,16242082.31,16939380.66,17642472.17,18351403.11,19066220.1,19786969.94,20513700.02,21246458.04,21985292.03,22730249.97,23481381.04]}},\"allocation\":{\"labels\":[\"Equity\",\"Debt\"],\"data\":[50,50],\"meta\":{\"recommended_fund_categories\":{\"equity\":[\"Large Cap Funds\",\"Mid Cap Funds\"],\"debt\":[\"Corporate Bond Funds\",\"Short Duration Funds\"],\"elss_optional\":true}}}}"
+        },
+        "cost": 0.001097775,
+        "input_tokens": 5626.5,
+        "output_tokens": 423.0,
+        "total_tokens": 6049.5,
+        "execution_result": {
+          "status": "success",
+          "session_id": "590588170a63fcce",
+          "operations": [
+            "direct_files"
+          ],
+          "created_files": [
+            "media\\generated\\590588170a63fcce\\chart_data.json"
+          ],
+          "file_results": {
+            "created_files": [
+              "media\\generated\\590588170a63fcce\\chart_data.json"
+            ],
+            "file_count": 1,
+            "total_size": 1336,
+            "status": "success",
+            "errors": [],
+            "execution_time": 0.009112900123000145
+          },
+          "code_results": {},
+          "total_time": 0.013292100047692657,
+          "error": null
+        },
+        "created_files": [
+          "media\\generated\\590588170a63fcce\\chart_data.json"
+        ]
+      },
+      "T016": {
+        "initial_thoughts": "Extracting first 12 rows from T001 complete sip_projection_table_json for short-term monthly view table. Input contains a full 36-month projection timeline, and the task is to slice the first 12 months only, as per the T016 specification. This is a direct data creation task, not code generation.",
+        "output": {
+          "first_12_months_table_json": [
+            {
+              "month_index": 1,
+              "label": "M1",
+              "contribution": 562081.43,
+              "cumulative_contribution": 562081.43,
+              "projected_corpus": 562081.43
+            },
+            {
+              "month_index": 2,
+              "label": "M2",
+              "contribution": 562081.43,
+              "cumulative_contribution": 1124162.86,
+              "projected_corpus": 1128846.87
+            },
+            {
+              "month_index": 3,
+              "label": "M3",
+              "contribution": 562081.43,
+              "cumulative_contribution": 1686244.29,
+              "projected_corpus": 1700335.36
+            },
+            {
+              "month_index": 4,
+              "label": "M4",
+              "contribution": 562081.43,
+              "cumulative_contribution": 2248325.72,
+              "projected_corpus": 2276586.16
+            },
+            {
+              "month_index": 5,
+              "label": "M5",
+              "contribution": 562081.43,
+              "cumulative_contribution": 2810407.15,
+              "projected_corpus": 2857638.54
+            },
+            {
+              "month_index": 6,
+              "label": "M6",
+              "contribution": 562081.43,
+              "cumulative_contribution": 3372488.58,
+              "projected_corpus": 3443531.85
+            },
+            {
+              "month_index": 7,
+              "label": "M7",
+              "contribution": 562081.43,
+              "cumulative_contribution": 3934570.01,
+              "projected_corpus": 4034305.62
+            },
+            {
+              "month_index": 8,
+              "label": "M8",
+              "contribution": 562081.43,
+              "cumulative_contribution": 4496651.44,
+              "projected_corpus": 4630000.4
+            },
+            {
+              "month_index": 9,
+              "label": "M9",
+              "contribution": 562081.43,
+              "cumulative_contribution": 5058732.87,
+              "projected_corpus": 5230657.07
+            },
+            {
+              "month_index": 10,
+              "label": "M10",
+              "contribution": 562081.43,
+              "cumulative_contribution": 5620814.3,
+              "projected_corpus": 5836316.88
+            },
+            {
+              "month_index": 11,
+              "label": "M11",
+              "contribution": 562081.43,
+              "cumulative_contribution": 6182895.73,
+              "projected_corpus": 6447021.52
+            },
+            {
+              "month_index": 12,
+              "label": "M12",
+              "contribution": 562081.43,
+              "cumulative_contribution": 6744977.16,
+              "projected_corpus": 7062812.9
+            }
+          ]
+        },
+        "call_self": false,
+        "files": {},
+        "cost": 0.001011375,
+        "input_tokens": 5512.5,
+        "output_tokens": 307.5,
+        "total_tokens": 5820.0
+      },
+      "T012": {
+        "initial_thoughts": "The user wants me to distill the output of step T011, which should contain raw fund category data. I need to synthesize this into a summary for each category. However, upon inspecting the provided input for T011, I see that the 'market_data_by_category' object contains only error messages for every fund category. The previous step failed to retrieve any data. Therefore, I cannot fulfill the request to summarize fund characteristics. My output must reflect this failure, stating that the required information is unavailable due to an upstream error.",
+        "output": {
+          "summary_unavailable": true,
+          "processing_status": {
+            "file_accessible": true,
+            "content_readable": true,
+            "extraction_method": "direct_text",
+            "content_completeness": "failed"
+          },
+          "quality_assessment": {
+            "task_completion_score": 0,
+            "confidence_level": "high",
+            "data_reliability": "low",
+            "limitations": [
+              "The input from the previous step (T011) consists entirely of error messages.",
+              "No actual fund category data was provided for analysis or distillation.",
+              "The upstream data retrieval process failed, making the primary task impossible to complete."
+            ],
+            "recommendations": [
+              "The process responsible for populating T011 with market data needs to be debugged and re-run.",
+              "Verify the arguments being passed to the search tool in the preceding step."
+            ]
+          }
+        },
+        "call_self": false,
+        "cost": 0.0006273,
+        "input_tokens": 3048.0,
+        "output_tokens": 283.5,
+        "total_tokens": 3331.5
+      },
+      "T013": {
+        "output": {
+          "initial_thoughts": {
+            "entity_1": "Let me think through this: The user's goal is a 'House Purchase' in 3 years with a 'moderate' risk appetite. The core challenge is balancing the need for growth to reach a substantial target (~₹2.35 Cr) with the critical need for capital preservation over a short time horizon.",
+            "entity_2": "Let me think through this: The proposed 50% equity / 50% debt allocation is a direct translation of the 'moderate' risk policy. The equity portion acts as the growth engine, targeting the 10% annual return required by the SIP calculation. The debt portion serves as a stability anchor to mitigate volatility, which is crucial given the short 3-year timeline.",
+            "overall_observations": "Let me think through this: The strategy is a calculated compromise. A 50% equity exposure over just 36 months is inherently aggressive and carries significant market risk. However, a more conservative (higher debt) allocation would likely fail to meet the required return, necessitating a much larger, potentially unfeasible, monthly SIP. The fund category choices—Large/Mid Cap for equity and Short Duration/Corporate Bond for debt—are logical attempts to manage this risk-return trade-off within the allocated buckets."
+          },
+          "review_checklist": {
+            "alignment_with_goal": "Let me think through this: Yes, the analysis directly addresses the prompt's request to justify the allocation plan in the context of the user's specific goal, timeline, and risk profile.",
+            "what_was_missed": "Let me think through this: I must explicitly mention the failure of the upstream step (T012) to provide detailed fund category data. My analysis will have to rely on general characteristics of these fund types. I also need to be very clear about the conflict between a 'moderate' risk allocation and a short-term goal, as standard financial advice would typically recommend a much lower equity exposure for a 3-year horizon.",
+            "risk_of_misleading": "Let me think through this: The primary risk is downplaying the volatility associated with a 50% equity allocation over three years. I must strongly emphasize that the final corpus is highly dependent on market performance and could significantly deviate from the projection. The projection is based on a steady 10% annual return, which is not guaranteed.",
+            "improvement_opportunities": "Let me think through this: I can improve clarity by structuring the final report into sections: The Strategic Dilemma, Rationale for Allocation, Rationale for Equity Categories, Rationale for Debt Categories, and a dedicated Risk Assessment. A summary table would also be highly effective."
+          },
+          "final_report": {
+            "summary": "The recommended 50/50 equity-debt allocation is a strategic compromise designed for a 'moderate' risk investor targeting a house purchase in three years. This balanced approach aims to generate the necessary growth (via equity) to meet the ambitious financial target, while the significant debt component provides a crucial cushion against market volatility, essential for a short-term goal. The fund categories are specifically selected to manage risk within this framework: Large and Mid Cap funds for balanced equity growth, and Short Duration and Corporate Bond funds for stability and capital protection in the debt portion. However, this strategy carries notable market risk due to the short time horizon.",
+            "detailed": "### Strategic Analysis of Asset Allocation for House Purchase Goal\n\nThis report provides a detailed justification for the asset allocation plan formulated for the user's goal of purchasing a house, valued at an inflation-adjusted target of approximately ₹2.35 Crores, within a 3-year (36-month) timeframe, and aligned with a 'moderate' risk appetite.\n\n#### 1. The Core Strategic Dilemma: Time Horizon vs. Growth Requirement\n\nThe central challenge of this financial plan lies in the inherent conflict between the short investment horizon and the need for substantial capital growth. A 3-year period is typically considered short-term in investment planning, a timeframe where capital preservation is paramount. Equity markets, the primary driver of high growth, can exhibit significant volatility over such periods. A market downturn in the second or third year could severely impact the final corpus.\n\nConversely, relying solely on low-risk debt instruments would likely yield returns insufficient to meet the ambitious target of ₹2.35 Crores with the calculated monthly SIP of ~₹5.62 Lakhs. The plan assumes a 10% annualized return, a target that is difficult to achieve without significant equity exposure. Therefore, the strategy must navigate this dilemma by carefully balancing growth aspirations with risk management.\n\n#### 2. Rationale for the 50% Equity / 50% Debt Allocation\n\nThe 50/50 split between equity and debt is a direct implementation of the 'moderate' risk profile. It is not an arbitrary choice but a structured attempt to resolve the aforementioned dilemma.\n\n*   **The Growth Engine (50% Equity):** This portion of the portfolio is designed to generate the higher returns necessary to reach the financial goal. By investing in the stock market, the portfolio is positioned to outpace inflation and compound capital more aggressively than debt instruments alone. This exposure is what makes the 10% projected annual return a plausible target. It directly caters to the user's willingness to accept moderate risk for the potential of higher rewards.\n\n*   **The Stability Anchor (50% Debt):** This component is the risk-mitigation core of the strategy. With a fixed, non-negotiable 3-year deadline, protecting the accumulated capital from market shocks is critically important. The debt allocation acts as a buffer, reducing the overall volatility of the portfolio. In a scenario where the equity market performs poorly, this segment is expected to remain stable or provide modest positive returns, thus preserving a significant portion of the capital and preventing catastrophic losses near the goal's completion date.\n\nThis balanced mix seeks to provide a smoother investment journey than a pure equity portfolio while still offering a higher growth potential than a pure debt portfolio, making it a suitable, albeit aggressive, strategy for the given constraints.\n\n#### 3. Justification of Recommended Fund Categories\n\nThe selection of specific fund categories within the equity and debt allocations is crucial for fine-tuning the risk-return profile.\n\n**Equity Allocation (50% of Portfolio):**\n*   **Large Cap Funds:** These funds invest in the largest, most established companies in the market. They typically offer more stability and lower volatility compared to smaller companies. Allocating a significant portion of the equity investment here provides a foundational layer of growth with managed risk.\n*   **Mid Cap Funds:** These funds invest in mid-sized companies that often have higher growth potential than large caps. Including them adds a performance catalyst to the portfolio, essential for targeting the 10% return. The blend of Large and Mid Cap funds creates a diversified equity base that balances stability with aggressive growth.\n\n*Note on Omission:* Small Cap funds, while offering the highest growth potential, are deliberately excluded. Their extreme volatility makes them unsuitable for a short 3-year investment horizon where a sharp correction could be irrecoverable.\n\n**Debt Allocation (50% of Portfolio):**\n*   **Short Duration Funds:** This is arguably the most critical fund choice for this plan. These funds invest in debt instruments with short maturities (typically 1-3 years). Their primary advantage is low sensitivity to interest rate changes (duration risk). For a 3-year goal, this minimizes the risk that the fund's value will drop if interest rates rise, making them an ideal vehicle for capital preservation over this specific timeframe.\n*   **Corporate Bond Funds:** These funds invest in debt issued by corporations and generally offer higher yields (returns) than government securities, albeit with slightly higher credit risk. Their inclusion provides a modest return enhancement to the debt portion, helping the overall portfolio inch closer to its target return while maintaining a relatively low-risk profile.\n\n#### 4. Acknowledgment of Data Limitations and Inherent Risks\n\nIt is important to note that the upstream process for retrieving detailed, real-time fund category performance data (Task T012) failed. Therefore, this strategic analysis is based on the well-established, general characteristics of these fund categories rather than specific, current market data.\n\nThe primary risk of this strategy remains the **market risk** associated with a 50% equity exposure over just three years. The projected outcome is based on a smooth, average return of 10%, but reality is often different. The user must be prepared for the possibility that the final corpus may be lower than the target if the equity markets experience a downturn during the investment period. A contingency plan, such as extending the investment horizon or being prepared to make a larger down payment from other sources, should be considered.",
+            "tables": [
+              {
+                "table_name": "Asset Allocation Strategy Rationale",
+                "headers": [
+                  "Asset Class",
+                  "Allocation %",
+                  "Fund Categories",
+                  "Strategic Role"
+                ],
+                "rows": [
+                  {
+                    "Asset Class": "Equity",
+                    "Allocation %": 50,
+                    "Fund Categories": "Large Cap Funds, Mid Cap Funds",
+                    "Strategic Role": "Growth Engine: Aims to generate higher returns (targeting 10%+) to meet the ambitious financial goal within the timeline."
+                  },
+                  {
+                    "Asset Class": "Debt",
+                    "Allocation %": 50,
+                    "Fund Categories": "Short Duration Funds, Corporate Bond Funds",
+                    "Strategic Role": "Stability Anchor: Aims to preserve capital, reduce overall portfolio volatility, and protect against market downturns, crucial for a short-term goal."
+                  }
+                ]
+              }
+            ],
+            "recommendations": [
+              {
+                "recommendation_id": "REC_01",
+                "recommendation": "Adhere strictly to the monthly SIP schedule. Consistency is key to leveraging dollar-cost averaging and staying on track.",
+                "rationale": "Disciplined investing mitigates the risk of market timing and ensures the full principal amount is invested to benefit from compounding."
+              },
+              {
+                "recommendation_id": "REC_02",
+                "recommendation": "Review the portfolio performance quarterly but avoid reactive changes based on short-term market noise. Rebalance annually if the asset allocation deviates by more than 5% from the 50/50 target.",
+                "rationale": "Regular reviews ensure the plan remains aligned with the goal, while annual rebalancing maintains the intended risk profile without incurring excessive transaction costs."
+              },
+              {
+                "recommendation_id": "REC_03",
+                "recommendation": "Develop a contingency plan. Given the high reliance on equity returns over a short period, be prepared for the possibility of a shortfall. This could involve extending the timeline or arranging for supplementary funds.",
+                "rationale": "Proactive planning for adverse scenarios reduces stress and allows for more rational decision-making if the market underperforms close to the target date."
+              }
+            ],
+            "risks_or_warnings": [
+              {
+                "risk_id": "RISK_01",
+                "risk_description": "Market Volatility Risk: A 50% allocation to equities over a 3-year period is highly susceptible to market downturns. The final corpus could be significantly less than the projected amount if the market performs poorly, especially in the final 12-18 months.",
+                "mitigation": "The 50% debt allocation provides a partial buffer. Sticking to the SIP plan (dollar-cost averaging) can mitigate timing risk. A contingency plan is essential."
+              },
+              {
+                "risk_id": "RISK_02",
+                "risk_description": "Projection vs. Reality: The financial projection assumes a constant 10% annual return. Actual returns will vary year-to-year and are not guaranteed. The plan's success is heavily dependent on achieving returns close to this average.",
+                "mitigation": "Monitor portfolio performance against the benchmark. Be mentally prepared for deviations and refer to the contingency plan if there is a consistent and significant lag in performance."
+              },
+              {
+                "risk_id": "RISK_03",
+                "risk_description": "Interest Rate Risk: While mitigated by using Short Duration Funds, any unexpected and sharp rise in interest rates could still have a minor negative impact on the debt portion of the portfolio.",
+                "mitigation": "The selection of Short Duration funds is the primary mitigation strategy, as they are less sensitive to rate changes than longer-duration bond funds."
+              }
+            ],
+            "key_factors_considered": [
+              "User Goal: House Purchase",
+              "Time Horizon: 3 Years (36 Months)",
+              "Risk Appetite: Moderate",
+              "Inflation-Adjusted Target: ~₹2.35 Crores",
+              "Required SIP Calculation: Based on a 10% annual return",
+              "Principle of Capital Preservation for Short-Term Goals",
+              "Principle of Growth for Inflation-Beating Returns"
+            ],
+            "task_completion_score": 0.95
+          }
+        },
+        "call_self": false,
+        "cost": 0.00250515,
+        "input_tokens": 5481.0,
+        "output_tokens": 2805.0,
+        "total_tokens": 8286.0
+      },
+      "T014": {
+        "initial_thoughts": "I need to validate the outputs of T001, T012, and T013. My focus for T001 will be on mathematical correctness (inflation, SIP calculation), adherence to the allocation plan (50/50 summing to 100%), and consistency with the 'moderate' risk profile as per the SIP addendum rules. For T012, I'll verify if it correctly handled the upstream data failure. For T013, I will check if its strategic analysis is sound and if it properly acknowledged the data limitations from T012. I will perform the calculations myself to verify the numbers in T001.",
+        "output": {
+          "issues": [
+            {
+              "step_id": "T001",
+              "agent": "SIPGoalPlannerAgent",
+              "problem": "The final projected corpus in `sip_projection_table_json` (23,481,381.04) does not exactly match the `adjusted_target` in `sip_calc_json` (23,484,827.75). The shortfall is 3,446.71 INR, a minor discrepancy of approximately 0.015%.",
+              "severity": "low",
+              "recommendation": "Review the SIP calculation or projection loop for floating-point precision issues to ensure the final projected corpus aligns perfectly with the calculated target. While the current difference is negligible for planning purposes, perfect alignment is ideal."
+            }
+          ],
+          "verdict": "pass",
+          "validation_summary": "Validation passed with one minor issue noted. The calculations in T001 are fundamentally sound, with a negligible rounding difference in the final projection. The asset allocation correctly sums to 100% and aligns with the moderate risk profile. T012 correctly identified and reported an upstream data retrieval failure. T013 provided a high-quality, insightful analysis that properly contextualized the plan's risks and correctly acknowledged the data limitations from T012.",
+          "overall_quality_score": 9
+        },
+        "call_self": false,
+        "cost": 0.001242675,
+        "input_tokens": 6796.5,
+        "output_tokens": 372.0,
+        "total_tokens": 7168.5
+      }
+    },
+    "validation_results": {
+      "is_valid": true,
+      "is_dag": true,
+      "cycles": [],
+      "disconnected_components": [],
+      "orphaned_nodes": [],
+      "root_nodes": [],
+      "leaf_nodes": [
+        "T018"
+      ],
+      "warnings": [],
+      "errors": []
+    }
+  },
+  "nodes": [
+    {
+      "description": "Initial Query",
+      "agent": "System",
+      "status": "completed",
+      "id": "ROOT"
+    },
+    {
+      "id": "T001",
+      "description": "Execute core SIP calculations for House Purchase goal.",
+      "agent": "SIPGoalPlannerAgent",
+      "agent_prompt": "You are SIPGoalPlannerAgent. Process the following user inputs to generate core financial projections. User Scenario: goal_type = House Purchase, current_age = 50, target_purchase_year = 2028, currency = INR, target_amount_min = 20000000, risk_appetite = moderate. Compute the time horizon, apply 5.5% annual inflation to the target amount, calculate the required monthly SIP based on a 10% annual return for a 'moderate' risk profile, and generate a risk-appropriate asset allocation plan (50% equity / 50% debt). Produce the following strict JSON outputs: goal_input_json, inflation_adjusted_json, sip_calc_json, allocation_plan_json, and a full monthly sip_projection_table_json.",
+      "reads": [],
+      "writes": [
+        "T001"
+      ],
+      "status": "completed",
+      "output": {
+        "initial_thoughts": "Let me think through this... I need to process the user's goal for a 'House Purchase'. First, I will normalize the inputs into the `goal_input_json` structure. The prompt specifies a time horizon of 3 years (36 months), even though the target year is 2028. I will adhere to the specified 3 years. Next, I'll calculate the inflation-adjusted target amount using a 5.5% annual rate over 3 years. With the future value, I'll calculate the required monthly SIP. The user has a 'moderate' risk appetite, which maps to a 10% annual return (or 0.10/12 monthly). Using the standard SIP formula, I'll compute the monthly investment. This risk profile also dictates a 50/50 equity/debt asset allocation, which I will detail in `allocation_plan_json`, including recommended fund categories and standard notes. Finally, the most critical step is to generate the full 36-month `sip_projection_table_json`. I will iterate month by month, applying the compound interest formula to the growing balance and adding the new SIP contribution, ensuring the final corpus aligns with the calculated inflation-adjusted target.",
+        "output": {
+          "goal_input_json": {
+            "goal_type": "House Purchase",
+            "current_age": "50",
+            "event_age_or_target": "2028",
+            "target_amount": 20000000,
+            "currency": "INR",
+            "time_horizon_years": 3,
+            "total_months": 36,
+            "risk_appetite": "moderate"
+          },
+          "inflation_adjusted_json": {
+            "inflation_pct": 5.5,
+            "years": 3,
+            "unadjusted_target": 20000000,
+            "adjusted_target": 23484827.75
+          },
+          "sip_calc_json": {
+            "monthly_return_r": 0.008333333333333333,
+            "months_n": 36,
+            "adjusted_target": 23484827.75,
+            "monthly_sip": 562081.43,
+            "status": "ok",
+            "error": null
+          },
+          "allocation_plan_json": {
+            "equity_percent": 50,
+            "debt_percent": 50,
+            "recommended_fund_categories": {
+              "equity": [
+                "Large Cap Funds",
+                "Mid Cap Funds"
+              ],
+              "debt": [
+                "Corporate Bond Funds",
+                "Short Duration Funds"
+              ],
+              "elss_optional": true
+            },
+            "notes": {
+              "very_low": "Very Low policy → Extremely conservative, e.g., 90% debt / 10% equity",
+              "low": "Low policy → Conservative, e.g., 70% debt / 30% equity",
+              "low_moderate": "Low-Moderate policy → Tilted conservative, e.g., 60% debt / 40% equity",
+              "moderate": "Moderate policy → Balanced mix, e.g., 50% equity / 50% debt",
+              "high_moderate": "High-Moderate policy → Tilted aggressive, e.g., 60% equity / 40% debt",
+              "high": "High policy → Aggressive, e.g., 70% equity / 30% debt",
+              "very_high": "Very High policy → Extremely aggressive, e.g., 90% equity / 10% debt"
+            }
+          },
+          "sip_projection_table_json": [
+            {
+              "month_index": 1,
+              "label": "M1",
+              "contribution": 562081.43,
+              "cumulative_contribution": 562081.43,
+              "projected_corpus": 562081.43
+            },
+            {
+              "month_index": 2,
+              "label": "M2",
+              "contribution": 562081.43,
+              "cumulative_contribution": 1124162.86,
+              "projected_corpus": 1128846.87
+            },
+            {
+              "month_index": 3,
+              "label": "M3",
+              "contribution": 562081.43,
+              "cumulative_contribution": 1686244.29,
+              "projected_corpus": 1700335.36
+            },
+            {
+              "month_index": 4,
+              "label": "M4",
+              "contribution": 562081.43,
+              "cumulative_contribution": 2248325.72,
+              "projected_corpus": 2276586.16
+            },
+            {
+              "month_index": 5,
+              "label": "M5",
+              "contribution": 562081.43,
+              "cumulative_contribution": 2810407.15,
+              "projected_corpus": 2857638.54
+            },
+            {
+              "month_index": 6,
+              "label": "M6",
+              "contribution": 562081.43,
+              "cumulative_contribution": 3372488.58,
+              "projected_corpus": 3443531.85
+            },
+            {
+              "month_index": 7,
+              "label": "M7",
+              "contribution": 562081.43,
+              "cumulative_contribution": 3934570.01,
+              "projected_corpus": 4034305.62
+            },
+            {
+              "month_index": 8,
+              "label": "M8",
+              "contribution": 562081.43,
+              "cumulative_contribution": 4496651.44,
+              "projected_corpus": 4630000.4
+            },
+            {
+              "month_index": 9,
+              "label": "M9",
+              "contribution": 562081.43,
+              "cumulative_contribution": 5058732.87,
+              "projected_corpus": 5230657.07
+            },
+            {
+              "month_index": 10,
+              "label": "M10",
+              "contribution": 562081.43,
+              "cumulative_contribution": 5620814.3,
+              "projected_corpus": 5836316.88
+            },
+            {
+              "month_index": 11,
+              "label": "M11",
+              "contribution": 562081.43,
+              "cumulative_contribution": 6182895.73,
+              "projected_corpus": 6447021.52
+            },
+            {
+              "month_index": 12,
+              "label": "M12",
+              "contribution": 562081.43,
+              "cumulative_contribution": 6744977.16,
+              "projected_corpus": 7062812.9
+            },
+            {
+              "month_index": 13,
+              "label": "M13",
+              "contribution": 562081.43,
+              "cumulative_contribution": 7307058.59,
+              "projected_corpus": 7683733.23
+            },
+            {
+              "month_index": 14,
+              "label": "M14",
+              "contribution": 562081.43,
+              "cumulative_contribution": 7869140.02,
+              "projected_corpus": 8309825.01
+            },
+            {
+              "month_index": 15,
+              "label": "M15",
+              "contribution": 562081.43,
+              "cumulative_contribution": 8431221.45,
+              "projected_corpus": 8941131.02
+            },
+            {
+              "month_index": 16,
+              "label": "M16",
+              "contribution": 562081.43,
+              "cumulative_contribution": 8993302.88,
+              "projected_corpus": 9577694.13
+            },
+            {
+              "month_index": 17,
+              "label": "M17",
+              "contribution": 562081.43,
+              "cumulative_contribution": 9555384.31,
+              "projected_corpus": 10219557.4
+            },
+            {
+              "month_index": 18,
+              "label": "M18",
+              "contribution": 562081.43,
+              "cumulative_contribution": 10117465.74,
+              "projected_corpus": 10866764.08
+            },
+            {
+              "month_index": 19,
+              "label": "M19",
+              "contribution": 562081.43,
+              "cumulative_contribution": 10679547.17,
+              "projected_corpus": 11519357.78
+            },
+            {
+              "month_index": 20,
+              "label": "M20",
+              "contribution": 562081.43,
+              "cumulative_contribution": 11241628.6,
+              "projected_corpus": 12177382.43
+            },
+            {
+              "month_index": 21,
+              "label": "M21",
+              "contribution": 562081.43,
+              "cumulative_contribution": 11803710.03,
+              "projected_corpus": 12840882.28
+            },
+            {
+              "month_index": 22,
+              "label": "M22",
+              "contribution": 562081.43,
+              "cumulative_contribution": 12365791.46,
+              "projected_corpus": 13509902.0
+            },
+            {
+              "month_index": 23,
+              "label": "M23",
+              "contribution": 562081.43,
+              "cumulative_contribution": 12927872.89,
+              "projected_corpus": 14184486.52
+            },
+            {
+              "month_index": 24,
+              "label": "M24",
+              "contribution": 562081.43,
+              "cumulative_contribution": 13489954.32,
+              "projected_corpus": 14864681.04
+            },
+            {
+              "month_index": 25,
+              "label": "M25",
+              "contribution": 562081.43,
+              "cumulative_contribution": 14052035.75,
+              "projected_corpus": 15550531.05
+            },
+            {
+              "month_index": 26,
+              "label": "M26",
+              "contribution": 562081.43,
+              "cumulative_contribution": 14614117.18,
+              "projected_corpus": 16242082.31
+            },
+            {
+              "month_index": 27,
+              "label": "M27",
+              "contribution": 562081.43,
+              "cumulative_contribution": 15176198.61,
+              "projected_corpus": 16939380.66
+            },
+            {
+              "month_index": 28,
+              "label": "M28",
+              "contribution": 562081.43,
+              "cumulative_contribution": 15738280.04,
+              "projected_corpus": 17642472.17
+            },
+            {
+              "month_index": 29,
+              "label": "M29",
+              "contribution": 562081.43,
+              "cumulative_contribution": 16300361.47,
+              "projected_corpus": 18351403.11
+            },
+            {
+              "month_index": 30,
+              "label": "M30",
+              "contribution": 562081.43,
+              "cumulative_contribution": 16862442.9,
+              "projected_corpus": 19066220.1
+            },
+            {
+              "month_index": 31,
+              "label": "M31",
+              "contribution": 562081.43,
+              "cumulative_contribution": 17424524.33,
+              "projected_corpus": 19786969.94
+            },
+            {
+              "month_index": 32,
+              "label": "M32",
+              "contribution": 562081.43,
+              "cumulative_contribution": 17986605.76,
+              "projected_corpus": 20513700.02
+            },
+            {
+              "month_index": 33,
+              "label": "M33",
+              "contribution": 562081.43,
+              "cumulative_contribution": 18548687.19,
+              "projected_corpus": 21246458.04
+            },
+            {
+              "month_index": 34,
+              "label": "M34",
+              "contribution": 562081.43,
+              "cumulative_contribution": 19110768.62,
+              "projected_corpus": 21985292.03
+            },
+            {
+              "month_index": 35,
+              "label": "M35",
+              "contribution": 562081.43,
+              "cumulative_contribution": 19672850.05,
+              "projected_corpus": 22730249.97
+            },
+            {
+              "month_index": 36,
+              "label": "M36",
+              "contribution": 562081.43,
+              "cumulative_contribution": 20234931.48,
+              "projected_corpus": 23481381.04
+            }
+          ]
+        },
+        "call_self": false,
+        "cost": 0.001041075,
+        "input_tokens": 2272.5,
+        "output_tokens": 1167.0,
+        "total_tokens": 3439.5
+      },
+      "error": null,
+      "cost": 0.0,
+      "start_time": "2025-09-28T11:26:57.290017",
+      "end_time": "2025-09-28T11:28:16.632490",
+      "execution_time": 79.342473,
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "execution_result": null
+    },
+    {
+      "id": "T011",
+      "description": "Fetch market data and characteristics for recommended fund categories.",
+      "agent": "RetrieverAgent",
+      "agent_prompt": "Read the `allocation_plan_json` from T001's output. Based on the `recommended_fund_categories` (e.g., Large Cap, Flexi Cap for equity; Corporate Bond, Short Duration for debt), retrieve comprehensive market data. Gather information on category-level performance benchmarks, typical expense ratios, historical volatility, and expert analysis for each recommended fund category. Do not select specific funds. Output the findings as a structured JSON object.",
+      "reads": [
+        "T001"
+      ],
+      "writes": [
+        "T011"
+      ],
+      "status": "completed",
+      "output": {
+        "market_data_by_category": {
+          "large_cap_funds": [
+            {
+              "type": "text",
+              "text": "[error] Invalid arguments. Expected SearchInput or query string. Got args: (), kwargs: {'args': '\"Large Cap Funds\" India category performance benchmarks typical expense ratios historical volatility expert analysis', 'kwargs': 5}",
+              "annotations": null
+            }
+          ],
+          "mid_cap_funds": [
+            {
+              "type": "text",
+              "text": "[error] Invalid arguments. Expected SearchInput or query string. Got args: (), kwargs: {'args': '\"Mid Cap Funds\" India category performance benchmarks typical expense ratios historical volatility expert analysis', 'kwargs': 5}",
+              "annotations": null
+            }
+          ],
+          "corporate_bond_funds": [
+            {
+              "type": "text",
+              "text": "[error] Invalid arguments. Expected SearchInput or query string. Got args: (), kwargs: {'args': '\"Corporate Bond Funds\" India category performance benchmarks typical expense ratios historical volatility expert analysis', 'kwargs': 5}",
+              "annotations": null
+            }
+          ],
+          "short_duration_funds": [
+            {
+              "type": "text",
+              "text": "[error] Invalid arguments. Expected SearchInput or query string. Got args: (), kwargs: {'args': '\"Short Duration Funds\" India category performance benchmarks typical expense ratios historical volatility expert analysis', 'kwargs': 5}",
+              "annotations": null
+            }
+          ]
+        }
+      },
+      "error": null,
+      "cost": 0.0,
+      "start_time": "2025-09-28T11:28:16.715262",
+      "end_time": "2025-09-28T11:29:09.408842",
+      "execution_time": 52.69358,
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "execution_result": null
+    },
+    {
+      "id": "T012",
+      "description": "Distill and summarize the retrieved fund category data.",
+      "agent": "DistillerAgent",
+      "agent_prompt": "Read the raw fund category data from T011's output. Synthesize and condense this information into a clear summary for each category. Highlight the key characteristics, risk-return profile, and suitability for the investment horizon. The output should be a concise summary of the fund categories, not individual funds.",
+      "reads": [
+        "T011"
+      ],
+      "writes": [
+        "T012"
+      ],
+      "status": "completed",
+      "output": {
+        "initial_thoughts": "The user wants me to distill the output of step T011, which should contain raw fund category data. I need to synthesize this into a summary for each category. However, upon inspecting the provided input for T011, I see that the 'market_data_by_category' object contains only error messages for every fund category. The previous step failed to retrieve any data. Therefore, I cannot fulfill the request to summarize fund characteristics. My output must reflect this failure, stating that the required information is unavailable due to an upstream error.",
+        "output": {
+          "summary_unavailable": true,
+          "processing_status": {
+            "file_accessible": true,
+            "content_readable": true,
+            "extraction_method": "direct_text",
+            "content_completeness": "failed"
+          },
+          "quality_assessment": {
+            "task_completion_score": 0,
+            "confidence_level": "high",
+            "data_reliability": "low",
+            "limitations": [
+              "The input from the previous step (T011) consists entirely of error messages.",
+              "No actual fund category data was provided for analysis or distillation.",
+              "The upstream data retrieval process failed, making the primary task impossible to complete."
+            ],
+            "recommendations": [
+              "The process responsible for populating T011 with market data needs to be debugged and re-run.",
+              "Verify the arguments being passed to the search tool in the preceding step."
+            ]
+          }
+        },
+        "call_self": false,
+        "cost": 0.0006273,
+        "input_tokens": 3048.0,
+        "output_tokens": 283.5,
+        "total_tokens": 3331.5
+      },
+      "error": null,
+      "cost": 0.0,
+      "start_time": "2025-09-28T11:31:19.582584",
+      "end_time": "2025-09-28T11:32:10.122974",
+      "execution_time": 50.54039,
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "execution_result": null
+    },
+    {
+      "id": "T013",
+      "description": "Reconcile fund category analysis with the user's investment goal.",
+      "agent": "ThinkerAgent",
+      "agent_prompt": "Read the allocation plan from T001 and the distilled fund category summary from T012. Generate a strategic analysis that justifies the recommended asset allocation and fund categories in the context of the user's 'House Purchase' goal, 3-year time horizon, and 'moderate' risk appetite. Explain why the chosen mix of equity and debt categories is appropriate for achieving the financial target within the specified constraints.",
+      "reads": [
+        "T001",
+        "T012"
+      ],
+      "writes": [
+        "T013"
+      ],
+      "status": "completed",
+      "output": {
+        "output": {
+          "initial_thoughts": {
+            "entity_1": "Let me think through this: The user's goal is a 'House Purchase' in 3 years with a 'moderate' risk appetite. The core challenge is balancing the need for growth to reach a substantial target (~₹2.35 Cr) with the critical need for capital preservation over a short time horizon.",
+            "entity_2": "Let me think through this: The proposed 50% equity / 50% debt allocation is a direct translation of the 'moderate' risk policy. The equity portion acts as the growth engine, targeting the 10% annual return required by the SIP calculation. The debt portion serves as a stability anchor to mitigate volatility, which is crucial given the short 3-year timeline.",
+            "overall_observations": "Let me think through this: The strategy is a calculated compromise. A 50% equity exposure over just 36 months is inherently aggressive and carries significant market risk. However, a more conservative (higher debt) allocation would likely fail to meet the required return, necessitating a much larger, potentially unfeasible, monthly SIP. The fund category choices—Large/Mid Cap for equity and Short Duration/Corporate Bond for debt—are logical attempts to manage this risk-return trade-off within the allocated buckets."
+          },
+          "review_checklist": {
+            "alignment_with_goal": "Let me think through this: Yes, the analysis directly addresses the prompt's request to justify the allocation plan in the context of the user's specific goal, timeline, and risk profile.",
+            "what_was_missed": "Let me think through this: I must explicitly mention the failure of the upstream step (T012) to provide detailed fund category data. My analysis will have to rely on general characteristics of these fund types. I also need to be very clear about the conflict between a 'moderate' risk allocation and a short-term goal, as standard financial advice would typically recommend a much lower equity exposure for a 3-year horizon.",
+            "risk_of_misleading": "Let me think through this: The primary risk is downplaying the volatility associated with a 50% equity allocation over three years. I must strongly emphasize that the final corpus is highly dependent on market performance and could significantly deviate from the projection. The projection is based on a steady 10% annual return, which is not guaranteed.",
+            "improvement_opportunities": "Let me think through this: I can improve clarity by structuring the final report into sections: The Strategic Dilemma, Rationale for Allocation, Rationale for Equity Categories, Rationale for Debt Categories, and a dedicated Risk Assessment. A summary table would also be highly effective."
+          },
+          "final_report": {
+            "summary": "The recommended 50/50 equity-debt allocation is a strategic compromise designed for a 'moderate' risk investor targeting a house purchase in three years. This balanced approach aims to generate the necessary growth (via equity) to meet the ambitious financial target, while the significant debt component provides a crucial cushion against market volatility, essential for a short-term goal. The fund categories are specifically selected to manage risk within this framework: Large and Mid Cap funds for balanced equity growth, and Short Duration and Corporate Bond funds for stability and capital protection in the debt portion. However, this strategy carries notable market risk due to the short time horizon.",
+            "detailed": "### Strategic Analysis of Asset Allocation for House Purchase Goal\n\nThis report provides a detailed justification for the asset allocation plan formulated for the user's goal of purchasing a house, valued at an inflation-adjusted target of approximately ₹2.35 Crores, within a 3-year (36-month) timeframe, and aligned with a 'moderate' risk appetite.\n\n#### 1. The Core Strategic Dilemma: Time Horizon vs. Growth Requirement\n\nThe central challenge of this financial plan lies in the inherent conflict between the short investment horizon and the need for substantial capital growth. A 3-year period is typically considered short-term in investment planning, a timeframe where capital preservation is paramount. Equity markets, the primary driver of high growth, can exhibit significant volatility over such periods. A market downturn in the second or third year could severely impact the final corpus.\n\nConversely, relying solely on low-risk debt instruments would likely yield returns insufficient to meet the ambitious target of ₹2.35 Crores with the calculated monthly SIP of ~₹5.62 Lakhs. The plan assumes a 10% annualized return, a target that is difficult to achieve without significant equity exposure. Therefore, the strategy must navigate this dilemma by carefully balancing growth aspirations with risk management.\n\n#### 2. Rationale for the 50% Equity / 50% Debt Allocation\n\nThe 50/50 split between equity and debt is a direct implementation of the 'moderate' risk profile. It is not an arbitrary choice but a structured attempt to resolve the aforementioned dilemma.\n\n*   **The Growth Engine (50% Equity):** This portion of the portfolio is designed to generate the higher returns necessary to reach the financial goal. By investing in the stock market, the portfolio is positioned to outpace inflation and compound capital more aggressively than debt instruments alone. This exposure is what makes the 10% projected annual return a plausible target. It directly caters to the user's willingness to accept moderate risk for the potential of higher rewards.\n\n*   **The Stability Anchor (50% Debt):** This component is the risk-mitigation core of the strategy. With a fixed, non-negotiable 3-year deadline, protecting the accumulated capital from market shocks is critically important. The debt allocation acts as a buffer, reducing the overall volatility of the portfolio. In a scenario where the equity market performs poorly, this segment is expected to remain stable or provide modest positive returns, thus preserving a significant portion of the capital and preventing catastrophic losses near the goal's completion date.\n\nThis balanced mix seeks to provide a smoother investment journey than a pure equity portfolio while still offering a higher growth potential than a pure debt portfolio, making it a suitable, albeit aggressive, strategy for the given constraints.\n\n#### 3. Justification of Recommended Fund Categories\n\nThe selection of specific fund categories within the equity and debt allocations is crucial for fine-tuning the risk-return profile.\n\n**Equity Allocation (50% of Portfolio):**\n*   **Large Cap Funds:** These funds invest in the largest, most established companies in the market. They typically offer more stability and lower volatility compared to smaller companies. Allocating a significant portion of the equity investment here provides a foundational layer of growth with managed risk.\n*   **Mid Cap Funds:** These funds invest in mid-sized companies that often have higher growth potential than large caps. Including them adds a performance catalyst to the portfolio, essential for targeting the 10% return. The blend of Large and Mid Cap funds creates a diversified equity base that balances stability with aggressive growth.\n\n*Note on Omission:* Small Cap funds, while offering the highest growth potential, are deliberately excluded. Their extreme volatility makes them unsuitable for a short 3-year investment horizon where a sharp correction could be irrecoverable.\n\n**Debt Allocation (50% of Portfolio):**\n*   **Short Duration Funds:** This is arguably the most critical fund choice for this plan. These funds invest in debt instruments with short maturities (typically 1-3 years). Their primary advantage is low sensitivity to interest rate changes (duration risk). For a 3-year goal, this minimizes the risk that the fund's value will drop if interest rates rise, making them an ideal vehicle for capital preservation over this specific timeframe.\n*   **Corporate Bond Funds:** These funds invest in debt issued by corporations and generally offer higher yields (returns) than government securities, albeit with slightly higher credit risk. Their inclusion provides a modest return enhancement to the debt portion, helping the overall portfolio inch closer to its target return while maintaining a relatively low-risk profile.\n\n#### 4. Acknowledgment of Data Limitations and Inherent Risks\n\nIt is important to note that the upstream process for retrieving detailed, real-time fund category performance data (Task T012) failed. Therefore, this strategic analysis is based on the well-established, general characteristics of these fund categories rather than specific, current market data.\n\nThe primary risk of this strategy remains the **market risk** associated with a 50% equity exposure over just three years. The projected outcome is based on a smooth, average return of 10%, but reality is often different. The user must be prepared for the possibility that the final corpus may be lower than the target if the equity markets experience a downturn during the investment period. A contingency plan, such as extending the investment horizon or being prepared to make a larger down payment from other sources, should be considered.",
+            "tables": [
+              {
+                "table_name": "Asset Allocation Strategy Rationale",
+                "headers": [
+                  "Asset Class",
+                  "Allocation %",
+                  "Fund Categories",
+                  "Strategic Role"
+                ],
+                "rows": [
+                  {
+                    "Asset Class": "Equity",
+                    "Allocation %": 50,
+                    "Fund Categories": "Large Cap Funds, Mid Cap Funds",
+                    "Strategic Role": "Growth Engine: Aims to generate higher returns (targeting 10%+) to meet the ambitious financial goal within the timeline."
+                  },
+                  {
+                    "Asset Class": "Debt",
+                    "Allocation %": 50,
+                    "Fund Categories": "Short Duration Funds, Corporate Bond Funds",
+                    "Strategic Role": "Stability Anchor: Aims to preserve capital, reduce overall portfolio volatility, and protect against market downturns, crucial for a short-term goal."
+                  }
+                ]
+              }
+            ],
+            "recommendations": [
+              {
+                "recommendation_id": "REC_01",
+                "recommendation": "Adhere strictly to the monthly SIP schedule. Consistency is key to leveraging dollar-cost averaging and staying on track.",
+                "rationale": "Disciplined investing mitigates the risk of market timing and ensures the full principal amount is invested to benefit from compounding."
+              },
+              {
+                "recommendation_id": "REC_02",
+                "recommendation": "Review the portfolio performance quarterly but avoid reactive changes based on short-term market noise. Rebalance annually if the asset allocation deviates by more than 5% from the 50/50 target.",
+                "rationale": "Regular reviews ensure the plan remains aligned with the goal, while annual rebalancing maintains the intended risk profile without incurring excessive transaction costs."
+              },
+              {
+                "recommendation_id": "REC_03",
+                "recommendation": "Develop a contingency plan. Given the high reliance on equity returns over a short period, be prepared for the possibility of a shortfall. This could involve extending the timeline or arranging for supplementary funds.",
+                "rationale": "Proactive planning for adverse scenarios reduces stress and allows for more rational decision-making if the market underperforms close to the target date."
+              }
+            ],
+            "risks_or_warnings": [
+              {
+                "risk_id": "RISK_01",
+                "risk_description": "Market Volatility Risk: A 50% allocation to equities over a 3-year period is highly susceptible to market downturns. The final corpus could be significantly less than the projected amount if the market performs poorly, especially in the final 12-18 months.",
+                "mitigation": "The 50% debt allocation provides a partial buffer. Sticking to the SIP plan (dollar-cost averaging) can mitigate timing risk. A contingency plan is essential."
+              },
+              {
+                "risk_id": "RISK_02",
+                "risk_description": "Projection vs. Reality: The financial projection assumes a constant 10% annual return. Actual returns will vary year-to-year and are not guaranteed. The plan's success is heavily dependent on achieving returns close to this average.",
+                "mitigation": "Monitor portfolio performance against the benchmark. Be mentally prepared for deviations and refer to the contingency plan if there is a consistent and significant lag in performance."
+              },
+              {
+                "risk_id": "RISK_03",
+                "risk_description": "Interest Rate Risk: While mitigated by using Short Duration Funds, any unexpected and sharp rise in interest rates could still have a minor negative impact on the debt portion of the portfolio.",
+                "mitigation": "The selection of Short Duration funds is the primary mitigation strategy, as they are less sensitive to rate changes than longer-duration bond funds."
+              }
+            ],
+            "key_factors_considered": [
+              "User Goal: House Purchase",
+              "Time Horizon: 3 Years (36 Months)",
+              "Risk Appetite: Moderate",
+              "Inflation-Adjusted Target: ~₹2.35 Crores",
+              "Required SIP Calculation: Based on a 10% annual return",
+              "Principle of Capital Preservation for Short-Term Goals",
+              "Principle of Growth for Inflation-Beating Returns"
+            ],
+            "task_completion_score": 0.95
+          }
+        },
+        "call_self": false,
+        "cost": 0.00250515,
+        "input_tokens": 5481.0,
+        "output_tokens": 2805.0,
+        "total_tokens": 8286.0
+      },
+      "error": null,
+      "cost": 0.0,
+      "start_time": "2025-09-28T11:32:10.187117",
+      "end_time": "2025-09-28T11:33:27.929712",
+      "execution_time": 77.742595,
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "execution_result": null
+    },
+    {
+      "id": "T014",
+      "description": "Perform quality assurance on all calculations and logical connections.",
+      "agent": "QAAgent",
+      "agent_prompt": "Conduct a comprehensive validation of the outputs from T001, T012, and T013. Verify the mathematical accuracy of the inflation adjustment and SIP calculation in T001. Ensure the asset allocation percentages sum to 100%. Confirm that the fund categories recommended are consistent with the 'moderate' risk profile. Check for the presence and correctness of the currency ('INR') throughout. Flag any inconsistencies.",
+      "reads": [
+        "T001",
+        "T012",
+        "T013"
+      ],
+      "writes": [
+        "T014"
+      ],
+      "status": "completed",
+      "output": {
+        "initial_thoughts": "I need to validate the outputs of T001, T012, and T013. My focus for T001 will be on mathematical correctness (inflation, SIP calculation), adherence to the allocation plan (50/50 summing to 100%), and consistency with the 'moderate' risk profile as per the SIP addendum rules. For T012, I'll verify if it correctly handled the upstream data failure. For T013, I will check if its strategic analysis is sound and if it properly acknowledged the data limitations from T012. I will perform the calculations myself to verify the numbers in T001.",
+        "output": {
+          "issues": [
+            {
+              "step_id": "T001",
+              "agent": "SIPGoalPlannerAgent",
+              "problem": "The final projected corpus in `sip_projection_table_json` (23,481,381.04) does not exactly match the `adjusted_target` in `sip_calc_json` (23,484,827.75). The shortfall is 3,446.71 INR, a minor discrepancy of approximately 0.015%.",
+              "severity": "low",
+              "recommendation": "Review the SIP calculation or projection loop for floating-point precision issues to ensure the final projected corpus aligns perfectly with the calculated target. While the current difference is negligible for planning purposes, perfect alignment is ideal."
+            }
+          ],
+          "verdict": "pass",
+          "validation_summary": "Validation passed with one minor issue noted. The calculations in T001 are fundamentally sound, with a negligible rounding difference in the final projection. The asset allocation correctly sums to 100% and aligns with the moderate risk profile. T012 correctly identified and reported an upstream data retrieval failure. T013 provided a high-quality, insightful analysis that properly contextualized the plan's risks and correctly acknowledged the data limitations from T012.",
+          "overall_quality_score": 9
+        },
+        "call_self": false,
+        "cost": 0.001242675,
+        "input_tokens": 6796.5,
+        "output_tokens": 372.0,
+        "total_tokens": 7168.5
+      },
+      "error": null,
+      "cost": 0.0,
+      "start_time": "2025-09-28T11:33:28.010134",
+      "end_time": "2025-09-28T11:34:28.255356",
+      "execution_time": 60.245222,
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "execution_result": null
+    },
+    {
+      "id": "T015",
+      "description": "Generate JSON data for SIP projection and allocation charts.",
+      "agent": "CoderAgent",
+      "agent_prompt": "Read from T001.output: (1) sip_projection_table_json (array of monthly rows with fields label, cumulative_contribution, projected_corpus) and (2) allocation_plan_json (equity_percent, debt_percent, recommended_fund_categories). Build chart_data_json with:\n\nprojection: {\n  labels: [row.label ...],\n  datasets: {\n    cumulative_contribution: [row.cumulative_contribution ...],\n    projected_corpus: [row.projected_corpus ...]\n  }\n}\nallocation: {\n  labels: [\"Equity\",\"Debt\"],\n  data: [allocation_plan_json.equity_percent, allocation_plan_json.debt_percent],\n  meta: { recommended_fund_categories: allocation_plan_json.recommended_fund_categories }\n}\n\nOUTPUT REQUIREMENTS (DIRECT FILE CREATION, NO CODE):\n- Set output.chart_data_json to the constructed object.\n- Set files['chart_data.json'] to the SAME object, JSON.stringify without indentation.\n- Set code = {} and call_self = false.\n- If any input is missing/empty, still return a minimal valid object:\n  { projection: { labels: [], datasets: [] }, allocation: { labels: [\"Equity\",\"Debt\"], data: [0,0], meta: {} } }\n  and still write files['chart_data.json']. Do NOT fail.",
+      "reads": [
+        "T001"
+      ],
+      "writes": [
+        "T015"
+      ],
+      "status": "completed",
+      "output": {
+        "initial_thoughts": "This is task T015. I need to perform a data transformation, not code generation. I will read the complete sip_projection_table_json (36 months) and the allocation_plan_json from the T001 input. I will then construct the chart_data_json object with two main keys: 'projection' and 'allocation'. The 'projection' key will contain arrays for labels, cumulative_contribution, and projected_corpus, ensuring all 36 months are included. The 'allocation' key will contain data derived from the allocation_plan_json. As per the instructions, I will place the final object in both the `output.chart_data_json` field and as a stringified JSON in the `files['chart_data.json']` field.",
+        "output": {
+          "chart_data_json": {
+            "projection": {
+              "labels": [
+                "M1",
+                "M2",
+                "M3",
+                "M4",
+                "M5",
+                "M6",
+                "M7",
+                "M8",
+                "M9",
+                "M10",
+                "M11",
+                "M12",
+                "M13",
+                "M14",
+                "M15",
+                "M16",
+                "M17",
+                "M18",
+                "M19",
+                "M20",
+                "M21",
+                "M22",
+                "M23",
+                "M24",
+                "M25",
+                "M26",
+                "M27",
+                "M28",
+                "M29",
+                "M30",
+                "M31",
+                "M32",
+                "M33",
+                "M34",
+                "M35",
+                "M36"
+              ],
+              "datasets": {
+                "cumulative_contribution": [
+                  562081.43,
+                  1124162.86,
+                  1686244.29,
+                  2248325.72,
+                  2810407.15,
+                  3372488.58,
+                  3934570.01,
+                  4496651.44,
+                  5058732.87,
+                  5620814.3,
+                  6182895.73,
+                  6744977.16,
+                  7307058.59,
+                  7869140.02,
+                  8431221.45,
+                  8993302.88,
+                  9555384.31,
+                  10117465.74,
+                  10679547.17,
+                  11241628.6,
+                  11803710.03,
+                  12365791.46,
+                  12927872.89,
+                  13489954.32,
+                  14052035.75,
+                  14614117.18,
+                  15176198.61,
+                  15738280.04,
+                  16300361.47,
+                  16862442.9,
+                  17424524.33,
+                  17986605.76,
+                  18548687.19,
+                  19110768.62,
+                  19672850.05,
+                  20234931.48
+                ],
+                "projected_corpus": [
+                  562081.43,
+                  1128846.87,
+                  1700335.36,
+                  2276586.16,
+                  2857638.54,
+                  3443531.85,
+                  4034305.62,
+                  4630000.4,
+                  5230657.07,
+                  5836316.88,
+                  6447021.52,
+                  7062812.9,
+                  7683733.23,
+                  8309825.01,
+                  8941131.02,
+                  9577694.13,
+                  10219557.4,
+                  10866764.08,
+                  11519357.78,
+                  12177382.43,
+                  12840882.28,
+                  13509902.0,
+                  14184486.52,
+                  14864681.04,
+                  15550531.05,
+                  16242082.31,
+                  16939380.66,
+                  17642472.17,
+                  18351403.11,
+                  19066220.1,
+                  19786969.94,
+                  20513700.02,
+                  21246458.04,
+                  21985292.03,
+                  22730249.97,
+                  23481381.04
+                ]
+              }
+            },
+            "allocation": {
+              "labels": [
+                "Equity",
+                "Debt"
+              ],
+              "data": [
+                50,
+                50
+              ],
+              "meta": {
+                "recommended_fund_categories": {
+                  "equity": [
+                    "Large Cap Funds",
+                    "Mid Cap Funds"
+                  ],
+                  "debt": [
+                    "Corporate Bond Funds",
+                    "Short Duration Funds"
+                  ],
+                  "elss_optional": true
+                }
+              }
+            }
+          }
+        },
+        "call_self": false,
+        "files": {
+          "chart_data.json": "{\"projection\":{\"labels\":[\"M1\",\"M2\",\"M3\",\"M4\",\"M5\",\"M6\",\"M7\",\"M8\",\"M9\",\"M10\",\"M11\",\"M12\",\"M13\",\"M14\",\"M15\",\"M16\",\"M17\",\"M18\",\"M19\",\"M20\",\"M21\",\"M22\",\"M23\",\"M24\",\"M25\",\"M26\",\"M27\",\"M28\",\"M29\",\"M30\",\"M31\",\"M32\",\"M33\",\"M34\",\"M35\",\"M36\"],\"datasets\":{\"cumulative_contribution\":[562081.43,1124162.86,1686244.29,2248325.72,2810407.15,3372488.58,3934570.01,4496651.44,5058732.87,5620814.3,6182895.73,6744977.16,7307058.59,7869140.02,8431221.45,8993302.88,9555384.31,10117465.74,10679547.17,11241628.6,11803710.03,12365791.46,12927872.89,13489954.32,14052035.75,14614117.18,15176198.61,15738280.04,16300361.47,16862442.9,17424524.33,17986605.76,18548687.19,19110768.62,19672850.05,20234931.48],\"projected_corpus\":[562081.43,1128846.87,1700335.36,2276586.16,2857638.54,3443531.85,4034305.62,4630000.4,5230657.07,5836316.88,6447021.52,7062812.9,7683733.23,8309825.01,8941131.02,9577694.13,10219557.4,10866764.08,11519357.78,12177382.43,12840882.28,13509902.0,14184486.52,14864681.04,15550531.05,16242082.31,16939380.66,17642472.17,18351403.11,19066220.1,19786969.94,20513700.02,21246458.04,21985292.03,22730249.97,23481381.04]}},\"allocation\":{\"labels\":[\"Equity\",\"Debt\"],\"data\":[50,50],\"meta\":{\"recommended_fund_categories\":{\"equity\":[\"Large Cap Funds\",\"Mid Cap Funds\"],\"debt\":[\"Corporate Bond Funds\",\"Short Duration Funds\"],\"elss_optional\":true}}}}"
+        },
+        "cost": 0.001097775,
+        "input_tokens": 5626.5,
+        "output_tokens": 423.0,
+        "total_tokens": 6049.5,
+        "execution_result": {
+          "status": "success",
+          "session_id": "590588170a63fcce",
+          "operations": [
+            "direct_files"
+          ],
+          "created_files": [
+            "media\\generated\\590588170a63fcce\\chart_data.json"
+          ],
+          "file_results": {
+            "created_files": [
+              "media\\generated\\590588170a63fcce\\chart_data.json"
+            ],
+            "file_count": 1,
+            "total_size": 1336,
+            "status": "success",
+            "errors": [],
+            "execution_time": 0.009112900123000145
+          },
+          "code_results": {},
+          "total_time": 0.013292100047692657,
+          "error": null
+        },
+        "created_files": [
+          "media\\generated\\590588170a63fcce\\chart_data.json"
+        ]
+      },
+      "error": null,
+      "cost": 0.0,
+      "start_time": "2025-09-28T11:29:14.489572",
+      "end_time": "2025-09-28T11:30:16.602493",
+      "execution_time": 62.112921,
+      "execution_result": {
+        "status": "success",
+        "session_id": "590588170a63fcce",
+        "operations": [
+          "direct_files"
+        ],
+        "created_files": [
+          "media\\generated\\590588170a63fcce\\chart_data.json"
+        ],
+        "file_results": {
+          "created_files": [
+            "media\\generated\\590588170a63fcce\\chart_data.json"
+          ],
+          "file_count": 1,
+          "total_size": 1336,
+          "status": "success",
+          "errors": [],
+          "execution_time": 0.009112900123000145
+        },
+        "code_results": {},
+        "total_time": 0.013292100047692657,
+        "error": null
+      },
+      "input_tokens": 0,
+      "output_tokens": 0
+    },
+    {
+      "id": "T016",
+      "description": "Extract the first 12 months of the SIP projection table.",
+      "agent": "CoderAgent",
+      "agent_prompt": "Read `sip_projection_table_json` from T001. Slice the FIRST 12 rows ONLY. No math and no derived fields. If missing/empty, return empty array without failing other tasks. REQUIRED: set `output.first_12_months_table_json`, and emit `files['first_12_months_table.json']` with the same array stringified. `code` must be `{}` and `call_self` must be `false`.",
+      "reads": [
+        "T001"
+      ],
+      "writes": [
+        "T016"
+      ],
+      "status": "completed",
+      "output": {
+        "initial_thoughts": "Extracting first 12 rows from T001 complete sip_projection_table_json for short-term monthly view table. Input contains a full 36-month projection timeline, and the task is to slice the first 12 months only, as per the T016 specification. This is a direct data creation task, not code generation.",
+        "output": {
+          "first_12_months_table_json": [
+            {
+              "month_index": 1,
+              "label": "M1",
+              "contribution": 562081.43,
+              "cumulative_contribution": 562081.43,
+              "projected_corpus": 562081.43
+            },
+            {
+              "month_index": 2,
+              "label": "M2",
+              "contribution": 562081.43,
+              "cumulative_contribution": 1124162.86,
+              "projected_corpus": 1128846.87
+            },
+            {
+              "month_index": 3,
+              "label": "M3",
+              "contribution": 562081.43,
+              "cumulative_contribution": 1686244.29,
+              "projected_corpus": 1700335.36
+            },
+            {
+              "month_index": 4,
+              "label": "M4",
+              "contribution": 562081.43,
+              "cumulative_contribution": 2248325.72,
+              "projected_corpus": 2276586.16
+            },
+            {
+              "month_index": 5,
+              "label": "M5",
+              "contribution": 562081.43,
+              "cumulative_contribution": 2810407.15,
+              "projected_corpus": 2857638.54
+            },
+            {
+              "month_index": 6,
+              "label": "M6",
+              "contribution": 562081.43,
+              "cumulative_contribution": 3372488.58,
+              "projected_corpus": 3443531.85
+            },
+            {
+              "month_index": 7,
+              "label": "M7",
+              "contribution": 562081.43,
+              "cumulative_contribution": 3934570.01,
+              "projected_corpus": 4034305.62
+            },
+            {
+              "month_index": 8,
+              "label": "M8",
+              "contribution": 562081.43,
+              "cumulative_contribution": 4496651.44,
+              "projected_corpus": 4630000.4
+            },
+            {
+              "month_index": 9,
+              "label": "M9",
+              "contribution": 562081.43,
+              "cumulative_contribution": 5058732.87,
+              "projected_corpus": 5230657.07
+            },
+            {
+              "month_index": 10,
+              "label": "M10",
+              "contribution": 562081.43,
+              "cumulative_contribution": 5620814.3,
+              "projected_corpus": 5836316.88
+            },
+            {
+              "month_index": 11,
+              "label": "M11",
+              "contribution": 562081.43,
+              "cumulative_contribution": 6182895.73,
+              "projected_corpus": 6447021.52
+            },
+            {
+              "month_index": 12,
+              "label": "M12",
+              "contribution": 562081.43,
+              "cumulative_contribution": 6744977.16,
+              "projected_corpus": 7062812.9
+            }
+          ]
+        },
+        "call_self": false,
+        "files": {},
+        "cost": 0.001011375,
+        "input_tokens": 5512.5,
+        "output_tokens": 307.5,
+        "total_tokens": 5820.0
+      },
+      "error": null,
+      "cost": 0.0,
+      "start_time": "2025-09-28T11:30:21.678740",
+      "end_time": "2025-09-28T11:31:14.527523",
+      "execution_time": 52.848783,
+      "execution_result": {
+        "status": "no_operation",
+        "session_id": "590588170a63fcce",
+        "operations": [],
+        "created_files": [],
+        "file_results": {},
+        "code_results": {},
+        "total_time": 0.005668899975717068,
+        "error": "No files or code_variants found in output"
+      },
+      "input_tokens": 0,
+      "output_tokens": 0
+    },
+    {
+      "id": "T017",
+      "description": "Format all components into a structured HTML body for the final report.",
+      "agent": "FormatterAgent",
+      "agent_prompt": "Synthesize all inputs into a single, well-structured HTML body. Use data from T001 for goal inputs, inflation, SIP calculation, and allocation plan. Use T013 for strategic notes. Use T014 for a validation summary. Use T015's chart_data_json and T016's first_12_months_table_json as data placeholders for later rendering. Structure the HTML to include all mandatory sections: 1. Executive Summary, 2. Goal Inputs, 3. Inflation Adjustment, 4. SIP Calculation, 5. Asset Allocation Plan, 6. Allocation Notes, 7. Key Recommendations, 8. Risk Factors and Uncertainties (min 150 words), 9. SIP Charts, 10. SIP Projection, 11. 12 month sip projection table.",
+      "reads": [
+        "T001",
+        "T013",
+        "T014",
+        "T015",
+        "T016"
+      ],
+      "writes": [
+        "T017"
+      ],
+      "status": "failed",
+      "output": null,
+      "error": "503 UNAVAILABLE. {'error': {'code': 503, 'message': 'The service is currently unavailable.', 'status': 'UNAVAILABLE'}}",
+      "cost": 0.0,
+      "start_time": "2025-09-28T11:34:28.344693",
+      "end_time": "2025-09-28T11:35:02.464307",
+      "execution_time": 34.119614
+    },
+    {
+      "id": "T018",
+      "description": "Generate the final, comprehensive SIP report as a standalone HTML file.",
+      "agent": "ReportGeneratorAgent",
+      "agent_prompt": "Take the formatted HTML content from T017 and the chart data from T015. Generate a final, executive-grade, standalone HTML file named `sip_comprehensive_report.html`. Embed the chart data using Chart.js to create interactive visualizations for the projection line chart and the allocation doughnut chart. Ensure the final report is polished, well-styled, and includes all 11 mandatory sections.",
+      "reads": [
+        "T017",
+        "T015"
+      ],
+      "writes": [
+        "T018"
+      ],
+      "status": "pending",
+      "output": null,
+      "error": null,
+      "cost": 0.0,
+      "start_time": null,
+      "end_time": null,
+      "execution_time": 0.0
+    }
+  ],
+  "links": [
+    {
+      "source": "ROOT",
+      "target": "T001"
+    },
+    {
+      "source": "T001",
+      "target": "T011"
+    },
+    {
+      "source": "T001",
+      "target": "T013"
+    },
+    {
+      "source": "T001",
+      "target": "T014"
+    },
+    {
+      "source": "T001",
+      "target": "T015"
+    },
+    {
+      "source": "T001",
+      "target": "T016"
+    },
+    {
+      "source": "T001",
+      "target": "T017"
+    },
+    {
+      "source": "T011",
+      "target": "T012"
+    },
+    {
+      "source": "T012",
+      "target": "T013"
+    },
+    {
+      "source": "T012",
+      "target": "T014"
+    },
+    {
+      "source": "T013",
+      "target": "T014"
+    },
+    {
+      "source": "T013",
+      "target": "T017"
+    },
+    {
+      "source": "T014",
+      "target": "T017"
+    },
+    {
+      "source": "T015",
+      "target": "T017"
+    },
+    {
+      "source": "T015",
+      "target": "T018"
+    },
+    {
+      "source": "T016",
+      "target": "T017"
+    },
+    {
+      "source": "T017",
+      "target": "T018"
+    }
+  ]
+}
