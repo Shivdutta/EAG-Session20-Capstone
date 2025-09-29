@@ -1,11 +1,11 @@
 import React from 'react';
-import SIPGoalPlanningForm from './components/react_sip_form';
+import Login from './components/Login';   // ✅ import Login instead of SIP form
 import './App.css';
 
 function App() {
   return (
     <div className="App">
-      <SIPGoalPlanningForm />
+      <Login />                          {/* ✅ mount Login as root */}
     </div>
   );
 }
