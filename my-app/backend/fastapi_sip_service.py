@@ -1,18 +1,23 @@
-from fastapi import FastAPI, HTTPException, Body
+from fastapi import FastAPI, HTTPException, Body, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse, HTMLResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field, validator
 from typing import Dict, Any, Optional, List, Union
 from datetime import datetime
 import json
 import os
 import sys
+import glob
+import re
 from pathlib import Path
 from enum import Enum
 from jinja2 import Environment, FileSystemLoader
-from pathlib import Path
-from typing import Dict
 import ast
-from fastapi.responses import StreamingResponse
+import time
+import asyncio
+import traceback
+import logging
 from contextlib import asynccontextmanager
 
 # Add the parent directory to Python path
@@ -20,10 +25,18 @@ parent_dir = Path(__file__).parent.parent
 sys.path.insert(0, str(parent_dir))
 
 from contextlib import asynccontextmanager
-from agentLoop.model_manager import ModelManager  # Replace with actual import path
+from agentLoop.model_manager import ModelManager  # Your existing ModelManager
 
 # Import the fixed agent service
 from agent_stream_service import agent_stream_service, EventType
+
+# Initialize ModelManager for fund recommendation template processing
+try:
+    model_manager = ModelManager()  # Uses default model from profile
+    print("✅ ModelManager initialized for fund recommendation processing")
+except Exception as e:
+    print(f"⚠️ Warning: ModelManager initialization failed: {e}")
+    model_manager = None
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -52,8 +65,6 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# app = FastAPI(title="SIP Goal Planning API", version="1.0.0")
-
 # CORS middleware for React frontend
 app.add_middleware(
     CORSMiddleware,
@@ -61,7 +72,14 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["*"]  # Added for file serving
 )
+
+# Mount static files directory for media files
+media_dir = Path("media")
+if media_dir.exists():
+    app.mount("/media", StaticFiles(directory="media"), name="media")
+    print(f"📁 Mounted static media directory: {media_dir}")
 
 # Load configuration from JSON file
 def load_sip_config() -> Dict[str, Any]:
@@ -75,7 +93,7 @@ def load_sip_config() -> Dict[str, Any]:
         return config
     except FileNotFoundError:
         print(f"❌ Configuration file not found: {config_file}")
-        print("📁 Please ensure 'sip_ui_binding.json' is in the same directory as this script")
+        print("📄 Please ensure 'sip_ui_binding.json' is in the same directory as this script")
         raise HTTPException(
             status_code=500,
             detail=f"Configuration file not found: {config_file}. Please ensure 'sip_ui_binding.json' exists."
@@ -97,7 +115,7 @@ def load_sip_config() -> Dict[str, Any]:
 try:
     SIP_CONFIG = load_sip_config()
 except Exception as e:
-    print(f"⚠️  Warning: Could not load configuration at startup: {e}")
+    print(f"⚠️ Warning: Could not load configuration at startup: {e}")
     SIP_CONFIG = None
 
 # Dynamically create enums from JSON configuration
@@ -245,40 +263,29 @@ class FormSubmissionResponse(BaseModel):
     calculation_result: Optional[SIPCalculationResult] = None
     form_data: Dict[str, Any]
 
-# Helper functions
-# unused
-# def get_expected_returns(risk_appetite: str) -> float:
-#     """Get expected returns based on risk appetite - can be customized via JSON config"""
-#     # Try to get from config first, fall back to defaults
-#     if SIP_CONFIG:
-#         try:
-#             # Look for risk profiles in config
-#             for field in SIP_CONFIG["formConfig"]["fields"]["always_required"]:
-#                 if field["name"] == "risk_appetite" and "options" in field:
-#                     for option in field["options"]:
-#                         if option["value"] == risk_appetite:
-#                             # Extract return percentage from label if present
-#                             label = option["label"]
-#                             if "(" in label and "%" in label:
-#                                 return_str = label.split("(")[1].split("%")[0]
-#                                 try:
-#                                     return float(return_str) / 100
-#                                 except:
-#                                     pass
-#         except:
-#             pass
-    
-#     # Default returns mapping
-#     returns_map = {
-#         "very_low": 0.05,
-#         "low": 0.07,
-#         "low_moderate": 0.08,
-#         "moderate": 0.10,
-#         "high_moderate": 0.11,
-#         "high": 0.12,
-#         "very_high": 0.14
-#     }
-#     return returns_map.get(risk_appetite, 0.10)
+# Helper functions for file operations
+def find_latest_report_file() -> Optional[tuple]:
+    """Find the most recently generated HTML report"""
+    try:
+        media_pattern = "media/generated/*/comprehensive_report.html"
+        html_files = glob.glob(media_pattern)
+        
+        if not html_files:
+            # Also try without media prefix in case of different structure
+            alt_pattern = "*/comprehensive_report.html"
+            html_files = glob.glob(alt_pattern)
+        
+        if not html_files:
+            return None
+        
+        # Get the most recently modified file
+        latest_file = max(html_files, key=os.path.getmtime)
+        filename = os.path.basename(latest_file)
+        
+        return filename, latest_file
+    except Exception as e:
+        print(f"Error finding report file: {e}")
+        return None
 
 def calculate_time_horizon(form_data: Dict[str, Any]) -> int:
     """Calculate time horizon based on goal type using computed_fields from JSON config"""
@@ -318,24 +325,245 @@ def calculate_time_horizon(form_data: Dict[str, Any]) -> int:
     
     return 10  # default
 
-# unused
-# def calculate_sip_amount(target_amount: float, time_horizon_years: int, annual_return: float) -> float:
-#     """Calculate required monthly SIP amount"""
-#     if time_horizon_years <= 0:
-#         raise ValueError("Time horizon must be positive")
+def load_orchestrator_template():
+    """Load agent config and orchestrator template from file"""    
+    # Set template path
+    template_path = Path("prompts/orchestrator_agent/SIP_Orchestrator_Prompt_Template_patched_v3.txt")
     
-#     months = time_horizon_years * 12
-#     monthly_return = annual_return / 12
+    try:
+        with open(template_path, 'r', encoding='utf-8') as f:
+            orchestrator_template = f.read()
+        
+        return orchestrator_template
+        
+    except FileNotFoundError:
+        raise HTTPException(status_code=500, detail=f"Orchestrator template not found: {template_path}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error reading orchestrator template: {e}")
+
+def load_and_populate_orchestrator_prompt(form_context: Dict) -> str:
+    """
+    Loads the orchestrator template and populates it with the given form_context.
+
+    Args:
+        form_context (Dict): A dictionary containing the user's goal details.
+
+    Returns:
+        str: The populated prompt as a string.
+    """
+    # Define the path to the directory containing the template file
+    template_dir = Path("prompts/orchestrator_agent")
+
+    # Set up the Jinja2 environment
+    env = Environment(loader=FileSystemLoader(template_dir))
+
+    # Load the template file
+    template_path = "SIP_Orchestrator_Prompt_Template_patched_v4.txt"
+    try:
+        template = env.get_template(template_path)
+    except FileNotFoundError:
+        # Create the necessary directory and a dummy file if they don't exist
+        # This is for demonstration purposes and assumes the template is not actually available
+        template_dir.mkdir(parents=True, exist_ok=True)
+        with open(template_dir / template_path, "w") as f:
+            f.write("goal_type = {{ goal_type }}")
+
+        # Retry loading the template
+        template = env.get_template(template_path)
+
+    # Render the template with the provided form_context
+    return template.render(form_context)
+
+def calculate_time_horizon_years(form_context: Dict) -> Union[int, None]:
+    """
+    Calculates the time horizon based on the goal type.
+
+    Args:
+        form_context (Dict): A dictionary containing all relevant goal data.
+
+    Returns:
+        int: The calculated time horizon in years, or None if a required
+             variable is missing.
+    """
+    goal_type = form_context.get("goal_type")
+
+    if goal_type == "Retirement":
+        current_age = form_context.get("current_age")
+        retirement_age = form_context.get("retirement_age")
+        override_time_horizon_years = form_context.get("override_time_horizon_years", 0)
+
+        # Check for required variables
+        if current_age is None or retirement_age is None:
+            return None
+        
+        return max(override_time_horizon_years, retirement_age - current_age)
+
+    elif goal_type == "Child Education":
+        child_current_age = form_context.get("child_current_age")
+        education_start_age = form_context.get("education_start_age")
+
+        if child_current_age is None or education_start_age is None:
+            return None
+            
+        return education_start_age - child_current_age
+
+    elif goal_type == "Child Marriage":
+        child_current_age = form_context.get("child_current_age")
+        marriage_age = form_context.get("marriage_age")
+
+        if child_current_age is None or marriage_age is None:
+            return None
+            
+        return marriage_age - child_current_age
+
+    elif goal_type == "House Purchase":
+        target_purchase_year = form_context.get("target_purchase_year")
+        
+        if target_purchase_year is None:
+            return None
+        
+        # Assuming you have the current year from the datetime module
+        current_year = datetime.date.today().year
+        return target_purchase_year - current_year
+
+    else:  # This will handle "General Wealth Creation" and other cases
+        return form_context.get("override_time_horizon_years")
+
+# Fund Recommendation Helper Functions
+def read_html_report_content(file_path: str) -> str:
+    """Read the HTML report file as raw content for model processing"""
+    try:
+        if not Path(file_path).exists():
+            raise FileNotFoundError(f"Report file not found: {file_path}")
+        
+        with open(file_path, 'r', encoding='utf-8') as f:
+            html_content = f.read()
+        
+        print(f"✅ Successfully read HTML report file: {file_path}")
+        return html_content
+        
+    except Exception as e:
+        print(f"❌ Error reading HTML report: {e}")
+        raise HTTPException(status_code=500, detail=f"Error reading HTML report: {str(e)}")
+
+async def process_html_and_populate_template(html_content: str, template: str) -> str:
+    """Use ModelManager to read HTML report and populate fund recommendation template - mimicking ChatGPT workflow"""
+    try:
+        if model_manager is None:
+            print("⚠️ ModelManager not available, falling back to manual population")
+            return populate_template_manually_from_html(template, html_content)
+        
+        # Create a comprehensive prompt that mimics uploading HTML file to ChatGPT
+        model_prompt = f"""
+I am providing you with an HTML report file (comprehensive_report.html) from a SIP investment calculation and a fund recommendation template that needs to be populated.
+
+Please analyze the HTML report and extract the relevant investment data, then populate ALL placeholders in the template.
+
+HTML REPORT CONTENT:
+{html_content}
+
+FUND RECOMMENDATION TEMPLATE TO POPULATE:
+{template}
+
+INSTRUCTIONS:
+1. Analyze the HTML report content to extract investment data (goal type, amounts, time horizon, risk appetite, etc.)
+2. Replace ALL placeholders in the template (marked with {{{{ }}}}) with appropriate values extracted from the HTML report
+3. For any placeholders not directly available in the HTML, use reasonable defaults based on the investment context
+4. Maintain the exact structure and formatting of the template
+5. Calculate derived values like asset allocation percentages based on risk appetite
+6. Set appropriate risk profile weights for the fund recommendation
+7. Provide goal-specific phase descriptions and recommendations
+
+Return ONLY the populated template with all placeholders replaced:
+"""
+        
+        # Generate content using ModelManager - this mimics what you did with ChatGPT
+        populated_template = await model_manager.generate_text(model_prompt)
+        
+        print(f"✅ Template populated successfully using ModelManager (ChatGPT-style processing)")
+        return populated_template
+        
+    except Exception as e:
+        print(f"❌ Error processing HTML and populating template with ModelManager: {e}")
+        # Fallback to manual population
+        return populate_template_manually_from_html(template, html_content)
+
+def populate_template_manually_from_html(template: str, html_content: str) -> str:
+    """Fallback: Extract basic data from HTML using regex and populate template manually"""
+    try:
+        import re
+        
+        # Extract data using simple regex patterns (basic fallback)
+        goal_type_match = re.search(r'Goal Type:</strong>\s*([^<]+)', html_content)
+        goal_type = goal_type_match.group(1).strip() if goal_type_match else 'General Wealth Creation'
+        
+        target_amount_match = re.search(r'Target Amount:</strong>[^₹]*₹\s*([\d,]+)', html_content)
+        target_amount = target_amount_match.group(1).replace(',', '') if target_amount_match else '5000000'
+        
+        time_horizon_match = re.search(r'Time Horizon:</strong>\s*(\d+)\s*years', html_content)
+        time_horizon = time_horizon_match.group(1) if time_horizon_match else '10'
+        
+        risk_match = re.search(r'Risk Level:</strong>\s*([^<]+)', html_content)
+        risk_appetite = risk_match.group(1).strip().lower() if risk_match else 'moderate'
+        
+        monthly_sip_match = re.search(r'Monthly SIP Amount[^₹]*₹\s*([\d,]+)', html_content)
+        monthly_sip = monthly_sip_match.group(1).replace(',', '') if monthly_sip_match else '25000'
+        
+        # Basic placeholder replacements
+        replacements = {
+            '{{GOAL_TYPE}}': goal_type.upper(),
+            '{{TIME_HORIZON}}': time_horizon,
+            '{{goal_type}}': goal_type,
+            '{{current_age}}': '30',  # Default
+            '{{event_age_or_target}}': str(int(time_horizon) + 30),
+            '{{risk_appetite}}': risk_appetite,
+            '{{time_horizon_years}}': time_horizon,
+            '{{monthly_sip_required}}': monthly_sip,
+            '{{target_amount_inflation_adjusted}}': target_amount,
+            '{{assumed_annual_return}}': '10.0',
+            '{{unadjusted_target}}': target_amount,
+            '{{inflation_rate}}': '6.0',
+            '{{equity_percent}}': '60',
+            '{{debt_percent}}': '40',
+            '{{allocation_strategy}}': '60-40 Strategy',
+            '{{total_monthly_amount}}': monthly_sip,
+            '{{equity_monthly_amount}}': str(int(int(monthly_sip) * 0.6)),
+            '{{debt_monthly_amount}}': str(int(int(monthly_sip) * 0.4)),
+            '{{weight_cagr}}': '0.3',
+            '{{weight_sharpe}}': '0.25',
+            '{{weight_expense}}': '0.15',
+            '{{weight_rating}}': '0.15',
+            '{{weight_consistency}}': '0.1',
+            '{{weight_liquidity_or_downside}}': '0.05',
+            '{{early_phase_focus}}': 'Growth and accumulation',
+            '{{mid_phase_focus}}': 'Balanced growth and risk management',
+            '{{final_phase_focus}}': 'Capital preservation and liquidity',
+            '{{goal_specific_notes}}': f'Optimized for {goal_type} with {time_horizon}-year horizon'
+        }
+        
+        populated_template = template
+        for placeholder, value in replacements.items():
+            populated_template = populated_template.replace(placeholder, value)
+        
+        print(f"✅ Template populated manually as fallback")
+        return populated_template
+        
+    except Exception as e:
+        print(f"❌ Error in manual template population from HTML: {e}")
+        raise HTTPException(status_code=500, detail=f"Error populating template: {str(e)}")
+
+def load_fund_recommendation_template() -> str:
+    """Load fund recommendation orchestrator template"""
+    template_path = Path("prompts/orchestrator_agent/Fund_Recommendation_Orchestrator_Prompt_Template_v1.txt")
     
-#     if monthly_return == 0:
-#         return target_amount / months
-    
-#     # SIP formula: FV = PMT * [((1 + r)^n - 1) / r]
-#     # PMT = FV * r / ((1 + r)^n - 1)
-#     future_value_factor = ((1 + monthly_return) ** months - 1) / monthly_return
-#     monthly_sip = target_amount / future_value_factor
-    
-#     return monthly_sip
+    try:
+        with open(template_path, 'r', encoding='utf-8') as f:
+            template_content = f.read()
+        return template_content
+    except FileNotFoundError:
+        raise HTTPException(status_code=500, detail=f"Fund recommendation template not found: {template_path}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error reading fund recommendation template: {e}")
 
 # API Endpoints
 
@@ -351,7 +579,8 @@ async def root():
         "version": "1.0.0",
         "config_status": config_status,
         "config_file_exists": config_file_exists,
-        "config_file_path": str(config_file_path)
+        "config_file_path": str(config_file_path),
+        "model_manager_available": model_manager is not None
     }
 
 @app.post("/api/reload-config")
@@ -439,125 +668,72 @@ async def validate_form_data(form_data: Dict[str, Any] = Body(...)):
             "errors": [str(e)]
         }
 
-def load_orchestrator_template():
-    """Load agent config and orchestrator template from file"""    
-    # Set template path
-    template_path = Path("prompts/orchestrator_agent/SIP_Orchestrator_Prompt_Template_patched_v3.txt")
-    
+# HTML Report Serving Endpoints
+@app.get("/api/download-report", response_class=HTMLResponse)
+async def download_report(filepath: str = Query(..., description="File path to the HTML report")):
+    """Serve generated HTML reports"""
     try:
-        with open(template_path, 'r', encoding='utf-8') as f:
-            orchestrator_template = f.read()
+        # Convert to Path object and normalize
+        file_path = Path(filepath)
         
-        return  orchestrator_template
+        # Security check: ensure file is HTML
+        if not str(file_path).endswith('.html'):
+            raise HTTPException(status_code=400, detail="Only HTML files are allowed")
+        
+        # Check if file exists
+        if not file_path.exists():
+            raise HTTPException(status_code=404, detail=f"Report file not found: {filepath}")
+        
+        # Read and return the HTML content
+        with open(file_path, 'r', encoding='utf-8') as f:
+            html_content = f.read()
+        
+        print(f"📄 Served HTML report: {filepath}")
+        return HTMLResponse(content=html_content, status_code=200)
         
     except FileNotFoundError:
-        raise HTTPException(status_code=500, detail=f"Orchestrator template not found: {template_path}")
+        raise HTTPException(status_code=404, detail="Report file not found")
+    except PermissionError:
+        raise HTTPException(status_code=403, detail="Permission denied accessing report file")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error reading orchestrator template: {e}")
+        print(f"Error serving HTML report: {e}")
+        raise HTTPException(status_code=500, detail=f"Error reading report file: {str(e)}")
 
-def load_and_populate_orchestrator_prompt(form_context: Dict) -> str:
-    """
-    Loads the orchestrator template and populates it with the given form_context.
-
-    Args:
-        form_context (Dict): A dictionary containing the user's goal details.
-
-    Returns:
-        str: The populated prompt as a string.
-    """
-    # Define the path to the directory containing the template file
-    template_dir = Path("prompts/orchestrator_agent")
-
-    # Set up the Jinja2 environment
-    env = Environment(loader=FileSystemLoader(template_dir))
-
-    # Load the template file
-    template_path = "SIP_Orchestrator_Prompt_Template_patched_v4.txt"
+@app.get("/api/reports/{filename}")
+async def get_report_by_filename(filename: str):
+    """Alternative endpoint to get report by filename (searches in media directory)"""
     try:
-        template = env.get_template(template_path)
-    except FileNotFoundError:
-        # Create the necessary directory and a dummy file if they don't exist
-        # This is for demonstration purposes and assumes the template is not actually available
-        template_dir.mkdir(parents=True, exist_ok=True)
-        with open(template_dir / template_path, "w") as f:
-            f.write("goal_type = {{ goal_type }}")
-
-        # Retry loading the template
-        template = env.get_template(template_path)
-
-    # Render the template with the provided form_context
-    return template.render(form_context)
-
-import datetime
-from typing import Dict, Union
-
-def calculate_time_horizon_years(form_context: Dict) -> Union[int, None]:
-    """
-    Calculates the time horizon based on the goal type.
-
-    Args:
-        form_context (Dict): A dictionary containing all relevant goal data.
-
-    Returns:
-        int: The calculated time horizon in years, or None if a required
-             variable is missing.
-    """
-    goal_type = form_context.get("goal_type")
-
-    if goal_type == "Retirement":
-        current_age = form_context.get("current_age")
-        retirement_age = form_context.get("retirement_age")
-        override_time_horizon_years = form_context.get("override_time_horizon_years", 0)
-
-        # Check for required variables
-        if current_age is None or retirement_age is None:
-            return None
+        # Security check: ensure filename is HTML
+        if not filename.endswith('.html'):
+            raise HTTPException(status_code=400, detail="Only HTML files are allowed")
         
-        return max(override_time_horizon_years, retirement_age - current_age)
-
-    elif goal_type == "Child Education":
-        child_current_age = form_context.get("child_current_age")
-        education_start_age = form_context.get("education_start_age")
-
-        if child_current_age is None or education_start_age is None:
-            return None
-            
-        return education_start_age - child_current_age
-
-    elif goal_type == "Child Marriage":
-        child_current_age = form_context.get("child_current_age")
-        marriage_age = form_context.get("marriage_age")
-
-        if child_current_age is None or marriage_age is None:
-            return None
-            
-        return marriage_age - child_current_age
-
-    elif goal_type == "House Purchase":
-        target_purchase_year = form_context.get("target_purchase_year")
+        # Look in the media/generated directory
+        media_dir = Path("media/generated")
         
-        if target_purchase_year is None:
-            return None
+        if not media_dir.exists():
+            raise HTTPException(status_code=404, detail="Media directory not found")
         
-        # Assuming you have the current year from the datetime module
-        current_year = datetime.date.today().year
-        return target_purchase_year - current_year
+        # Search for the file in subdirectories
+        for report_dir in media_dir.rglob("*"):
+            if report_dir.is_dir():
+                report_file = report_dir / filename
+                if report_file.exists():
+                    with open(report_file, 'r', encoding='utf-8') as f:
+                        html_content = f.read()
+                    
+                    print(f"📄 Served HTML report by filename: {filename}")
+                    return HTMLResponse(content=html_content, status_code=200)
+        
+        raise HTTPException(status_code=404, detail=f"Report file {filename} not found")
+        
+    except Exception as e:
+        print(f"Error serving HTML report by filename: {e}")
+        raise HTTPException(status_code=500, detail=f"Error reading report: {str(e)}")
 
-    else:  # This will handle "General Wealth Creation" and other cases
-        return form_context.get("override_time_horizon_years")
-
-# Usage in your endpoint:
-# agent_config, orchestrator_template = load_orchestrator_template()
-from fastapi import FastAPI, Request
-from fastapi.responses import StreamingResponse
-from agent_stream_service import agent_stream_service, EventType
-import time
-import asyncio
-import traceback
-
+# Enhanced streaming endpoint with file detection
 @app.post("/api/calculate-sip")
 async def calculate_sip_stream(request: Request, form_data: Dict[str, Any] = Body(...)):
-    """Stream SIP calculation progress"""
+    """Stream SIP calculation progress with HTML report detection"""
     
     async def event_generator():
         try:
@@ -587,6 +763,10 @@ async def calculate_sip_stream(request: Request, form_data: Dict[str, Any] = Bod
             }
             yield f"data: {json.dumps(prompt_event)}\n\n"
             
+            # Track generated file information
+            generated_file_path = None
+            generated_filename = None
+            
             # Stream the agent execution
             try:
                 async for event_data in agent_stream_service.process_query_stream(final_prompt):
@@ -594,7 +774,53 @@ async def calculate_sip_stream(request: Request, form_data: Dict[str, Any] = Bod
                     if await request.is_disconnected():
                         print("Client disconnected, stopping stream")
                         break
-                        
+                    
+                    # Parse the event to check for file generation
+                    try:
+                        # Remove 'data: ' prefix if present
+                        clean_data = event_data.replace("data: ", "").strip()
+                        if clean_data:
+                            event_json = json.loads(clean_data)
+                            
+                            # Check if this is a file generation event from the agent
+                            if (event_json.get("type") == "agent_response" and 
+                                "comprehensive_report.html" in str(event_json.get("data", {}).get("message", ""))):
+                                
+                                # Extract file path from agent response
+                                message = event_json["data"]["message"]
+                                print(f"Detected file generation in message: {message}")
+                                
+                                # Look for file path patterns
+                                path_patterns = [
+                                    r'\\my-app\\media\\generated\\[\w\\]+\\comprehensive_report\.html',
+                                    r'media[\\/]generated[\\/][\w\\/]+[\\/]comprehensive_report\.html',
+                                    r'[\w\\/]+comprehensive_report\.html'
+                                ]
+                                
+                                for pattern in path_patterns:
+                                    path_match = re.search(pattern, message)
+                                    if path_match:
+                                        generated_file_path = path_match.group(0)
+                                        generated_filename = "comprehensive_report.html"
+                                        
+                                        # Emit file generated event
+                                        file_event = {
+                                            "type": "file_generated",
+                                            "data": {
+                                                "filename": generated_filename,
+                                                "filepath": generated_file_path
+                                            },
+                                            "timestamp": time.time()
+                                        }
+                                        yield f"data: {json.dumps(file_event)}\n\n"
+                                        print(f"📄 Emitted file_generated event for: {generated_file_path}")
+                                        break
+                    except json.JSONDecodeError:
+                        pass  # Continue with normal event streaming
+                    except Exception as parse_error:
+                        print(f"Error parsing stream event: {parse_error}")
+                        pass  # Continue with normal event streaming
+                    
                     yield event_data
                     
                     # Add small delay to prevent overwhelming the client
@@ -609,6 +835,29 @@ async def calculate_sip_stream(request: Request, form_data: Dict[str, Any] = Bod
                     "timestamp": time.time()
                 }
                 yield f"data: {json.dumps(error_event)}\n\n"
+            
+            # If no file was detected during streaming, try to find it
+            if not generated_file_path:
+                print("No file detected during streaming, searching for generated reports...")
+                
+                # Look for recently generated files
+                found_file = find_latest_report_file()
+                if found_file:
+                    generated_filename, generated_file_path = found_file
+                    
+                    # Emit file generated event
+                    file_event = {
+                        "type": "file_generated",
+                        "data": {
+                            "filename": generated_filename,
+                            "filepath": generated_file_path
+                        },
+                        "timestamp": time.time()
+                    }
+                    yield f"data: {json.dumps(file_event)}\n\n"
+                    print(f"📄 Found and emitted file_generated event for: {generated_file_path}")
+                else:
+                    print("⚠️ No HTML report file found")
             
             # Send completion event
             completion_event = {
@@ -639,85 +888,190 @@ async def calculate_sip_stream(request: Request, form_data: Dict[str, Any] = Bod
     
     return StreamingResponse(
         event_generator(),
-        media_type="text/event-stream",  # 🔥 CHANGED: Use proper SSE media type
+        media_type="text/event-stream",
         headers={
             "Cache-Control": "no-cache",
             "Connection": "keep-alive",
             "Access-Control-Allow-Origin": "*",
             "Access-Control-Allow-Headers": "Cache-Control",
-            "X-Accel-Buffering": "no"  # 🔥 ADDED: Disable nginx buffering
+            "X-Accel-Buffering": "no"
         }
     )
-# @app.post("/api/calculate-sip-stream")
-# async def calculate_sip_stream(request: Request, form_data: Dict[str, Any] = Body(...)):
-#     """Stream SIP calculation progress"""
-    
-#     async def event_generator():
-#         try:
-#             # Generate the prompt (same as before)
-#             goal_type = form_data.get("goal_type")
-#             orchestrator_template = load_orchestrator_template()
-#             form_data["override_time_horizon_years"] = int(calculate_time_horizon_years(form_data))
-#             form_data["total_months"] = int(form_data["override_time_horizon_years"]) * 12  
-            
-#             form_context = json.dumps(form_data, indent=2)
-#             form_context_dict = ast.literal_eval(form_context)
-#             final_prompt = load_and_populate_orchestrator_prompt(form_context_dict)
-            
-#             # Stream the agent execution
-#             async for event_data in agent_stream_service.process_query_stream(final_prompt):
-#                 # Check if client disconnected
-#                 if await request.is_disconnected():
-#                     break
-                    
-#                 yield event_data
-                
-#         except Exception as e:
-#             error_data = {
-#                 "type": EventType.ERROR.value,
-#                 "data": {"error": str(e)},
-#                 "timestamp": time.time()
-#             }
-#             yield f"data: {json.dumps(error_data)}\n\n"
-    
-#     return StreamingResponse(
-#         event_generator(),
-#         media_type="text/plain",
-#         headers={
-#             "Cache-Control": "no-cache",
-#             "Connection": "keep-alive",
-#             "Access-Control-Allow-Origin": "*",
-#             "Access-Control-Allow-Headers": "Cache-Control"
-#         }
-#     )
 
-# @app.post("/api/calculate-sip", response_model=FormSubmissionResponse)
-# async def calculate_sip_plan(form_data: Dict[str, Any] = Body(...)):
-#     """Calculate SIP plan based on form data"""
-#     try:
-#         goal_type = form_data.get("goal_type")
-#         # Calculate parameters        
-#         orchestrator_template = load_orchestrator_template()
-#         form_data["override_time_horizon_years"] = int(calculate_time_horizon_years(form_data))
-#         form_data["total_months"] = int(form_data["override_time_horizon_years"]) * 12  
+# NEW: Fund Recommendation Streaming Endpoint
+@app.post("/api/fund-recommendation")
+async def fund_recommendation_stream(request: Request, fund_request: Dict[str, Any] = Body(...)):
+    """Stream fund recommendation progress with HTML report analysis"""
+    
+    async def event_generator():
+        try:
+            # Send initial connection event
+            initial_event = {
+                "type": "connection_established",
+                "data": {"message": "Fund recommendation connection established"},
+                "timestamp": time.time()
+            }
+            yield f"data: {json.dumps(initial_event)}\n\n"
+            
+            # Extract report file path
+            report_file_path = fund_request.get("report_file_path")
+            form_data = fund_request.get("form_data", {})
+            
+            if not report_file_path:
+                raise ValueError("Report file path is required")
+            
+            # Read HTML report content (mimicking file upload to ChatGPT)
+            report_read_event = {
+                "type": "report_reading",
+                "data": {"message": f"Reading HTML report file: {report_file_path}"},
+                "timestamp": time.time()
+            }
+            yield f"data: {json.dumps(report_read_event)}\n\n"
+            
+            html_content = read_html_report_content(report_file_path)
+            
+            report_read_complete_event = {
+                "type": "report_read",
+                "data": {"message": "HTML report successfully loaded"},
+                "timestamp": time.time()
+            }
+            yield f"data: {json.dumps(report_read_complete_event)}\n\n"
+            
+            # Load fund recommendation template
+            template_load_event = {
+                "type": "template_loading",
+                "data": {"message": "Loading fund recommendation template"},
+                "timestamp": time.time()
+            }
+            yield f"data: {json.dumps(template_load_event)}\n\n"
+            
+            fund_template = load_fund_recommendation_template()
+            
+            # Process HTML and populate template (mimicking ChatGPT workflow)
+            template_populate_event = {
+                "type": "template_populating",
+                "data": {"message": "Analyzing HTML report and populating template (ChatGPT-style processing)"},
+                "timestamp": time.time()
+            }
+            yield f"data: {json.dumps(template_populate_event)}\n\n"
+            
+            populated_template = await process_html_and_populate_template(html_content, fund_template)
+            
+            template_populated_event = {
+                "type": "template_populated",
+                "data": {"message": "Fund recommendation template populated with SIP data"},
+                "timestamp": time.time()
+            }
+            yield f"data: {json.dumps(template_populated_event)}\n\n"
+            
+            # Stream the populated template to agent service
+            agent_start_event = {
+                "type": "agent_processing",
+                "data": {
+                    "agent": "FundRecommendationAgent",
+                    "message": "Starting fund recommendation analysis"
+                },
+                "timestamp": time.time()
+            }
+            yield f"data: {json.dumps(agent_start_event)}\n\n"
+            
+            # Stream the agent execution
+            try:
+                async for event_data in agent_stream_service.process_query_stream(populated_template):
+                    # Check if client disconnected
+                    if await request.is_disconnected():
+                        print("Client disconnected, stopping fund recommendation stream")
+                        break
+                    
+                    # Parse and potentially modify events for fund recommendation context
+                    try:
+                        clean_data = event_data.replace("data: ", "").strip()
+                        if clean_data:
+                            event_json = json.loads(clean_data)
+                            
+                            # Add context for fund recommendation
+                            if event_json.get("type") == "agent_response":
+                                message = event_json.get("data", {}).get("message", "")
+                                if any(agent in message for agent in ["FundRecommendationAgent", "RetrieverAgent", "ThinkerAgent"]):
+                                    fund_agent_event = {
+                                        "type": "agent_processing",
+                                        "data": {
+                                            "agent": "FundRecommendationAgent",
+                                            "message": message
+                                        },
+                                        "timestamp": time.time()
+                                    }
+                                    yield f"data: {json.dumps(fund_agent_event)}\n\n"
+                                    continue
+                    except:
+                        pass  # Continue with normal streaming
+                    
+                    yield event_data
+                    
+                    # Add small delay
+                    await asyncio.sleep(0.01)
+                    
+            except Exception as stream_error:
+                print(f"Fund recommendation stream error: {stream_error}")
+                error_event = {
+                    "type": "stream_error", 
+                    "data": {"error": str(stream_error)},
+                    "timestamp": time.time()
+                }
+                yield f"data: {json.dumps(error_event)}\n\n"
+            
+            # Send fund analysis complete event
+            fund_complete_event = {
+                "type": "fund_analysis_complete",
+                "data": {"message": "Fund recommendation analysis completed"},
+                "timestamp": time.time()
+            }
+            yield f"data: {json.dumps(fund_complete_event)}\n\n"
+            
+            # Send completion event
+            completion_event = {
+                "type": "stream_complete",
+                "data": {
+                    "message": "Fund recommendation completed successfully",
+                    "result": {
+                        "status": "completed",
+                        "report_path": report_file_path
+                    }
+                },
+                "timestamp": time.time()
+            }
+            yield f"data: {json.dumps(completion_event)}\n\n"
                 
-#         try:
-#             form_context = json.dumps(form_data, indent=2)
-#             form_context_dict = ast.literal_eval(form_context)
-#             final_prompt = load_and_populate_orchestrator_prompt(form_context_dict)
-#             print(final_prompt)
-#         except Exception as e:
-#             print(f"An error occurred: {e}")
+        except Exception as e:
+            print(f"Fund recommendation event generator error: {e}")
+            traceback.print_exc()
+            error_data = {
+                "type": "fatal_error",
+                "data": {"error": str(e)},
+                "timestamp": time.time()
+            }
+            yield f"data: {json.dumps(error_data)}\n\n"
         
-#         calculation_result = ""
-#         return FormSubmissionResponse(
-#             success=True,
-#             message="SIP calculation completed successfully",
-#             calculation_result=calculation_result,
-#             form_data=form_data
-#         )    
-#     except Exception as e:
-#         raise HTTPException(status_code=400, detail=str(e))
+        finally:
+            # Ensure stream always ends properly
+            final_event = {
+                "type": "stream_end",
+                "data": {"message": "Fund recommendation stream ended"},
+                "timestamp": time.time()
+            }
+            yield f"data: {json.dumps(final_event)}\n\n"
+    
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Headers": "Cache-Control",
+            "X-Accel-Buffering": "no"
+        }
+    )
 
 @app.get("/api/sample-data")
 async def get_sample_data():
@@ -780,8 +1134,31 @@ async def get_risk_profiles():
                     return {"risk_profiles": risk_profiles}
         except:
             pass
-    
-    
+
+# Utility endpoint to check for generated reports
+@app.get("/api/check-reports")
+async def check_reports():
+    """Check for available generated reports"""
+    try:
+        found_file = find_latest_report_file()
+        if found_file:
+            filename, filepath = found_file
+            return {
+                "found": True,
+                "filename": filename,
+                "filepath": filepath,
+                "timestamp": os.path.getmtime(filepath)
+            }
+        else:
+            return {
+                "found": False,
+                "message": "No reports found"
+            }
+    except Exception as e:
+        return {
+            "found": False,
+            "error": str(e)
+        }
 
 if __name__ == "__main__":
     import uvicorn
@@ -794,11 +1171,11 @@ if __name__ == "__main__":
     
     if not config_file.exists():
         print("❌ WARNING: sip_ui_binding.json not found!")
-        print("📝 Please create the file with your SIP configuration")
-        print("🔄 You can use the /api/reload-config endpoint to reload after creating the file")
+        print("📄 Please create the file with your SIP configuration")
+        print("📄 You can use the /api/reload-config endpoint to reload after creating the file")
     elif SIP_CONFIG is None:
-        print("⚠️  WARNING: Configuration file exists but failed to load")
-        print("🔍 Please check the JSON syntax in sip_ui_binding.json")
+        print("⚠️ WARNING: Configuration file exists but failed to load")
+        print("📄 Please check the JSON syntax in sip_ui_binding.json")
     else:
         print("✅ Configuration loaded successfully")
         form_config = SIP_CONFIG.get("formConfig", {})
@@ -806,8 +1183,17 @@ if __name__ == "__main__":
         conditional_fields = form_config.get("fields", {}).get("conditional_fields", {})
         print(f"🎯 Goal types configured: {list(conditional_fields.keys())}")
     
+    # Check ModelManager status
+    if model_manager is not None:
+        print("✅ ModelManager initialized - Fund recommendations available")
+    else:
+        print("⚠️ ModelManager not available - Fund recommendations will use fallback")
+    
     print("\n🌐 Starting server on http://localhost:8000")
     print("📖 API Documentation: http://localhost:8000/docs")
-    print("🔄 Reload config: POST http://localhost:8000/api/reload-config")
+    print("📄 Reload config: POST http://localhost:8000/api/reload-config")
+    print("📄 HTML Reports: GET http://localhost:8000/api/download-report?filepath=<path>")
+    print("📁 Static Media: http://localhost:8000/media/")
+    print("💰 Fund Recommendation: POST http://localhost:8000/api/fund-recommendation")
     
     uvicorn.run(app, host="0.0.0.0", port=8000)
