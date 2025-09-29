@@ -1,0 +1,1588 @@
+{
+  "directed": true,
+  "multigraph": false,
+  "graph": {
+    "session_id": "56649561",
+    "original_query": "You are the Orchestrator Agent.  Your first action is to call SIPGoalPlannerAgent to compute goal inputs, inflation adjustment, SIP math, allocation guidance, and projections.  Do not build any plans until you have read SIPGoalPlannerAgent’s outputs.  ________________________________________Wiring Requirement  PlannerAgent MUST first read the outputs from SIPGoalPlannerAgent (especially goal_input_json and computed parameters) before creating the final multi-agent plan graph for retrieval, distillation, Q&A, charts, and report.- Prepare JSON outputs for projection line, allocation doughnut using CoderAgent using different input and derived parameters- Prepare data for first 12 rows for sip_projection_table_json using CoderAgent using different input and derived parameters________________________________________User Scenario  Plan a SIP goal with asset allocation and fund category guidance:  goal_type = Child Marriagecurrent_age = 50child_current_age = 21marriage_age = 28currency = INRtarget_amount_min = 20000000risk_appetite = high_moderate________________________________________Compute (Deterministic)  - For Child Marriage: marriage_age - child_current_age (= 28 - 21 = 7)  total_months = time_horizon_years * 12 = 84total_months = time_horizon_years * 12 (= 84)Risk → Return mapping (annual):  very_low: 5%  low: 7%  low_moderate: 8%  moderate: 10%  high_moderate: 11%  high: 12%  very_high: 14%  monthly_return_r = annual_return / 12  For this scenario (high_moderate): annual_return = 11% → monthly_return_r ≈ 0.0091666667Inflation default: 5.5% annually unless overridden.  ________________________________________Do (Step-by-Step)  Normalize inputs → emit goal_input_json.  Refer “SIP Calculation” from SIPGoalPlannerAgent.  Refer “Inflation Adjustment” from SIPGoalPlannerAgent.  Refer “Recommendation Engine (Fund Category Types)” from SIPGoalPlannerAgent.  Output allocation_plan_json (equity %, debt %, recommended categories, notes).  Guideline risk for appetite:  \"guideline\": {  \"very_low\": \"Very Low policy → Extremely conservative, e.g., 90% debt / 10% equity\",  \"low\": \"Low policy → Conservative, e.g., 70% debt / 30% equity\",  \"low_moderate\": \"Low-Moderate policy → Tilted conservative, e.g., 60% debt / 40% equity\",  \"moderate\": \"Moderate policy → Balanced mix, e.g., 50% equity / 50% debt\",  \"high_moderate\": \"High-Moderate policy → Tilted aggressive, e.g., 60% equity / 40% debt\",  \"high\": \"High policy → Aggressive, e.g., 70% equity / 30% debt\",  \"very_high\": \"Very High policy → Extremely aggressive, e.g., 90% equity / 10% debt\"}  Validation Hooks: Validate schema + percentages.  Visualization (ReportGeneratorAgent):  Pie chart → equity vs debt  Bar/graph → sub-categories  Strictness: Never recommend fund names. Only fund categories.  ________________________________________Schemas  goal_input_json{ \"goal_type\": string, \"target_amount\": number, \"currency\": \"INR\", \"time_horizon_years\": number, \"total_months\": number, \"risk_appetite\": string }inflation_adjusted_json{ \"inflation_pct\": number, \"years\": number, \"unadjusted_target\": number, \"adjusted_target\": number }sip_calc_json{ \"monthly_return_r\": number, \"months_n\": number, \"adjusted_target\": number, \"monthly_sip\": number, \"status\": \"ok\" | \"error\", \"error\": string | null }allocation_plan_json{\"equity_percent\": number,\"debt_percent\": number,\"recommended_fund_categories\": {\"equity\": string[],\"debt\": string[],\"elss_optional\": boolean},\"notes\": {\"very_low\": string,\"low\": string,\"low_moderate\": string,\"moderate\": string,\"high_moderate\": string,\"high\": string,\"very_high\": string}}________________________________________Outputs Required  Emit STRICT JSON (no prose, no markdown):  - goal_input_json  - inflation_adjusted_json  - sip_calc_json  - allocation_plan_json====================================================================Addendum – Mandatory Report Sections for SIP Reports====================================================================All orchestrations and plan graphs must ensure downstream agents(FormatterAgent, ReportGeneratorAgent, QAAgent) enforce the followingsections in the final comprehensive_report.html:1. Executive Summary2. Goal Inputs3. Inflation Adjustment4. SIP Calculation5. Asset Allocation Plan6. Allocation Notes7. Key Recommendations8. Risk Factors and Uncertainties (≥150 words)9. SIP Charts (Projection line + Allocation doughnut)10. SIP Projection (long-horizon summary)11. 12 month sip projection table- PlannerAgent must wire in chart_data_json (T015) and first_12_months_table_json (T016).- ReportGeneratorAgent must embed these sections in HTML.- QAAgent must validate that all sections are present and populated.====================================================================",
+    "file_manifest": [],
+    "created_at": "2025-08-31T14:12:41.769383",
+    "status": "running",
+    "output_chain": {
+      "T001": {
+        "initial_thoughts": "The user wants a comprehensive SIP plan. I will process the inputs for a 'Child Marriage' goal. First, I'll calculate the time horizon: 28 (marriage age) - 21 (child's current age) = 7 years, or 84 months. Next, I'll adjust the target amount of 2,00,00,000 INR for a default inflation of 5.5% over 7 years. Then, using the 'high_moderate' risk profile, which maps to an 11% annual return, I'll compute the required monthly SIP. Based on the same risk profile, I'll determine the asset allocation (60% equity, 40% debt) and suggest fund categories. Finally, I will generate the mandatory month-by-month projection table for the entire 84-month period using the specified compound interest algorithm.",
+        "output": {
+          "goal_input_json": {
+            "goal_type": "Child Marriage",
+            "target_amount": 20000000,
+            "currency": "INR",
+            "time_horizon_years": 7,
+            "total_months": 84,
+            "risk_appetite": "high_moderate"
+          },
+          "inflation_adjusted_json": {
+            "inflation_pct": 5.5,
+            "years": 7,
+            "unadjusted_target": 20000000,
+            "adjusted_target": 29093583.99
+          },
+          "sip_calc_json": {
+            "monthly_return_r": 0.009166666666666667,
+            "months_n": 84,
+            "adjusted_target": 29093583.99,
+            "monthly_sip": 230786.68,
+            "status": "ok",
+            "error": null
+          },
+          "allocation_plan_json": {
+            "equity_percent": 60,
+            "debt_percent": 40,
+            "recommended_fund_categories": {
+              "equity": [
+                "Large Cap Funds",
+                "Mid Cap Funds"
+              ],
+              "debt": [
+                "Corporate Bond Funds",
+                "Short Duration Funds"
+              ],
+              "elss_optional": true
+            },
+            "notes": {
+              "very_low": "Very Low policy → Extremely conservative, e.g., 90% debt / 10% equity",
+              "low": "Low policy → Conservative, e.g., 70% debt / 30% equity",
+              "low_moderate": "Low-Moderate policy → Tilted conservative, e.g., 60% debt / 40% equity",
+              "moderate": "Moderate policy → Balanced mix, e.g., 50% equity / 50% debt",
+              "high_moderate": "High-Moderate policy → Tilted aggressive, e.g., 60% equity / 40% debt",
+              "high": "High policy → Aggressive, e.g., 70% equity / 30% debt",
+              "very_high": "Very High policy → Extremely aggressive, e.g., 90% equity / 10% debt"
+            }
+          },
+          "sip_projection_table_json": [
+            {
+              "month_index": 1,
+              "label": "M1",
+              "contribution": 230786.68,
+              "cumulative_contribution": 230786.68,
+              "projected_corpus": 230786.68
+            },
+            {
+              "month_index": 2,
+              "label": "M2",
+              "contribution": 230786.68,
+              "cumulative_contribution": 461573.36,
+              "projected_corpus": 463690.58
+            },
+            {
+              "month_index": 3,
+              "label": "M3",
+              "contribution": 230786.68,
+              "cumulative_contribution": 692360.04,
+              "projected_corpus": 698727.75
+            },
+            {
+              "month_index": 4,
+              "label": "M4",
+              "contribution": 230786.68,
+              "cumulative_contribution": 923146.72,
+              "projected_corpus": 935914.33
+            },
+            {
+              "month_index": 5,
+              "label": "M5",
+              "contribution": 230786.68,
+              "cumulative_contribution": 1153933.4,
+              "projected_corpus": 1175266.57
+            },
+            {
+              "month_index": 6,
+              "label": "M6",
+              "contribution": 230786.68,
+              "cumulative_contribution": 1384720.08,
+              "projected_corpus": 1416800.86
+            },
+            {
+              "month_index": 7,
+              "label": "M7",
+              "contribution": 230786.68,
+              "cumulative_contribution": 1615506.76,
+              "projected_corpus": 1660533.72
+            },
+            {
+              "month_index": 8,
+              "label": "M8",
+              "contribution": 230786.68,
+              "cumulative_contribution": 1846293.44,
+              "projected_corpus": 1906481.82
+            },
+            {
+              "month_index": 9,
+              "label": "M9",
+              "contribution": 230786.68,
+              "cumulative_contribution": 2077080.12,
+              "projected_corpus": 2154661.94
+            },
+            {
+              "month_index": 10,
+              "label": "M10",
+              "contribution": 230786.68,
+              "cumulative_contribution": 2307866.8,
+              "projected_corpus": 2405091.03
+            },
+            {
+              "month_index": 11,
+              "label": "M11",
+              "contribution": 230786.68,
+              "cumulative_contribution": 2538653.48,
+              "projected_corpus": 2657786.21
+            },
+            {
+              "month_index": 12,
+              "label": "M12",
+              "contribution": 230786.68,
+              "cumulative_contribution": 2769440.16,
+              "projected_corpus": 2912764.71
+            },
+            {
+              "month_index": 13,
+              "label": "M13",
+              "contribution": 230786.68,
+              "cumulative_contribution": 3000226.84,
+              "projected_corpus": 3170043.91
+            },
+            {
+              "month_index": 14,
+              "label": "M14",
+              "contribution": 230786.68,
+              "cumulative_contribution": 3231013.52,
+              "projected_corpus": 3429641.32
+            },
+            {
+              "month_index": 15,
+              "label": "M15",
+              "contribution": 230786.68,
+              "cumulative_contribution": 3461800.2,
+              "projected_corpus": 3691574.62
+            },
+            {
+              "month_index": 16,
+              "label": "M16",
+              "contribution": 230786.68,
+              "cumulative_contribution": 3692586.88,
+              "projected_corpus": 3955861.64
+            },
+            {
+              "month_index": 17,
+              "label": "M17",
+              "contribution": 230786.68,
+              "cumulative_contribution": 3923373.56,
+              "projected_corpus": 4222520.35
+            },
+            {
+              "month_index": 18,
+              "label": "M18",
+              "contribution": 230786.68,
+              "cumulative_contribution": 4154160.24,
+              "projected_corpus": 4491568.87
+            },
+            {
+              "month_index": 19,
+              "label": "M19",
+              "contribution": 230786.68,
+              "cumulative_contribution": 4384946.92,
+              "projected_corpus": 4763025.52
+            },
+            {
+              "month_index": 20,
+              "label": "M20",
+              "contribution": 230786.68,
+              "cumulative_contribution": 4615733.6,
+              "projected_corpus": 5036908.77
+            },
+            {
+              "month_index": 21,
+              "label": "M21",
+              "contribution": 230786.68,
+              "cumulative_contribution": 4846520.28,
+              "projected_corpus": 5313237.28
+            },
+            {
+              "month_index": 22,
+              "label": "M22",
+              "contribution": 230786.68,
+              "cumulative_contribution": 5077306.96,
+              "projected_corpus": 5592029.87
+            },
+            {
+              "month_index": 23,
+              "label": "M23",
+              "contribution": 230786.68,
+              "cumulative_contribution": 5308093.64,
+              "projected_corpus": 5873305.54
+            },
+            {
+              "month_index": 24,
+              "label": "M24",
+              "contribution": 230786.68,
+              "cumulative_contribution": 5538880.32,
+              "projected_corpus": 6157083.47
+            },
+            {
+              "month_index": 25,
+              "label": "M25",
+              "contribution": 230786.68,
+              "cumulative_contribution": 5769667.0,
+              "projected_corpus": 6443382.99
+            },
+            {
+              "month_index": 26,
+              "label": "M26",
+              "contribution": 230786.68,
+              "cumulative_contribution": 6000453.68,
+              "projected_corpus": 6732223.63
+            },
+            {
+              "month_index": 27,
+              "label": "M27",
+              "contribution": 230786.68,
+              "cumulative_contribution": 6231240.36,
+              "projected_corpus": 7023625.08
+            },
+            {
+              "month_index": 28,
+              "label": "M28",
+              "contribution": 230786.68,
+              "cumulative_contribution": 6462027.04,
+              "projected_corpus": 7317607.22
+            },
+            {
+              "month_index": 29,
+              "label": "M29",
+              "contribution": 230786.68,
+              "cumulative_contribution": 6692813.72,
+              "projected_corpus": 7614189.99
+            },
+            {
+              "month_index": 30,
+              "label": "M30",
+              "contribution": 230786.68,
+              "cumulative_contribution": 6923600.4,
+              "projected_corpus": 7913393.52
+            },
+            {
+              "month_index": 31,
+              "label": "M31",
+              "contribution": 230786.68,
+              "cumulative_contribution": 7154387.08,
+              "projected_corpus": 8215238.11
+            },
+            {
+              "month_index": 32,
+              "label": "M32",
+              "contribution": 230786.68,
+              "cumulative_contribution": 7385173.76,
+              "projected_corpus": 8519744.22
+            },
+            {
+              "month_index": 33,
+              "label": "M33",
+              "contribution": 230786.68,
+              "cumulative_contribution": 7615960.44,
+              "projected_corpus": 8826932.49
+            },
+            {
+              "month_index": 34,
+              "label": "M34",
+              "contribution": 230786.68,
+              "cumulative_contribution": 7846747.12,
+              "projected_corpus": 9136823.75
+            },
+            {
+              "month_index": 35,
+              "label": "M35",
+              "contribution": 230786.68,
+              "cumulative_contribution": 8077533.8,
+              "projected_corpus": 9449439.02
+            },
+            {
+              "month_index": 36,
+              "label": "M36",
+              "contribution": 230786.68,
+              "cumulative_contribution": 8308320.48,
+              "projected_corpus": 9764799.47
+            },
+            {
+              "month_index": 37,
+              "label": "M37",
+              "contribution": 230786.68,
+              "cumulative_contribution": 8539107.16,
+              "projected_corpus": 10082926.47
+            },
+            {
+              "month_index": 38,
+              "label": "M38",
+              "contribution": 230786.68,
+              "cumulative_contribution": 8769893.84,
+              "projected_corpus": 10403841.52
+            },
+            {
+              "month_index": 39,
+              "label": "M39",
+              "contribution": 230786.68,
+              "cumulative_contribution": 9000680.52,
+              "projected_corpus": 10727566.29
+            },
+            {
+              "month_index": 40,
+              "label": "M40",
+              "contribution": 230786.68,
+              "cumulative_contribution": 9231467.2,
+              "projected_corpus": 11054122.61
+            },
+            {
+              "month_index": 41,
+              "label": "M41",
+              "contribution": 230786.68,
+              "cumulative_contribution": 9462253.88,
+              "projected_corpus": 11383532.44
+            },
+            {
+              "month_index": 42,
+              "label": "M42",
+              "contribution": 230786.68,
+              "cumulative_contribution": 9693040.56,
+              "projected_corpus": 11715817.92
+            },
+            {
+              "month_index": 43,
+              "label": "M43",
+              "contribution": 230786.68,
+              "cumulative_contribution": 9923827.24,
+              "projected_corpus": 12051001.37
+            },
+            {
+              "month_index": 44,
+              "label": "M44",
+              "contribution": 230786.68,
+              "cumulative_contribution": 10154613.92,
+              "projected_corpus": 12389105.32
+            },
+            {
+              "month_index": 45,
+              "label": "M45",
+              "contribution": 230786.68,
+              "cumulative_contribution": 10385400.6,
+              "projected_corpus": 12730152.41
+            },
+            {
+              "month_index": 46,
+              "label": "M46",
+              "contribution": 230786.68,
+              "cumulative_contribution": 10616187.28,
+              "projected_corpus": 13074165.48
+            },
+            {
+              "month_index": 47,
+              "label": "M47",
+              "contribution": 230786.68,
+              "cumulative_contribution": 10846973.96,
+              "projected_corpus": 13421167.51
+            },
+            {
+              "month_index": 48,
+              "label": "M48",
+              "contribution": 230786.68,
+              "cumulative_contribution": 11077760.64,
+              "projected_corpus": 13771181.62
+            },
+            {
+              "month_index": 49,
+              "label": "M49",
+              "contribution": 230786.68,
+              "cumulative_contribution": 11308547.32,
+              "projected_corpus": 14124231.05
+            },
+            {
+              "month_index": 50,
+              "label": "M50",
+              "contribution": 230786.68,
+              "cumulative_contribution": 11539334.0,
+              "projected_corpus": 14480339.22
+            },
+            {
+              "month_index": 51,
+              "label": "M51",
+              "contribution": 230786.68,
+              "cumulative_contribution": 11770120.68,
+              "projected_corpus": 14839529.71
+            },
+            {
+              "month_index": 52,
+              "label": "M52",
+              "contribution": 230786.68,
+              "cumulative_contribution": 12000907.36,
+              "projected_corpus": 15201826.24
+            },
+            {
+              "month_index": 53,
+              "label": "M53",
+              "contribution": 230786.68,
+              "cumulative_contribution": 12231694.04,
+              "projected_corpus": 15567252.68
+            },
+            {
+              "month_index": 54,
+              "label": "M54",
+              "contribution": 230786.68,
+              "cumulative_contribution": 12462480.72,
+              "projected_corpus": 15935833.07
+            },
+            {
+              "month_index": 55,
+              "label": "M55",
+              "contribution": 230786.68,
+              "cumulative_contribution": 12693267.4,
+              "projected_corpus": 16307591.61
+            },
+            {
+              "month_index": 56,
+              "label": "M56",
+              "contribution": 230786.68,
+              "cumulative_contribution": 12924054.08,
+              "projected_corpus": 16682552.66
+            },
+            {
+              "month_index": 57,
+              "label": "M57",
+              "contribution": 230786.68,
+              "cumulative_contribution": 13154840.76,
+              "projected_corpus": 17060740.76
+            },
+            {
+              "month_index": 58,
+              "label": "M58",
+              "contribution": 230786.68,
+              "cumulative_contribution": 13385627.44,
+              "projected_corpus": 17442180.62
+            },
+            {
+              "month_index": 59,
+              "label": "M59",
+              "contribution": 230786.68,
+              "cumulative_contribution": 13616414.12,
+              "projected_corpus": 17826897.11
+            },
+            {
+              "month_index": 60,
+              "label": "M60",
+              "contribution": 230786.68,
+              "cumulative_contribution": 13847200.8,
+              "projected_corpus": 18214915.25
+            },
+            {
+              "month_index": 61,
+              "label": "M61",
+              "contribution": 230786.68,
+              "cumulative_contribution": 14077987.48,
+              "projected_corpus": 18606260.23
+            },
+            {
+              "month_index": 62,
+              "label": "M62",
+              "contribution": 230786.68,
+              "cumulative_contribution": 14308774.16,
+              "projected_corpus": 19000957.42
+            },
+            {
+              "month_index": 63,
+              "label": "M63",
+              "contribution": 230786.68,
+              "cumulative_contribution": 14539560.84,
+              "projected_corpus": 19399032.32
+            },
+            {
+              "month_index": 64,
+              "label": "M64",
+              "contribution": 230786.68,
+              "cumulative_contribution": 14770347.52,
+              "projected_corpus": 19800510.63
+            },
+            {
+              "month_index": 65,
+              "label": "M65",
+              "contribution": 230786.68,
+              "cumulative_contribution": 15001134.2,
+              "projected_corpus": 20205418.22
+            },
+            {
+              "month_index": 66,
+              "label": "M66",
+              "contribution": 230786.68,
+              "cumulative_contribution": 15231920.88,
+              "projected_corpus": 20613781.12
+            },
+            {
+              "month_index": 67,
+              "label": "M67",
+              "contribution": 230786.68,
+              "cumulative_contribution": 15462707.56,
+              "projected_corpus": 21025625.53
+            },
+            {
+              "month_index": 68,
+              "label": "M68",
+              "contribution": 230786.68,
+              "cumulative_contribution": 15693494.24,
+              "projected_corpus": 21440977.82
+            },
+            {
+              "month_index": 69,
+              "label": "M69",
+              "contribution": 230786.68,
+              "cumulative_contribution": 15924280.92,
+              "projected_corpus": 21859864.55
+            },
+            {
+              "month_index": 70,
+              "label": "M70",
+              "contribution": 230786.68,
+              "cumulative_contribution": 16155067.6,
+              "projected_corpus": 22282312.48
+            },
+            {
+              "month_index": 71,
+              "label": "M71",
+              "contribution": 230786.68,
+              "cumulative_contribution": 16385854.28,
+              "projected_corpus": 22708348.59
+            },
+            {
+              "month_index": 72,
+              "label": "M72",
+              "contribution": 230786.68,
+              "cumulative_contribution": 16616640.96,
+              "projected_corpus": 23138000.03
+            },
+            {
+              "month_index": 73,
+              "label": "M73",
+              "contribution": 230786.68,
+              "cumulative_contribution": 16847427.64,
+              "projected_corpus": 23571294.03
+            },
+            {
+              "month_index": 74,
+              "label": "M74",
+              "contribution": 230786.68,
+              "cumulative_contribution": 17078214.32,
+              "projected_corpus": 24008258.03
+            },
+            {
+              "month_index": 75,
+              "label": "M75",
+              "contribution": 230786.68,
+              "cumulative_contribution": 17309001.0,
+              "projected_corpus": 24448920.02
+            },
+            {
+              "month_index": 76,
+              "label": "M76",
+              "contribution": 230786.68,
+              "cumulative_contribution": 17539787.68,
+              "projected_corpus": 24893308.22
+            },
+            {
+              "month_index": 77,
+              "label": "M77",
+              "contribution": 230786.68,
+              "cumulative_contribution": 17770574.36,
+              "projected_corpus": 25341451.13
+            },
+            {
+              "month_index": 78,
+              "label": "M78",
+              "contribution": 230786.68,
+              "cumulative_contribution": 18001361.04,
+              "projected_corpus": 25793377.41
+            },
+            {
+              "month_index": 79,
+              "label": "M79",
+              "contribution": 230786.68,
+              "cumulative_contribution": 18232147.72,
+              "projected_corpus": 26249116.03
+            },
+            {
+              "month_index": 80,
+              "label": "M80",
+              "contribution": 230786.68,
+              "cumulative_contribution": 18462934.4,
+              "projected_corpus": 26708696.11
+            },
+            {
+              "month_index": 81,
+              "label": "M81",
+              "contribution": 230786.68,
+              "cumulative_contribution": 18693721.08,
+              "projected_corpus": 27172147.01
+            },
+            {
+              "month_index": 82,
+              "label": "M82",
+              "contribution": 230786.68,
+              "cumulative_contribution": 18924507.76,
+              "projected_corpus": 27639498.15
+            },
+            {
+              "month_index": 83,
+              "label": "M83",
+              "contribution": 230786.68,
+              "cumulative_contribution": 19155294.44,
+              "projected_corpus": 28110779.17
+            },
+            {
+              "month_index": 84,
+              "label": "M84",
+              "contribution": 230786.68,
+              "cumulative_contribution": 19386081.12,
+              "projected_corpus": 28586019.83
+            }
+          ]
+        },
+        "call_self": false,
+        "cost": 0.0014831999999999998,
+        "input_tokens": 2130.0,
+        "output_tokens": 1939.5,
+        "total_tokens": 4069.5
+      }
+    },
+    "validation_results": {
+      "is_valid": true,
+      "is_dag": true,
+      "cycles": [],
+      "disconnected_components": [],
+      "orphaned_nodes": [],
+      "root_nodes": [],
+      "leaf_nodes": [
+        "T019"
+      ],
+      "warnings": [],
+      "errors": []
+    }
+  },
+  "nodes": [
+    {
+      "description": "Initial Query",
+      "agent": "System",
+      "status": "completed",
+      "id": "ROOT"
+    },
+    {
+      "id": "T001",
+      "description": "Compute SIP goal inputs, inflation adjustment, SIP math, asset allocation, and generate full projection table.",
+      "agent": "SIPGoalPlannerAgent",
+      "agent_prompt": "As the initial step, compute a comprehensive SIP plan using the following user inputs. Your output must be a strict JSON object containing goal_input_json, inflation_adjusted_json, sip_calc_json, allocation_plan_json, and a detailed sip_projection_table_json for the entire investment horizon. User Inputs: goal_type='Child Marriage', current_age=50, child_current_age=21, marriage_age=28, currency='INR', target_amount_min=20000000, risk_appetite='high_moderate'. Follow the deterministic computation rules for time horizon, returns (high_moderate = 11% annual), and inflation (default 5.5%).",
+      "reads": [],
+      "writes": [
+        "T001"
+      ],
+      "status": "completed",
+      "output": {
+        "initial_thoughts": "The user wants a comprehensive SIP plan. I will process the inputs for a 'Child Marriage' goal. First, I'll calculate the time horizon: 28 (marriage age) - 21 (child's current age) = 7 years, or 84 months. Next, I'll adjust the target amount of 2,00,00,000 INR for a default inflation of 5.5% over 7 years. Then, using the 'high_moderate' risk profile, which maps to an 11% annual return, I'll compute the required monthly SIP. Based on the same risk profile, I'll determine the asset allocation (60% equity, 40% debt) and suggest fund categories. Finally, I will generate the mandatory month-by-month projection table for the entire 84-month period using the specified compound interest algorithm.",
+        "output": {
+          "goal_input_json": {
+            "goal_type": "Child Marriage",
+            "target_amount": 20000000,
+            "currency": "INR",
+            "time_horizon_years": 7,
+            "total_months": 84,
+            "risk_appetite": "high_moderate"
+          },
+          "inflation_adjusted_json": {
+            "inflation_pct": 5.5,
+            "years": 7,
+            "unadjusted_target": 20000000,
+            "adjusted_target": 29093583.99
+          },
+          "sip_calc_json": {
+            "monthly_return_r": 0.009166666666666667,
+            "months_n": 84,
+            "adjusted_target": 29093583.99,
+            "monthly_sip": 230786.68,
+            "status": "ok",
+            "error": null
+          },
+          "allocation_plan_json": {
+            "equity_percent": 60,
+            "debt_percent": 40,
+            "recommended_fund_categories": {
+              "equity": [
+                "Large Cap Funds",
+                "Mid Cap Funds"
+              ],
+              "debt": [
+                "Corporate Bond Funds",
+                "Short Duration Funds"
+              ],
+              "elss_optional": true
+            },
+            "notes": {
+              "very_low": "Very Low policy → Extremely conservative, e.g., 90% debt / 10% equity",
+              "low": "Low policy → Conservative, e.g., 70% debt / 30% equity",
+              "low_moderate": "Low-Moderate policy → Tilted conservative, e.g., 60% debt / 40% equity",
+              "moderate": "Moderate policy → Balanced mix, e.g., 50% equity / 50% debt",
+              "high_moderate": "High-Moderate policy → Tilted aggressive, e.g., 60% equity / 40% debt",
+              "high": "High policy → Aggressive, e.g., 70% equity / 30% debt",
+              "very_high": "Very High policy → Extremely aggressive, e.g., 90% equity / 10% debt"
+            }
+          },
+          "sip_projection_table_json": [
+            {
+              "month_index": 1,
+              "label": "M1",
+              "contribution": 230786.68,
+              "cumulative_contribution": 230786.68,
+              "projected_corpus": 230786.68
+            },
+            {
+              "month_index": 2,
+              "label": "M2",
+              "contribution": 230786.68,
+              "cumulative_contribution": 461573.36,
+              "projected_corpus": 463690.58
+            },
+            {
+              "month_index": 3,
+              "label": "M3",
+              "contribution": 230786.68,
+              "cumulative_contribution": 692360.04,
+              "projected_corpus": 698727.75
+            },
+            {
+              "month_index": 4,
+              "label": "M4",
+              "contribution": 230786.68,
+              "cumulative_contribution": 923146.72,
+              "projected_corpus": 935914.33
+            },
+            {
+              "month_index": 5,
+              "label": "M5",
+              "contribution": 230786.68,
+              "cumulative_contribution": 1153933.4,
+              "projected_corpus": 1175266.57
+            },
+            {
+              "month_index": 6,
+              "label": "M6",
+              "contribution": 230786.68,
+              "cumulative_contribution": 1384720.08,
+              "projected_corpus": 1416800.86
+            },
+            {
+              "month_index": 7,
+              "label": "M7",
+              "contribution": 230786.68,
+              "cumulative_contribution": 1615506.76,
+              "projected_corpus": 1660533.72
+            },
+            {
+              "month_index": 8,
+              "label": "M8",
+              "contribution": 230786.68,
+              "cumulative_contribution": 1846293.44,
+              "projected_corpus": 1906481.82
+            },
+            {
+              "month_index": 9,
+              "label": "M9",
+              "contribution": 230786.68,
+              "cumulative_contribution": 2077080.12,
+              "projected_corpus": 2154661.94
+            },
+            {
+              "month_index": 10,
+              "label": "M10",
+              "contribution": 230786.68,
+              "cumulative_contribution": 2307866.8,
+              "projected_corpus": 2405091.03
+            },
+            {
+              "month_index": 11,
+              "label": "M11",
+              "contribution": 230786.68,
+              "cumulative_contribution": 2538653.48,
+              "projected_corpus": 2657786.21
+            },
+            {
+              "month_index": 12,
+              "label": "M12",
+              "contribution": 230786.68,
+              "cumulative_contribution": 2769440.16,
+              "projected_corpus": 2912764.71
+            },
+            {
+              "month_index": 13,
+              "label": "M13",
+              "contribution": 230786.68,
+              "cumulative_contribution": 3000226.84,
+              "projected_corpus": 3170043.91
+            },
+            {
+              "month_index": 14,
+              "label": "M14",
+              "contribution": 230786.68,
+              "cumulative_contribution": 3231013.52,
+              "projected_corpus": 3429641.32
+            },
+            {
+              "month_index": 15,
+              "label": "M15",
+              "contribution": 230786.68,
+              "cumulative_contribution": 3461800.2,
+              "projected_corpus": 3691574.62
+            },
+            {
+              "month_index": 16,
+              "label": "M16",
+              "contribution": 230786.68,
+              "cumulative_contribution": 3692586.88,
+              "projected_corpus": 3955861.64
+            },
+            {
+              "month_index": 17,
+              "label": "M17",
+              "contribution": 230786.68,
+              "cumulative_contribution": 3923373.56,
+              "projected_corpus": 4222520.35
+            },
+            {
+              "month_index": 18,
+              "label": "M18",
+              "contribution": 230786.68,
+              "cumulative_contribution": 4154160.24,
+              "projected_corpus": 4491568.87
+            },
+            {
+              "month_index": 19,
+              "label": "M19",
+              "contribution": 230786.68,
+              "cumulative_contribution": 4384946.92,
+              "projected_corpus": 4763025.52
+            },
+            {
+              "month_index": 20,
+              "label": "M20",
+              "contribution": 230786.68,
+              "cumulative_contribution": 4615733.6,
+              "projected_corpus": 5036908.77
+            },
+            {
+              "month_index": 21,
+              "label": "M21",
+              "contribution": 230786.68,
+              "cumulative_contribution": 4846520.28,
+              "projected_corpus": 5313237.28
+            },
+            {
+              "month_index": 22,
+              "label": "M22",
+              "contribution": 230786.68,
+              "cumulative_contribution": 5077306.96,
+              "projected_corpus": 5592029.87
+            },
+            {
+              "month_index": 23,
+              "label": "M23",
+              "contribution": 230786.68,
+              "cumulative_contribution": 5308093.64,
+              "projected_corpus": 5873305.54
+            },
+            {
+              "month_index": 24,
+              "label": "M24",
+              "contribution": 230786.68,
+              "cumulative_contribution": 5538880.32,
+              "projected_corpus": 6157083.47
+            },
+            {
+              "month_index": 25,
+              "label": "M25",
+              "contribution": 230786.68,
+              "cumulative_contribution": 5769667.0,
+              "projected_corpus": 6443382.99
+            },
+            {
+              "month_index": 26,
+              "label": "M26",
+              "contribution": 230786.68,
+              "cumulative_contribution": 6000453.68,
+              "projected_corpus": 6732223.63
+            },
+            {
+              "month_index": 27,
+              "label": "M27",
+              "contribution": 230786.68,
+              "cumulative_contribution": 6231240.36,
+              "projected_corpus": 7023625.08
+            },
+            {
+              "month_index": 28,
+              "label": "M28",
+              "contribution": 230786.68,
+              "cumulative_contribution": 6462027.04,
+              "projected_corpus": 7317607.22
+            },
+            {
+              "month_index": 29,
+              "label": "M29",
+              "contribution": 230786.68,
+              "cumulative_contribution": 6692813.72,
+              "projected_corpus": 7614189.99
+            },
+            {
+              "month_index": 30,
+              "label": "M30",
+              "contribution": 230786.68,
+              "cumulative_contribution": 6923600.4,
+              "projected_corpus": 7913393.52
+            },
+            {
+              "month_index": 31,
+              "label": "M31",
+              "contribution": 230786.68,
+              "cumulative_contribution": 7154387.08,
+              "projected_corpus": 8215238.11
+            },
+            {
+              "month_index": 32,
+              "label": "M32",
+              "contribution": 230786.68,
+              "cumulative_contribution": 7385173.76,
+              "projected_corpus": 8519744.22
+            },
+            {
+              "month_index": 33,
+              "label": "M33",
+              "contribution": 230786.68,
+              "cumulative_contribution": 7615960.44,
+              "projected_corpus": 8826932.49
+            },
+            {
+              "month_index": 34,
+              "label": "M34",
+              "contribution": 230786.68,
+              "cumulative_contribution": 7846747.12,
+              "projected_corpus": 9136823.75
+            },
+            {
+              "month_index": 35,
+              "label": "M35",
+              "contribution": 230786.68,
+              "cumulative_contribution": 8077533.8,
+              "projected_corpus": 9449439.02
+            },
+            {
+              "month_index": 36,
+              "label": "M36",
+              "contribution": 230786.68,
+              "cumulative_contribution": 8308320.48,
+              "projected_corpus": 9764799.47
+            },
+            {
+              "month_index": 37,
+              "label": "M37",
+              "contribution": 230786.68,
+              "cumulative_contribution": 8539107.16,
+              "projected_corpus": 10082926.47
+            },
+            {
+              "month_index": 38,
+              "label": "M38",
+              "contribution": 230786.68,
+              "cumulative_contribution": 8769893.84,
+              "projected_corpus": 10403841.52
+            },
+            {
+              "month_index": 39,
+              "label": "M39",
+              "contribution": 230786.68,
+              "cumulative_contribution": 9000680.52,
+              "projected_corpus": 10727566.29
+            },
+            {
+              "month_index": 40,
+              "label": "M40",
+              "contribution": 230786.68,
+              "cumulative_contribution": 9231467.2,
+              "projected_corpus": 11054122.61
+            },
+            {
+              "month_index": 41,
+              "label": "M41",
+              "contribution": 230786.68,
+              "cumulative_contribution": 9462253.88,
+              "projected_corpus": 11383532.44
+            },
+            {
+              "month_index": 42,
+              "label": "M42",
+              "contribution": 230786.68,
+              "cumulative_contribution": 9693040.56,
+              "projected_corpus": 11715817.92
+            },
+            {
+              "month_index": 43,
+              "label": "M43",
+              "contribution": 230786.68,
+              "cumulative_contribution": 9923827.24,
+              "projected_corpus": 12051001.37
+            },
+            {
+              "month_index": 44,
+              "label": "M44",
+              "contribution": 230786.68,
+              "cumulative_contribution": 10154613.92,
+              "projected_corpus": 12389105.32
+            },
+            {
+              "month_index": 45,
+              "label": "M45",
+              "contribution": 230786.68,
+              "cumulative_contribution": 10385400.6,
+              "projected_corpus": 12730152.41
+            },
+            {
+              "month_index": 46,
+              "label": "M46",
+              "contribution": 230786.68,
+              "cumulative_contribution": 10616187.28,
+              "projected_corpus": 13074165.48
+            },
+            {
+              "month_index": 47,
+              "label": "M47",
+              "contribution": 230786.68,
+              "cumulative_contribution": 10846973.96,
+              "projected_corpus": 13421167.51
+            },
+            {
+              "month_index": 48,
+              "label": "M48",
+              "contribution": 230786.68,
+              "cumulative_contribution": 11077760.64,
+              "projected_corpus": 13771181.62
+            },
+            {
+              "month_index": 49,
+              "label": "M49",
+              "contribution": 230786.68,
+              "cumulative_contribution": 11308547.32,
+              "projected_corpus": 14124231.05
+            },
+            {
+              "month_index": 50,
+              "label": "M50",
+              "contribution": 230786.68,
+              "cumulative_contribution": 11539334.0,
+              "projected_corpus": 14480339.22
+            },
+            {
+              "month_index": 51,
+              "label": "M51",
+              "contribution": 230786.68,
+              "cumulative_contribution": 11770120.68,
+              "projected_corpus": 14839529.71
+            },
+            {
+              "month_index": 52,
+              "label": "M52",
+              "contribution": 230786.68,
+              "cumulative_contribution": 12000907.36,
+              "projected_corpus": 15201826.24
+            },
+            {
+              "month_index": 53,
+              "label": "M53",
+              "contribution": 230786.68,
+              "cumulative_contribution": 12231694.04,
+              "projected_corpus": 15567252.68
+            },
+            {
+              "month_index": 54,
+              "label": "M54",
+              "contribution": 230786.68,
+              "cumulative_contribution": 12462480.72,
+              "projected_corpus": 15935833.07
+            },
+            {
+              "month_index": 55,
+              "label": "M55",
+              "contribution": 230786.68,
+              "cumulative_contribution": 12693267.4,
+              "projected_corpus": 16307591.61
+            },
+            {
+              "month_index": 56,
+              "label": "M56",
+              "contribution": 230786.68,
+              "cumulative_contribution": 12924054.08,
+              "projected_corpus": 16682552.66
+            },
+            {
+              "month_index": 57,
+              "label": "M57",
+              "contribution": 230786.68,
+              "cumulative_contribution": 13154840.76,
+              "projected_corpus": 17060740.76
+            },
+            {
+              "month_index": 58,
+              "label": "M58",
+              "contribution": 230786.68,
+              "cumulative_contribution": 13385627.44,
+              "projected_corpus": 17442180.62
+            },
+            {
+              "month_index": 59,
+              "label": "M59",
+              "contribution": 230786.68,
+              "cumulative_contribution": 13616414.12,
+              "projected_corpus": 17826897.11
+            },
+            {
+              "month_index": 60,
+              "label": "M60",
+              "contribution": 230786.68,
+              "cumulative_contribution": 13847200.8,
+              "projected_corpus": 18214915.25
+            },
+            {
+              "month_index": 61,
+              "label": "M61",
+              "contribution": 230786.68,
+              "cumulative_contribution": 14077987.48,
+              "projected_corpus": 18606260.23
+            },
+            {
+              "month_index": 62,
+              "label": "M62",
+              "contribution": 230786.68,
+              "cumulative_contribution": 14308774.16,
+              "projected_corpus": 19000957.42
+            },
+            {
+              "month_index": 63,
+              "label": "M63",
+              "contribution": 230786.68,
+              "cumulative_contribution": 14539560.84,
+              "projected_corpus": 19399032.32
+            },
+            {
+              "month_index": 64,
+              "label": "M64",
+              "contribution": 230786.68,
+              "cumulative_contribution": 14770347.52,
+              "projected_corpus": 19800510.63
+            },
+            {
+              "month_index": 65,
+              "label": "M65",
+              "contribution": 230786.68,
+              "cumulative_contribution": 15001134.2,
+              "projected_corpus": 20205418.22
+            },
+            {
+              "month_index": 66,
+              "label": "M66",
+              "contribution": 230786.68,
+              "cumulative_contribution": 15231920.88,
+              "projected_corpus": 20613781.12
+            },
+            {
+              "month_index": 67,
+              "label": "M67",
+              "contribution": 230786.68,
+              "cumulative_contribution": 15462707.56,
+              "projected_corpus": 21025625.53
+            },
+            {
+              "month_index": 68,
+              "label": "M68",
+              "contribution": 230786.68,
+              "cumulative_contribution": 15693494.24,
+              "projected_corpus": 21440977.82
+            },
+            {
+              "month_index": 69,
+              "label": "M69",
+              "contribution": 230786.68,
+              "cumulative_contribution": 15924280.92,
+              "projected_corpus": 21859864.55
+            },
+            {
+              "month_index": 70,
+              "label": "M70",
+              "contribution": 230786.68,
+              "cumulative_contribution": 16155067.6,
+              "projected_corpus": 22282312.48
+            },
+            {
+              "month_index": 71,
+              "label": "M71",
+              "contribution": 230786.68,
+              "cumulative_contribution": 16385854.28,
+              "projected_corpus": 22708348.59
+            },
+            {
+              "month_index": 72,
+              "label": "M72",
+              "contribution": 230786.68,
+              "cumulative_contribution": 16616640.96,
+              "projected_corpus": 23138000.03
+            },
+            {
+              "month_index": 73,
+              "label": "M73",
+              "contribution": 230786.68,
+              "cumulative_contribution": 16847427.64,
+              "projected_corpus": 23571294.03
+            },
+            {
+              "month_index": 74,
+              "label": "M74",
+              "contribution": 230786.68,
+              "cumulative_contribution": 17078214.32,
+              "projected_corpus": 24008258.03
+            },
+            {
+              "month_index": 75,
+              "label": "M75",
+              "contribution": 230786.68,
+              "cumulative_contribution": 17309001.0,
+              "projected_corpus": 24448920.02
+            },
+            {
+              "month_index": 76,
+              "label": "M76",
+              "contribution": 230786.68,
+              "cumulative_contribution": 17539787.68,
+              "projected_corpus": 24893308.22
+            },
+            {
+              "month_index": 77,
+              "label": "M77",
+              "contribution": 230786.68,
+              "cumulative_contribution": 17770574.36,
+              "projected_corpus": 25341451.13
+            },
+            {
+              "month_index": 78,
+              "label": "M78",
+              "contribution": 230786.68,
+              "cumulative_contribution": 18001361.04,
+              "projected_corpus": 25793377.41
+            },
+            {
+              "month_index": 79,
+              "label": "M79",
+              "contribution": 230786.68,
+              "cumulative_contribution": 18232147.72,
+              "projected_corpus": 26249116.03
+            },
+            {
+              "month_index": 80,
+              "label": "M80",
+              "contribution": 230786.68,
+              "cumulative_contribution": 18462934.4,
+              "projected_corpus": 26708696.11
+            },
+            {
+              "month_index": 81,
+              "label": "M81",
+              "contribution": 230786.68,
+              "cumulative_contribution": 18693721.08,
+              "projected_corpus": 27172147.01
+            },
+            {
+              "month_index": 82,
+              "label": "M82",
+              "contribution": 230786.68,
+              "cumulative_contribution": 18924507.76,
+              "projected_corpus": 27639498.15
+            },
+            {
+              "month_index": 83,
+              "label": "M83",
+              "contribution": 230786.68,
+              "cumulative_contribution": 19155294.44,
+              "projected_corpus": 28110779.17
+            },
+            {
+              "month_index": 84,
+              "label": "M84",
+              "contribution": 230786.68,
+              "cumulative_contribution": 19386081.12,
+              "projected_corpus": 28586019.83
+            }
+          ]
+        },
+        "call_self": false,
+        "cost": 0.0014831999999999998,
+        "input_tokens": 2130.0,
+        "output_tokens": 1939.5,
+        "total_tokens": 4069.5
+      },
+      "error": null,
+      "cost": 0.0,
+      "start_time": "2025-08-31T14:12:41.777901",
+      "end_time": "2025-08-31T14:14:34.305398",
+      "execution_time": 112.527497,
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "execution_result": null
+    },
+    {
+      "id": "T011",
+      "description": "Fetch raw data and information on the recommended fund categories.",
+      "agent": "RetrieverAgent",
+      "agent_prompt": "Read the `recommended_fund_categories` from T001's `allocation_plan_json` output. For each fund category listed under 'equity' and 'debt', conduct a thorough web search to gather information on their investment strategy, typical holdings, risk profile, and historical performance characteristics. Compile this raw information into a structured text document.",
+      "reads": [
+        "T001"
+      ],
+      "writes": [
+        "T011"
+      ],
+      "status": "running",
+      "output": null,
+      "error": null,
+      "cost": 0.0,
+      "start_time": "2025-08-31T14:14:34.311865",
+      "end_time": null,
+      "execution_time": 0.0
+    },
+    {
+      "id": "T012",
+      "description": "Condense and summarize the fetched fund category information into a shortlist.",
+      "agent": "DistillerAgent",
+      "agent_prompt": "Read the raw fund category information from T011's output. For each category, distill the information into a concise summary (2-3 sentences) covering its core investment thesis and suitability for the allocation plan. Create a `fund_shortlist.json` containing these summaries.",
+      "reads": [
+        "T011"
+      ],
+      "writes": [
+        "T012"
+      ],
+      "status": "pending",
+      "output": null,
+      "error": null,
+      "cost": 0.0,
+      "start_time": null,
+      "end_time": null,
+      "execution_time": 0.0
+    },
+    {
+      "id": "T013",
+      "description": "Reconcile the fund shortlist with the original allocation plan's categories and percentages.",
+      "agent": "ThinkerAgent",
+      "agent_prompt": "Read the `fund_shortlist.json` from T012 and the original `allocation_plan_json` from T001. Ensure that every recommended fund category in the allocation plan has a corresponding summary in the shortlist. Verify the logic and consistency, and prepare a final `reconciled_fund_plan.json` that merges the allocation percentages with the descriptive summaries.",
+      "reads": [
+        "T001",
+        "T012"
+      ],
+      "writes": [
+        "T013"
+      ],
+      "status": "pending",
+      "output": null,
+      "error": null,
+      "cost": 0.0,
+      "start_time": null,
+      "end_time": null,
+      "execution_time": 0.0
+    },
+    {
+      "id": "T014",
+      "description": "Perform a comprehensive quality assurance check on all calculations and plans.",
+      "agent": "QAAgent",
+      "agent_prompt": "Conduct a final validation of the entire plan. Read the outputs from T001 (all JSONs) and T013. Verify: (1) The SIP calculation in `sip_calc_json` is mathematically sound. (2) The `equity_percent` and `debt_percent` in `allocation_plan_json` sum to 100. (3) The `reconciled_fund_plan.json` from T013 is complete and non-empty. (4) All currency values are consistently 'INR'. Output a validation report with a status of 'passed' or 'failed' and a list of checks performed.",
+      "reads": [
+        "T001",
+        "T013"
+      ],
+      "writes": [
+        "T014"
+      ],
+      "status": "pending",
+      "output": null,
+      "error": null,
+      "cost": 0.0,
+      "start_time": null,
+      "end_time": null,
+      "execution_time": 0.0
+    },
+    {
+      "id": "T015",
+      "description": "Generate chart_data.json for projection line and allocation doughnut charts.",
+      "agent": "CoderAgent",
+      "agent_prompt": "Read from T001.output: (1) sip_projection_table_json (array of monthly rows with fields label, cumulative_contribution, projected_corpus) and (2) allocation_plan_json (equity_percent, debt_percent, recommended_fund_categories). Build chart_data_json with:\n\nprojection: {\n  labels: [row.label ...],\n  datasets: {\n    cumulative_contribution: [row.cumulative_contribution ...],\n    projected_corpus: [row.projected_corpus ...]\n  }\n}\nallocation: {\n  labels: [\"Equity\",\"Debt\"],\n  data: [allocation_plan_json.equity_percent, allocation_plan_json.debt_percent],\n  meta: { recommended_fund_categories: allocation_plan_json.recommended_fund_categories }\n}\n\nOUTPUT REQUIREMENTS (DIRECT FILE CREATION, NO CODE):\n- Set output.chart_data_json to the constructed object.\n- Set files['chart_data.json'] to the SAME object, JSON.stringify without indentation.\n- Set code = {} and call_self = false.\n- If any input is missing/empty, still return a minimal valid object:\n  { projection: { labels: [], datasets: [] }, allocation: { labels: [\"Equity\",\"Debt\"], data: [0,0], meta: {} } }\n  and still write files['chart_data.json']. Do NOT fail.",
+      "reads": [
+        "T001"
+      ],
+      "writes": [
+        "T015"
+      ],
+      "status": "pending",
+      "output": null,
+      "error": null,
+      "cost": 0.0,
+      "start_time": null,
+      "end_time": null,
+      "execution_time": 0.0
+    },
+    {
+      "id": "T016",
+      "description": "Slice the first 12 months of the projection table for a detailed view.",
+      "agent": "CoderAgent",
+      "agent_prompt": "Read `sip_projection_table_json` from T001. Slice the FIRST 12 rows ONLY. No math and no derived fields. If missing/empty, return empty array without failing other tasks. REQUIRED: set `output.first_12_months_table_json`, and emit `files['first_12_months_table.json']` with the same array stringified. `code` must be `{}` and `call_self` must be `false`.",
+      "reads": [
+        "T001"
+      ],
+      "writes": [
+        "T016"
+      ],
+      "status": "pending",
+      "output": null,
+      "error": null,
+      "cost": 0.0,
+      "start_time": null,
+      "end_time": null,
+      "execution_time": 0.0
+    },
+    {
+      "id": "T017",
+      "description": "Structure the comprehensive SIP report content based on all available data.",
+      "agent": "FormatterAgent",
+      "agent_prompt": "Aggregate all inputs to structure a comprehensive financial report. Read T001 (for goal inputs, inflation, SIP calc, allocation), T013 (for reconciled fund plan), T014 (for validation status), T015 (for chart data), and T016 (for the 12-month table). Assemble the content for the final HTML report, ensuring all 11 mandatory sections are present and populated: 1. Executive Summary, 2. Goal Inputs, 3. Inflation Adjustment, 4. SIP Calculation, 5. Asset Allocation Plan, 6. Allocation Notes, 7. Key Recommendations, 8. Risk Factors and Uncertainties (min. 150 words), 9. SIP Charts, 10. SIP Projection, 11. 12 month sip projection table. Output the structured content in a single `report_content.json` object.",
+      "reads": [
+        "T001",
+        "T013",
+        "T014",
+        "T015",
+        "T016"
+      ],
+      "writes": [
+        "T017"
+      ],
+      "status": "pending",
+      "output": null,
+      "error": null,
+      "cost": 0.0,
+      "start_time": null,
+      "end_time": null,
+      "execution_time": 0.0
+    },
+    {
+      "id": "T018",
+      "description": "Generate the final, well-formatted comprehensive_report.html.",
+      "agent": "ReportGeneratorAgent",
+      "agent_prompt": "Read the `report_content.json` from T017. Generate a professional, consulting-grade HTML file named `comprehensive_report.html`. The report must be well-structured, visually appealing, and include all sections provided. Embed the data for charts and tables correctly into the HTML structure. Ensure the Risk Factors section is detailed and meets the length requirement.",
+      "reads": [
+        "T017"
+      ],
+      "writes": [
+        "T018"
+      ],
+      "status": "pending",
+      "output": null,
+      "error": null,
+      "cost": 0.0,
+      "start_time": null,
+      "end_time": null,
+      "execution_time": 0.0
+    },
+    {
+      "id": "T019",
+      "description": "Set up a scheduler for optional periodic report refresh.",
+      "agent": "SchedulerAgent",
+      "agent_prompt": "Based on the successful generation of `comprehensive_report.html` in T018, create a schedule to re-run this entire plan on a quarterly basis to provide the user with updated projections. Configure a cron job or a similar scheduling mechanism.",
+      "reads": [
+        "T018"
+      ],
+      "writes": [
+        "T019"
+      ],
+      "status": "pending",
+      "output": null,
+      "error": null,
+      "cost": 0.0,
+      "start_time": null,
+      "end_time": null,
+      "execution_time": 0.0
+    }
+  ],
+  "links": [
+    {
+      "source": "ROOT",
+      "target": "T001"
+    },
+    {
+      "source": "T001",
+      "target": "T011"
+    },
+    {
+      "source": "T001",
+      "target": "T015"
+    },
+    {
+      "source": "T001",
+      "target": "T016"
+    },
+    {
+      "source": "T001",
+      "target": "T013"
+    },
+    {
+      "source": "T001",
+      "target": "T014"
+    },
+    {
+      "source": "T001",
+      "target": "T017"
+    },
+    {
+      "source": "T011",
+      "target": "T012"
+    },
+    {
+      "source": "T012",
+      "target": "T013"
+    },
+    {
+      "source": "T013",
+      "target": "T014"
+    },
+    {
+      "source": "T013",
+      "target": "T017"
+    },
+    {
+      "source": "T014",
+      "target": "T017"
+    },
+    {
+      "source": "T015",
+      "target": "T017"
+    },
+    {
+      "source": "T016",
+      "target": "T017"
+    },
+    {
+      "source": "T017",
+      "target": "T018"
+    },
+    {
+      "source": "T018",
+      "target": "T019"
+    }
+  ]
+}

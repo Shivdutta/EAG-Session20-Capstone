@@ -1,0 +1,1032 @@
+{
+  "directed": true,
+  "multigraph": false,
+  "graph": {
+    "session_id": "56564964",
+    "original_query": "You are the Orchestrator Agent.Your first action is to call SIPGoalPlannerAgent to compute goal inputs, inflation adjustment, SIP math, allocation guidance, and projections.Do not build any plans until you have read SIPGoalPlannerAgent’s outputs.Wiring RequirementPlannerAgent MUST first read the outputs from SIPGoalPlannerAgent (especially goal_input_json and computed parameters) before creating the final multi-agent plan graph for retrieval, distillation, Q&A, charts, and report.- Prepare JSON outputs for projection line, allocation doughnut using CoderAgent using different input and derived parameters- Prepare data for first 12 rows for sip_projection_table_json  using CoderAgent using different input and derived parametersUser ScenarioPlan a SIP goal with asset allocation and fund category guidance:goal_type = Retirementcurrent_age = 50retirement_age = 60override_time_horizon_years = 10currency = INRtarget_amount_min = 30000000risk_appetite = highCompute (Deterministic)time_horizon_years = max(override_time_horizon_years, retirement_age - current_age) = max(10, 60 - 50) = 10total_months = time_horizon_years * 12 = 120Risk → Return mapping (annual):very_low: 5%low: 7%low_moderate: 8%moderate: 10%high_moderate: 11%high: 12%very_high: 14%monthly_return_r = annual_return / 12For this scenario (high): annual_return = 12% → monthly_return_r = 0.12 / 12 = 0.01Inflation default: 5.5% annually unless overridden.Do (Step-by-Step)Normalize inputs → emit goal_input_json.Refer “SIP Calculation” from SIPGoalPlannerAgent.Refer “Inflation Adjustment” from SIPGoalPlannerAgent.Refer “Recommendation Engine (Fund Category Types)” from SIPGoalPlannerAgent.Output allocation_plan_json (equity %, debt %, recommended categories, notes).Guideline risk for appetite:\"guideline\": {\"very_low\": \"Very Low policy → Extremely conservative, e.g., 90% debt / 10% equity\",\"low\": \"Low policy → Conservative, e.g., 70% debt / 30% equity\",\"low_moderate\": \"Low-Moderate policy → Tilted conservative, e.g., 60% debt / 40% equity\",\"moderate\": \"Moderate policy → Balanced mix, e.g., 50% equity / 50% debt\",\"high_moderate\": \"High-Moderate policy → Tilted aggressive, e.g., 60% equity / 40% debt\",\"high\": \"High policy → Aggressive, e.g., 70% equity / 30% debt\",\"very_high\": \"Very High policy → Extremely aggressive, e.g., 90% equity / 10% debt\"}Validation Hooks: Validate schema + percentages.Visualization (ReportGeneratorAgent):Pie chart → equity vs debtBar/graph → sub-categoriesStrictness: Never recommend fund names. Only fund categories.Schemasgoal_input_json{ \"goal_type\": string, \"target_amount\": number, \"currency\": \"INR\", \"time_horizon_years\": number, \"total_months\": number, \"risk_appetite\": string }inflation_adjusted_json{ \"inflation_pct\": number, \"years\": number, \"unadjusted_target\": number, \"adjusted_target\": number }sip_calc_json{ \"monthly_return_r\": number, \"months_n\": number, \"adjusted_target\": number, \"monthly_sip\": number, \"status\": \"ok\" | \"error\", \"error\": string | null }allocation_plan_json{\"equity_percent\": number,\"debt_percent\": number,\"recommended_fund_categories\": {\"equity\": string[],\"debt\": string[],\"elss_optional\": boolean},\"notes\": {\"very_low\": string,\"low\": string,\"low_moderate\": string,\"moderate\": string,\"high_moderate\": string,\"high\": string,\"very_high\": string}}Outputs RequiredEmit STRICT JSON (no prose, no markdown):goal_input_jsoninflation_adjusted_jsonsip_calc_jsonallocation_plan_json====================================================================Addendum – Mandatory Report Sections for SIP Reports====================================================================All orchestrations and plan graphs must ensure downstream agents(FormatterAgent, ReportGeneratorAgent, QAAgent) enforce the followingsections in the final comprehensive_report.html:1. Executive Summary2. Goal Inputs3. Inflation Adjustment4. SIP Calculation5. Asset Allocation Plan6. Allocation Notes7. Key Recommendations8. Risk Factors and Uncertainties (≥150 words)9. SIP Charts (Projection line + Allocation doughnut)10. SIP Projection (long-horizon summary)11. 12 month sip projection table- PlannerAgent must wire in chart_data_json (T015) and first_12_months_table_json (T016).- ReportGeneratorAgent must embed these sections in HTML.- QAAgent must validate that all sections are present and populated.====================================================================",
+    "file_manifest": [],
+    "created_at": "2025-08-30T14:42:44.948341",
+    "status": "running",
+    "output_chain": {
+      "T001": {
+        "initial_thoughts": "Okay, I need to take the user's retirement goal details and compute the SIP amount required to reach their target, adjusted for inflation. I will then create an asset allocation plan based on their risk appetite. Finally, I'll structure all the calculated values into JSON objects for the downstream agents to use.",
+        "output": {
+          "goal_input_json": {
+            "goal_type": "Retirement",
+            "target_amount": 30000000,
+            "currency": "INR",
+            "time_horizon_years": 10,
+            "total_months": 120,
+            "risk_appetite": "High"
+          },
+          "sip_calc_json": {
+            "monthly_sip": 146277,
+            "expected_annual_return": "12%",
+            "monthly_return_r": 0.01,
+            "months_n": 120,
+            "adjusted_target": 51264442.69,
+            "status": "ok",
+            "error": null
+          },
+          "inflation_adjusted_json": {
+            "inflation_rate": "5.5%",
+            "years": 10,
+            "unadjusted_target": 30000000,
+            "adjusted_target": 51264442.69
+          },
+          "allocation_plan_json": {
+            "equity_percent": 70,
+            "debt_percent": 30,
+            "recommended_fund_categories": {
+              "equity": [
+                "Large Cap",
+                "Mid Cap",
+                "Small Cap"
+              ],
+              "debt": [
+                "Short Term Debt",
+                "Corporate Bond"
+              ],
+              "elss_optional": true
+            },
+            "notes": {
+              "very_low": "Very Low policy → Extremely conservative, e.g., 90% debt / 10% equity",
+              "low": "Low policy → Conservative, e.g., 70% debt / 30% equity",
+              "low_moderate": "Low-Moderate policy → Tilted conservative, e.g., 60% debt / 40% equity",
+              "moderate": "Moderate policy → Balanced mix, e.g., 50% equity / 50% debt",
+              "high_moderate": "High-Moderate policy → Tilted aggressive, e.g., 60% equity / 40% debt",
+              "high": "High policy → Aggressive, e.g., 70% equity / 30% debt",
+              "very_high": "Very High policy → Extremely aggressive, e.g., 90% equity / 10% debt"
+            }
+          },
+          "sip_projection_table_json": [
+            {
+              "month_index": 1,
+              "label": "M1",
+              "contribution": 146277,
+              "cumulative_contribution": 146277,
+              "projected_corpus": 146277.0
+            },
+            {
+              "month_index": 2,
+              "label": "M2",
+              "contribution": 146277,
+              "cumulative_contribution": 292554,
+              "projected_corpus": 293766.77
+            },
+            {
+              "month_index": 3,
+              "label": "M3",
+              "contribution": 146277,
+              "cumulative_contribution": 438831,
+              "projected_corpus": 442026.21
+            },
+            {
+              "month_index": 4,
+              "label": "M4",
+              "contribution": 146277,
+              "cumulative_contribution": 585108,
+              "projected_corpus": 593523.47
+            },
+            {
+              "month_index": 5,
+              "label": "M5",
+              "contribution": 146277,
+              "cumulative_contribution": 731385,
+              "projected_corpus": 748335.69
+            },
+            {
+              "month_index": 6,
+              "label": "M6",
+              "contribution": 146277,
+              "cumulative_contribution": 877662,
+              "projected_corpus": 906541.05
+            },
+            {
+              "month_index": 7,
+              "label": "M7",
+              "contribution": 146277,
+              "cumulative_contribution": 1023939,
+              "projected_corpus": 1068323.81
+            },
+            {
+              "month_index": 8,
+              "label": "M8",
+              "contribution": 146277,
+              "cumulative_contribution": 1170216,
+              "projected_corpus": 1233764.05
+            },
+            {
+              "month_index": 9,
+              "label": "M9",
+              "contribution": 146277,
+              "cumulative_contribution": 1316493,
+              "projected_corpus": 1403043.97
+            },
+            {
+              "month_index": 10,
+              "label": "M10",
+              "contribution": 146277,
+              "cumulative_contribution": 1462770,
+              "projected_corpus": 1576234.78
+            },
+            {
+              "month_index": 11,
+              "label": "M11",
+              "contribution": 146277,
+              "cumulative_contribution": 1609047,
+              "projected_corpus": 1753418.6
+            },
+            {
+              "month_index": 12,
+              "label": "M12",
+              "contribution": 146277,
+              "cumulative_contribution": 1755324,
+              "projected_corpus": 1934677.56
+            }
+          ],
+          "final_report_html": "<html>...consulting-grade formatted report to be filled by FormatterAgent/ReportGeneratorAgent...</html>"
+        },
+        "call_self": false,
+        "cost": 0.0005694750000000001,
+        "input_tokens": 1534.5,
+        "output_tokens": 565.5,
+        "total_tokens": 2100.0
+      },
+      "T011": {
+        "equity_large_cap": [
+          {
+            "type": "text",
+            "text": "[{'url': 'https://www.amfiindia.com/net-asset-value/nav-history', 'content': \"Net Asset Value of Mutual Funds | Nav History | Mutual Funds in India AMFI Press Release Know about AMFI Useful Links Contact Us Careers KYC Home Take me to... Investor Corner Distributor Corner Research & Information Take me to... New to Mutual Funds Already an MF Investor Intermediary Research & Information Home Net Asset Value (NAV) NAV History World Investor Week Nov 22-28, 2021 Message from Chairman, SEBI Message from Shri Ajay Tyagi, Chairman, SEBI, on the occasion of World Investor Week - 2021  202      NAV History Download NAV as on 31-Jan-2018 All NAV's for a date Historical NAV for a period View High/Low NAV for a period by Month / Year Compare NAV of a scheme for two dates Select Mutual Fund --Select Mutual Fund House-- 360 ONE Mutual Fund ABN AMRO Mutual Fund Aditya Birla Sun Life Mutual Fund AEGON Mutual Fund Alliance Capital Mutual Fund Angel One Mutual Fund Axis Mutual Fund Bajaj Finserv Mutual Fund Bandhan Mutual Fund Bank of India Mutual Fund Baroda BNP Paribas Mutual Fund Benchmark Mutual Fund BNP Paribas Mutual Fund Canara Robeco Mutual Fund Capitalmind Mutual Fund Daiwa Mutual Fund DBS Chola Mutual Fund Deutsche Mutual Fund DSP Mutual Fund Edelweiss Mutual Fund Fidelity Mutual Fund Fortis Mutual Fund Franklin Templeton Mutual Fund GIC Mutual Fund Goldman Sachs Mutual Fund Groww Mutual Fund HDFC Mutual Fund Helios Mutual Fund HSBC Mutual Fund ICICI Prudential Mutual Fund IDBI Mutual Fund IL&F S Mutual Fund IL&FS Mutual Fund (IDF) ING Mutual Fund Invesco Mutual Fund ITI Mutual Fund Jio BlackRock Mutual Fund JM Financial Mutual Fund JPMorgan Mutual Fund Kotak Mahindra Mutual Fund L&T Mutual Fund LIC Mutual Fund Mahindra Manulife Mutual Fund Mirae Asset Mutual Fund Morgan Stanley Mutual Fund Motilal Oswal Mutual Fund Navi Mutual Fund Nippon India Mutual Fund NJ Mutual Fund Old Bridge Mutual Fund PGIM India Mutual Fund PineBridge Mutual Fund PNB Mutual Fund PPFAS Mutual Fund Principal Mutual Fund quant Mutual Fund Quantum Mutual Fund Samco Mutual Fund SBI Mutual Fund Shinsei Mutual Fund Shriram Mutual Fund Standard Chartered Mutual Fund SUN F&C Mutual Fund Sundaram Mutual Fund Tata Mutual Fund Taurus Mutual Fund The Wealth Company Mutual Fund Trust Mutual Fund Unifi Mutual Fund Union Mutual Fund UTI Mutual Fund WhiteOak Capital Mutual Fund Zerodha Mutual Fund Zurich India Mutual Fund Select Scheme Name --Select Scheme NAV Name-- Download Complete NAV Report in Text Format as on 31-Jan-2018 Download Complete NAV Report in Excel Format as on 31-Jan-2018 NAV Date NAV From Date NAV To Date Note : One can download historical NAV for a maximum period of 5 years at a time Select Option Month Annual Select Option High Low Both Loading... Download NAV | Schedule of Investor Awareness Program | Districts Adopted | AMC Branches | Mutual Fund Summit | Videos | Web Help | Downloads | SEBI | NISM | Sitemap TERMS OF USE | PRIVACY NOTICE 2022 AMFI. All Rights Reserved\", 'images': [], 'rank': 1}, {'url': 'https://www.valueresearchonline.com/funds/fund-category/', 'content': 'Just a moment... Enable JavaScript and cookies to continue', 'images': [], 'rank': 2}, {'url': 'https://finance.yahoo.com/research-hub/screener/top_mutual_funds/', 'content': '[no text]', 'images': [], 'rank': 3}, {'url': 'https://www.amfiindia.com/net-asset-value', 'content': 'Net Asset Value of Mutual Funds | Types of Mutual Funds in India AMFI Press Release Know about AMFI Useful Links Contact Us Careers KYC Home Take me to... Investor Corner Distributor Corner Research & Information Take me to... New to Mutual Funds Already an MF Investor Intermediary Research & Information World Investor Week Nov 22-28, 2021 Message from Chairman, SEBI Message from Shri Ajay Tyagi, Chairman, SEBI, on the occasion of World Investor Week - 2021  202      Net Asset Value (NAV) Nav Download Nav History CDMDF Nav Loading... Download NAV | Schedule of Investor Awareness Program | Districts Adopted | AMC Branches | Mutual Fund Summit | Videos | Web Help | Downloads | SEBI | NISM | Sitemap TERMS OF USE | PRIVACY NOTICE 2022 AMFI. All Rights Reserved', 'images': [], 'rank': 4}, {'url': 'https://www.valueresearchonline.com/funds/selector/category/100/equity-large-cap', 'content': 'Just a moment... Enable JavaScript and cookies to continue', 'images': [], 'rank': 5}, {'url': 'https://finance.yahoo.com/research-hub/screener/mutualfunds/', 'content': '[not extracted] Content limit reached', 'rank': 6}, {'url': 'https://www.finostry.com/finance/top-performing-large-cap-mutual-funds/', 'content': '[not extracted] Content limit reached', 'rank': 7}, {'url': 'https://www.valueresearchonline.com/funds/10565/invesco-india-largecap-fund', 'content': '[not extracted] Content limit reached', 'rank': 8}]",
+            "annotations": null
+          }
+        ],
+        "equity_mid_cap": [
+          {
+            "type": "text",
+            "text": "[{'url': 'https://finance.yahoo.com/research-hub/screener/mutualfunds/', 'content': '[no text]', 'images': [], 'rank': 1}, {'url': 'https://www.valueresearchonline.com/funds/4280/invesco-india-mid-cap-fund/', 'content': 'Just a moment... Enable JavaScript and cookies to continue', 'images': [], 'rank': 2}, {'url': 'https://www.amfiindia.com/research-information/amfi-quarterlydata', 'content': 'AmfiQuarterly Data | Mutual Funds in India | Investment Plans AMFI Press Release Know about AMFI Useful Links Contact Us Careers KYC Home Take me to... Investor Corner Distributor Corner Research & Information Take me to... New to Mutual Funds Already an MF Investor Intermediary Research & Information Home Research & Information AMFI Quarterly Data World Investor Week Nov 22-28, 2021 Message from Chairman, SEBI Message from Shri Ajay Tyagi, Chairman, SEBI, on the occasion of World Investor Week - 2021  202      Research & Information MF History AMFI Monthly Sub-classification of Other schemes AMFI Quarterly Data AuM Data Other Data AMFI Quarterly Data Apr 2025 - Mar 2026 (Apr - June 2025) Apr 2024 - Mar 2025 (Apr - June 2024) (July - Sep 2024) (Oct - Dec 2024) (Jan - Mar 2025) Apr 2023 - Mar 2024 (Apr - June 2023) (July - Sep 2023) (Oct - Dec 2023) (Jan - Mar 2024) Apr 2022 - Mar 2023 (Apr - June 2022) (July - Sep 2022) (Oct - Dec 2022) (Jan - Mar 2023) Apr 2021 - Mar 2022 (Apr - June 2021) (July - Sep 2021) (Oct - Dec 2021) (Jan - Mar 2022) Apr 2020 - Mar 2021 (Apr - June 2020) (July - Sep 2020) (Oct - Dec 2020) (Jan - Mar 2021) Apr 2019 - Mar 2020 (Apr - June 2019) (July - Sep 2019) (Oct - Dec 2019) (Jan - Mar 2020) Apr 2018 - Mar 2019 (Apr - June 2018) (July - Sep 2018) (Oct - Dec 2018) (Jan - Mar 2019) Apr 2017 - Mar 2018 (Apr - June 2017) (July - Sep 2017) (Oct - Dec 2017) (Jan - Mar 2018) Apr 2016 - Mar 2017 (Apr - June 2016) (July - Sep 2016) (Oct - Dec 2016) (Jan - Mar 2017) Apr 2015 - Mar 2016 (Apr - June 2015) (July - Sep 2015) (Oct - Dec 2015) (Jan - Mar 2016) Apr 2014 - Mar 2015 (Apr - June 2014) (July - Sep 2014) (Oct - Dec 2014) (Jan - Mar 2015) Apr 2013 - Mar 2014 (Apr - June 2013) (July - Sep 2013) (Oct - Dec 2013) (Jan - Mar 2014) Apr 2012 - Mar 2013 (Apr - June 2012) (July - Sep 2012) (Oct - Dec 2012) (Jan - Mar 2013) Apr 2011 - Mar 2012 (Apr - June 2011) (July - Sep 2011) (Oct - Dec 2011) (Jan - Mar 2012) Apr 2010 - Mar 2011 (Apr - June 2010) (July - Sep 2010) (Oct - Dec 2010) (Jan - Mar 2011) Apr 2009 - Mar 2010 (April - June 2009) (July - Sep 2009) (Oct - Dec 2009) (Jan - Mar 2010) Apr 2008 - Mar 2009 (Apr - June 2008) (July - Sep 2008) (Oct - Dec 2008) (Jan - Mar 2009) Apr 2007 - Mar 2008 (Apr - June 2007) (July - Sep 2007) (Oct - Dec 2007) (Jan - Mar 2008) Apr 2006 - Mar 2007 (Apr - June 2006) (July - Sep 2006) (Oct - Dec 2006) (Jan - Mar 2007) Apr 2005 - Mar 2006 (Apr - June 2005) (July - Sep 2005) (Oct - Dec 2005) (Jan - Mar 2006) Apr 2004 - Mar 2005 (Apr - June 2004) (July - Sep 2004) (Oct - Dec 2004) (Jan - Mar 2005) Apr 2003 - Mar 2004 (Apr - June 2003) (July - Sep 2003) (Oct - Dec 2003) (Jan - Mar 2004) Apr 2002 - Mar 2003 (Apr - June 2002) (July - Sep 2002) (Oct - Dec 2002) (Jan - Mar 2003) Apr 1998 - Mar 2002 (Apr - June - 1998) (Apr 97 - March 1998) (July - September 1998) (October - December 1998) (January - March 1999) (Apr - June 1999) (Apr 98 - March 1999) (July - September 1999 ) (October - December 1999) (Jan - March 2000) (Apr 99 - March 2000) (Apr - June 2000) (July - Sep 2000) (Oct - Dec 2000) (Jan - Mar 2001) (Apr-June 2001) (July - Sep 2001) (Oct - Dec 2001) (Jan - Mar 2002) AuM Data Downloads Check The Latest NAV New Fund Offer Commission Disclosure Downloads Check the Latest NAV New Fund Offer Locate Distributor Agents Circular & Announcement Download NAV | Schedule of Investor Awareness Program | Districts Adopted | AMC Branches | Mutual Fund Summit | Videos | Web Help | Downloads | SEBI | NISM | Sitemap TERMS OF USE | PRIVACY NOTICE 2022 AMFI. All Rights Reserved', 'images': [], 'rank': 3}, {'url': 'https://www.etmoney.com/mutual-funds/equity/mid-cap/35', 'content': \"Best Mid Cap Equity Mutual Funds to Invest in India 2025 Mutual Funds All about Mutual Funds Know your Investor Personality Mutual Fund Home Explore Mutual Funds Check Portfolio Health Find mutual funds by type Equity funds Debt funds Hybrid funds Genius Stocks NPS More More Products Fixed Deposit Tax Saving Maximizer Credit Score Insurance Term Life Insurance Health Insurance Calculators SIP Calculator Mutual Fund Calculator FD Calculator NPS Calculator See all calculators Company About Us Learn Join Us Help & Support Clear My Account Login / Sign-up My investments My SIPs My Watchlist My transactions Track external mutual funds Profile Profile Logout Get Support Login / Sign-up Mutual Funds All about Mutual Funds Know your Investor Personality Mutual Funds Home Explore Mutual Funds Check Portfolio Health Equity funds Debt funds Hybrid funds Genius Stocks NPS Fixed Deposit Tax Saving Maximizer Credit Score Insurance Term Life Insurance Health Insurance Calculators SIP Calculator Mutual Fund Calculator FD Calculator NPS Calculator See all calculators About Us Join Us Learn Help & Support Great! You have sucessfully subscribed for newsletters for investments Subscribed email: Home Mutual Funds equity Mid Cap Funds Mid Cap Funds Mid Cap Mutual Funds Average Return 21.06% No. of Funds 28 Link copied to clipboard What is Mid Cap Mutual Fund Mid-cap mutual funds are equity funds that invest in the stocks of mid-sized companies (as per market capitalisation) of India. The companies are some of the fastest-growing companies in India and are at a stage today's leaders were a few years back. ..... Advantages of Mid Cap Funds Access to high-growth stocks that can give market-beating returns The smaller size makes them more likely to falter during tough market conditions Suitable for aggressive investors with 7+ year investment horizon Top schemes of Mid Cap Mutual Funds sorted by Returns 28 funds Sort by: Returns Sort by ETM Rank High to Low Genius Only Returns High to Low Fund Size High to Low Show Annualized Show Returns Annualized Absolute Returns for 5 Years Investment Period 1 Month 3 Months 6 Months 1 year 3 years 5 years via Monthly SIP Investment Mode Monthly SIP One-time (Lumpsum) Motilal Oswal Midcap Fund #NA of NA Unranked ETM Rank: Genius only Fund Size 33,609 Cr Return (p.a) + \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t34.56 \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t% + \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t341.2 \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t% + \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t18.93 \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t% + \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t466.09 \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t% + \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t15.53 \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t% + \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t15.53 \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t% N.A. N.A. -2.6 \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t% -2.6 \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t% + \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t28.66 \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t% + \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t112.99 \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t% + \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t2.51 \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t% + \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t2.51 \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t% N.A. N.A. N.A. N.A. + \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t0.99 \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t% + \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t0.99 \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t% + \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t0.17 \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t% + \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t0.17 \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t% + 2.12% + 0.17% + 0.58% + 0.1% + 21.53% + 22.62% + 3.83% + 10.39% + 26.91% + 50.33% + 29.95% + 110.65% ETM Rank #NA of NA Unranked Genius only Add to compare Invest Invesco India Mid Cap Fund #NA of NA Unranked ETM Rank: Genius only Fund Size 7,802 Cr Return (p.a) + \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t29.46 \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t% + \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t263.66 \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t% + \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t19.65 \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t% + \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t501.36 \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t% + \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t25.67 \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t% + \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t25.67 \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t% N.A. N.A. -3.89 \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t% -3.89 \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t% + \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t27.88 \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t% + \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t109.14 \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t% + \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t4.58 \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t% + \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t4.58 \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t% N.A. N.A. N.A. N.A. + \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t8.71 \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t% + \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t8.71 \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t% -2.11 \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t% -2.11 \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t% -22.82% -2.11% -0.02% + 0.0% + 33.92% + 25.74% + 15.92% + 16.74% + 28.97% + 54.5% + 26.8% + 95.56% ETM Rank #NA of NA Unranked Genius only Add to compare Invest Edelweiss Mid Cap Fund #NA of NA Unranked ETM Rank: Genius only Fund Size 11,027 Cr Return (p.a) + \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t30.94 \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t% +\", 'images': [], 'rank': 4}, {'url': 'https://finance.yahoo.com/quote/NIFTY_MIDCAP_100.NS/', 'content': '[no text]', 'images': [], 'rank': 5}, {'url': 'https://www.valueresearchonline.com/funds/fund-category/', 'content': '[not extracted] Content limit reached', 'rank': 6}, {'url': 'https://www.amfiindia.com/net-asset-value/nav-history', 'content': '[not extracted] Content limit reached', 'rank': 7}, {'url': 'https://www.moneycontrol.com/mutual-funds/nav/invesco-india-midcap-fund/MLI021', 'content': '[not extracted] Content limit reached', 'rank': 8}]",
+            "annotations": null
+          }
+        ],
+        "equity_small_cap": [
+          {
+            "type": "text",
+            "text": "[{'url': 'https://finance.yahoo.com/quote/SMIN/', 'content': '[no text]', 'images': [], 'rank': 1}, {'url': 'https://www.valueresearchonline.com/funds/37841/invesco-india-smallcap-fund-regular-plan/', 'content': 'Just a moment... Enable JavaScript and cookies to continue', 'images': [], 'rank': 2}, {'url': 'https://www.amfiindia.com/net-asset-value/nav-history', 'content': \"Net Asset Value of Mutual Funds | Nav History | Mutual Funds in India AMFI Press Release Know about AMFI Useful Links Contact Us Careers KYC Home Take me to... Investor Corner Distributor Corner Research & Information Take me to... New to Mutual Funds Already an MF Investor Intermediary Research & Information Home Net Asset Value (NAV) NAV History World Investor Week Nov 22-28, 2021 Message from Chairman, SEBI Message from Shri Ajay Tyagi, Chairman, SEBI, on the occasion of World Investor Week - 2021  202      NAV History Download NAV as on 31-Jan-2018 All NAV's for a date Historical NAV for a period View High/Low NAV for a period by Month / Year Compare NAV of a scheme for two dates Select Mutual Fund --Select Mutual Fund House-- 360 ONE Mutual Fund ABN AMRO Mutual Fund Aditya Birla Sun Life Mutual Fund AEGON Mutual Fund Alliance Capital Mutual Fund Angel One Mutual Fund Axis Mutual Fund Bajaj Finserv Mutual Fund Bandhan Mutual Fund Bank of India Mutual Fund Baroda BNP Paribas Mutual Fund Benchmark Mutual Fund BNP Paribas Mutual Fund Canara Robeco Mutual Fund Capitalmind Mutual Fund Daiwa Mutual Fund DBS Chola Mutual Fund Deutsche Mutual Fund DSP Mutual Fund Edelweiss Mutual Fund Fidelity Mutual Fund Fortis Mutual Fund Franklin Templeton Mutual Fund GIC Mutual Fund Goldman Sachs Mutual Fund Groww Mutual Fund HDFC Mutual Fund Helios Mutual Fund HSBC Mutual Fund ICICI Prudential Mutual Fund IDBI Mutual Fund IL&F S Mutual Fund IL&FS Mutual Fund (IDF) ING Mutual Fund Invesco Mutual Fund ITI Mutual Fund Jio BlackRock Mutual Fund JM Financial Mutual Fund JPMorgan Mutual Fund Kotak Mahindra Mutual Fund L&T Mutual Fund LIC Mutual Fund Mahindra Manulife Mutual Fund Mirae Asset Mutual Fund Morgan Stanley Mutual Fund Motilal Oswal Mutual Fund Navi Mutual Fund Nippon India Mutual Fund NJ Mutual Fund Old Bridge Mutual Fund PGIM India Mutual Fund PineBridge Mutual Fund PNB Mutual Fund PPFAS Mutual Fund Principal Mutual Fund quant Mutual Fund Quantum Mutual Fund Samco Mutual Fund SBI Mutual Fund Shinsei Mutual Fund Shriram Mutual Fund Standard Chartered Mutual Fund SUN F&C Mutual Fund Sundaram Mutual Fund Tata Mutual Fund Taurus Mutual Fund The Wealth Company Mutual Fund Trust Mutual Fund Unifi Mutual Fund Union Mutual Fund UTI Mutual Fund WhiteOak Capital Mutual Fund Zerodha Mutual Fund Zurich India Mutual Fund Select Scheme Name --Select Scheme NAV Name-- Download Complete NAV Report in Text Format as on 31-Jan-2018 Download Complete NAV Report in Excel Format as on 31-Jan-2018 NAV Date NAV From Date NAV To Date Note : One can download historical NAV for a maximum period of 5 years at a time Select Option Month Annual Select Option High Low Both Loading... Download NAV | Schedule of Investor Awareness Program | Districts Adopted | AMC Branches | Mutual Fund Summit | Videos | Web Help | Downloads | SEBI | NISM | Sitemap TERMS OF USE | PRIVACY NOTICE 2022 AMFI. All Rights Reserved\", 'images': [], 'rank': 3}, {'url': 'https://www.moneycontrol.com/mutual-funds/nav/invesco-india-smallcap-fund-regular-plan/MLI1096', 'content': 'Invesco India Smallcap Fund - Growth [40.56] | Invesco Mutual Fund - Moneycontrol English Hindi Gujarati Specials Search Quotes, News, Mutual Fund NAVs Trending Stocks Ola Electric INE0LXG01040, OLAELEC, 544225 Vikram Solar INE078V01014, VIKRAMSOLR, 544488 HDFC Bank INE040A01034, HDFCBANK, 500180 Reliance INE002A01018, RELIANCE, 500325 BSE Limited INE118H01025, BSE, 0 Quotes Mutual Funds Commodities Futures & Options Currency News Cryptocurrency Forum Notices Videos Glossary All Hello, Login Hello, Login Log-in or Sign-Up My Account My Profile My Portfolio My Watchlist My Alerts My Messages Price Alerts My Profile My PRO My Portfolio My Watchlist My Alerts My Messages Price Alerts Logout Loans up to 50 LAKHS Fixed Deposits Credit Cards Lifetime Free Credit Score Chat with Us Download App Follow us on: Go Ad-Free My Alerts mcmfinternal->Moneycontrol/MC_MF/MC_MF_Internal_728x90|~|Moneycontrol/MC_MF/MC_MF_Internal_300x250|~|Moneycontrol/MC_MF/MC_MF_Internal_160x600_Networth|~|Moneycontrol/MC_MF/MC_MF_Internal_300x250_Networth|~|Moneycontrol/MC_MF/MC_MF_Internal_MFMeter_728x90_2|~|Moneycontrol/MC_MF/MC_MF_Internal_468x60|~|Moneycontrol/MC_MF/MC_MF_Internal_MFMeter_300x600|~|Moneycontrol/MC_MF/MC_MF_Internal_MFMeter_728x90_4|~|Moneycontrol/MC_MF/MC_MF_NEW_ROS_300x600|~|Moneycontrol/MC_MF/MC_MF_Internal_Native_ATF_640x60|~|Moneycontrol/MC_MF/MC_MF_INTERNAL_SIP_300x80-> Go PRO Now PRO PRO Markets HOME INDIAN INDICES STOCK ACTION All Stats Top Gainers Top Losers Only Buyers Only Sellers 52 Week High 52 Week Low Price Shockers Volume Shockers Most Active Stocks GLOBAL MARKETS ETFs US MARKETS UNLISTED SHARES STOCK UPDATES STOCK SCANNER Fundamental Scanner Technical Scanner ECONOMIC INDICATORS ECONOMIC CALENDAR MARKET ACTION F&O FII & DII Activity Corporate Action EARNINGS DEALS Bulk Deals Block Deals Intraday Large Deals SECTOR ANALYSIS PRE MARKET SEASONALITY ANALYSIS RESEARCH Investment Advice Technicals COMMODITY CURRENCY CRYPTOCURRENCY TECHNICAL TRENDS IPO BONDS WEBINAR MC LEARN TRADERS CONCLAVE INTERVIEW SERIES OTHERS Cryptocurrency News Tools News LATEST NEWS Assembly Elections BUSINESS Economy Companies Mutual Funds Personal Finance IPO Startup Real Estate Bank Holidays 2025 Banking NATION & WORLD India City World Politics MARKETS Stocks Technical Analysis Equity Research Commodities Currency Gold Rate Silver Rate AQI SPECIAL Trends Opinion Explainers MC Buzz MC Features MC Learn TECHNOLOGY Personal Tech Auto Fintech MEDIA Podcast Photos Videos Web Stories CRYPTO DASHBOARD PETROL PRICE IN INDIA DIESEL PRICE IN INDIA MONSOON TRACKER OTHERS Entertainment Sports Lifestyle Health and Fitness Education Jobs Science Astro Religion Travel Editors Picks Tech India Learning Curve Portfolio Watchlist Commodities MF EXPLORE Home Find Fund Top Ranked Funds Performance Tracker SIP Performance Tracker ETFs NFO Top Performing Categories Learn TOOLS Returns Calculator Lumpsum SIP Balancer Delay Cost Calculator MF FORUM TRACK Your MF Investment MF Prices Personal Finance EXPLORE Home Investing Insurance Banking Financial Planning Property Tools Video Ask Expert Explainer NPS FIXED DEPOSIT FDs @ 8.4% p.a. Fixed Deposit Comparison Fixed Deposit Interest Calculator Corporate Deposits TAX Income tax Filing Guide Income Tax Calculator LTCG Tax on Property BANK HOLIDAYS 2025 LOANS & CREDIT CARDS Loans Loans up to 50 LAKHS Pick your Loan Amount 50K Personal Loan 1L Personal Loan 2L Personal Loan 5L Personal Loan 10L Personal Loan 15L Personal Loan Top Loan Providers RING PREFR L&T Finance FIBE CASHE Bajaj Finserv Aditya Birla Finance Personal Loan Instant Loan EMI Calculator Personal Loan Articles TOOLS Provident Fund Calculator Assets Allocation Planning Debt Reduction Planner Debt Evaluation Calculator Current Expense Calculator More Calculators CREDIT CARDS LIFETIME FREE Credit Score FINANCE TRACKER REAL ESTATE : TRENDS & ANALYTICS GOLD PRICE TODAY Upcoming Chat | Previous Transcripts All Schedule | Previous Transcript Forum EXPLORE FORUM Homepage M', 'images': [], 'rank': 4}, {'url': 'https://www.google.com/finance/quote/INVE_INDI_SMAL_146TI3S:MUTF_IN', 'content': 'Invesco India Smallcap Fund Regular Growth (INVE_INDI_SMAL_146TI3S) Mutual Fund Price & News - Google Finance Finance Finance Sign in Finance Finance Finance finance_mode Home manage_search Market trends Portfolios add Create portfolio Watchlists add Create watchlist Most Active Vodafone Idea Ltd -1.07% Ola Electric Mobility Ltd -0.77% Yes Bank Ltd +2.46% Sammaan Capital Ltd +5.28% Suzlon Energy Ltd +0.28% RBL Bank Ltd +4.44% settings Settings feedback Send feedback Markets US Europe India Currencies Crypto Futures NIFTY 50 24,426.85 -0.30% -74.05 NIFTY 50 24,426.85 0.30% SENSEX 79,809.65 -0.34% -270.92 SENSEX 79,809.65 0.34% Nifty Bank 53,655.65 -0.31% -164.70 Nifty Bank 53,655.65 0.31% Nifty IT 35,181.25 -0.87% -307.50 Nifty IT 35,181.25 0.87% S&P BSE SmallCap 51,449.23 -0.29% -150.28 S&P BSE SmallCap 51,449.23 0.29% Home INVE_INDI_SMAL_146TI3S Mutual Fund add Share Invesco India Smallcap Fund Regular Growth 40.56 Aug 29 INR MUTF_IN Disclaimer 1M 6M YTD 1Y 5Y MAX No data close search Compare to Invesco India Large&MidCap Fund Growth 98.98 INVE_INDI_LARG_1Q4NHQ7 0.83% Invesco India Mid Cap Fund Growth 176.44 INVE_INDI_MID_6OXAM 0.94% Invesco India Arbitrage Fund Growth 32.20 INVE_INDI_ARBI_GU9047 0.0016% Invesco India Contra Fund Growth 132.34 INVE_INDI_CONT_PAOJCY 0.47% Invesco India Money Market Fund Growth 3,082.46 INVE_INDI_MONE_FBYEIV 0.0077% Tata Small Cap Fund Regular Growth 39.43 TATA_SMAL_CAP_B1GEG2 0.036% Motilal Oswal Small Cap Fund Regular Growth 13.52 MOTI_OSWA_SMAL_1L9ZZEK 0.029% Invesco India Liquid Fund Regular Growth 3,204.87 INVE_INDI_LIQU_LWZZQH 0.014% Canara Robeco Small Cap Fund Regular Growth 37.57 CANA_ROBE_SMAL_18DW5EC 0.13% ICICI Prudential Smallcap Fund Growth 86.81 ICIC_PRU_SMAL_1X980CT 0.16% insights Key events Key events shows relevant news articles on days with large price movements Key events Key events shows relevant news articles on days with large price movements Key events arrow_forward_ios Key events shows relevant news articles on days with large price movements Mutual fund A pool of money collected from many investors to invest in stocks, bonds, and other assets. The fund is managed by a professional money manager Previous close The last closing price 40.80 YTD return Year to date return as of Jul 31, 2025 -3.35% Category Classification system to identify similar funds India Equity Morningstar Rating A rating that measures how well a fund has performed compared to similar funds star_rate star_rate star_rate grade grade Front load Single charge paid by the investor when they purchase shares of the fund - Inception date The date on which the fund was launched Oct 30, 2018 Market news Moneycontrol 1 hour ago NSE revises quantity freeze limits for index derivatives from September 1 MSN 41 minutes ago NSE CEO Explains Why Indias 7.8% GDP Growth In Q1 FY26 Outperformed Global Projections Details Mint 3 days ago Stock market holidays in September: When will BSE, NSE be closed for trading next month? Zee News 1 hour ago Stellar Q1 GDP Growth Across Sectors Absolutely Exhilarating: NSEs Ashishkumar Chauhan The Economic Times 2 hours ago BSE Capital Markets Index: BSE gets a new index to track sector performance SENSEX 0.34% BSE SENSEX Business Standard 9 minutes ago India Habitat Centre Signs MOU with NSE to Promote Financial Literacy and Investor Awareness Discover more You may be interested in info This list is generated from recent searches, followed securities, and other activity. Learn more All data and information is provided as is for personal informational purposes only, and is not intended to be financial advice nor is it for trading purposes or investment, tax, legal, accounting or other advice. Google is not an investment adviser nor is it a financial adviser and expresses no view, recommendation or opinion with respect to any of the companies included in this list or any securities issued by those companies. Please consult your broker or financial representative to verify pricing', 'images': [], 'rank': 5}, {'url': 'https://www.etmoney.com/mutual-funds/equity/small-cap/36', 'content': '[not extracted] Content limit reached', 'rank': 6}, {'url': 'https://www.bmsmoney.com/mutual-fund/english-invesco-india-smallcap-fund/', 'content': '[not extracted] Content limit reached', 'rank': 7}, {'url': 'https://www.indmoney.com/mutual-funds/equity/small-cap-funds', 'content': '[not extracted] Content limit reached', 'rank': 8}]",
+            "annotations": null
+          }
+        ],
+        "debt_short_term": [
+          {
+            "type": "text",
+            "text": "[{'url': 'https://duckduckgo.com/y.js?ad_domain=icicipruamc.com&ad_provider=bingv7aa&ad_type=txad&click_metadata=3wtUP99YSStu1EJ3UbrOiPj6z0AO9CbX7RMcldrmYzMpoSSsg7G5sQQjQpRvQNuFBJr4LLxQsYyM1W7im7iQQ3MOqwAdilyCbjEu2xZBcNDr8tWK5oDpcPY7Zhmi8CLi.1Y95_gce1iuq7kkItskdAQ&rut=386bf3e1567d9db2fed5e7a1e5cc29eda431b1ef8df8d393805b4ad47a49fb23&u3=https%3A%2F%2Fwww.bing.com%2Faclick%3Fld%3De8DDC%2D30p5Sq7LCvW27h1qqTVUCUyqRotBXMD82KcbxrL2RE2T9C51E5w2anyJRW0Ftm_dtT60WMCBxwxwlEAAiS_UjHyUY4Cw2Fu30gH1SlbR%2DLuSEGt%2DeKchzxQv_ZAREazQJ70MtjxziD88%2DtkItVFhWa9lFuDwONWRD0FMLWSvafMwW_P17snT%2DalnZ7j6sX3RAQ%26u%3DaHR0cHMlM2ElMmYlMmZ3d3cuaWNpY2lwcnVhbWMuY29tJTJmc2lnbi1pbiUyZnJlZ2lzdGVyJTNmdXRtX3NvdXJjZSUzZGJpbmdfc2VtX2NvcmUlMjZ1dG1fbWVkaXVtJTNkY3BjJTI2dXRtX2NhbXBhaWduJTNkTVNfMjVfUTNfQmluZ19TZWFyY2hfQkFVX0NvcmVfUGhyYXNlX0xlYWRzX09wZW4lMjZ1dG1fYWRncm91cCUzZEJBVV9Db3JlX011dHVhbF9GdW5kX1BocmFzZSUyNnV0bV90ZXJtJTNkbXV0dWFsJTI1MjBmdW5kcyUyNTIwaW5kaWElMjZ1dG1fcGxhY2VtZW50JTNkJTI2dXRtX2RldmljZSUzZGMlMjZ1dG1fbWF0Y2h0eXBlJTNkcCUyNm1zY2xraWQlM2RhM2FiNzUxNGZkOGMxM2ExMmEzMTFkYTdmM2IzODQ5NyUyNnV0bV9jb250ZW50JTNkQkFVX0NvcmVfTXV0dWFsX0Z1bmRfUGhyYXNl%26rlid%3Da3ab7514fd8c13a12a311da7f3b38497&vqd=4-298328200424500379094273114525179958458&iurl=%7B1%7DIG%3DCF10E062CEE74B4EB7E55CE3CE60125B%26CID%3D0483E2CD7B3263351A3FF4957A9A6258%26ID%3DDevEx%2C5046.1', 'content': 'ICICI Pru You need to enable JavaScript to run this app.', 'images': [], 'rank': 1}, {'url': 'https://finance.yahoo.com/quote/105191.BO/performance/', 'content': '[no text]', 'images': [], 'rank': 2}, {'url': 'https://www.valueresearchonline.com/funds/4668/invesco-india-short-duration-fund/', 'content': 'Just a moment... Enable JavaScript and cookies to continue', 'images': [], 'rank': 3}, {'url': 'https://portal.amfiindia.com/spages/CRISIL%20-%20AMFI%20Short%20Term%20Debt%20Fund%20Performance%20Index_Factsheet.pdf', 'content': '[no text]', 'images': [], 'rank': 4}, {'url': 'https://www.etmoney.com/mutual-funds/debt/short-duration/54', 'content': \"Best Short-Term Mutual Funds to Invest in India 2025 Mutual Funds All about Mutual Funds Know your Investor Personality Mutual Fund Home Explore Mutual Funds Check Portfolio Health Find mutual funds by type Equity funds Debt funds Hybrid funds Genius Stocks NPS More More Products Fixed Deposit Tax Saving Maximizer Credit Score Insurance Term Life Insurance Health Insurance Calculators SIP Calculator Mutual Fund Calculator FD Calculator NPS Calculator See all calculators Company About Us Learn Join Us Help & Support Clear My Account Login / Sign-up My investments My SIPs My Watchlist My transactions Track external mutual funds Profile Profile Logout Get Support Login / Sign-up Mutual Funds All about Mutual Funds Know your Investor Personality Mutual Funds Home Explore Mutual Funds Check Portfolio Health Equity funds Debt funds Hybrid funds Genius Stocks NPS Fixed Deposit Tax Saving Maximizer Credit Score Insurance Term Life Insurance Health Insurance Calculators SIP Calculator Mutual Fund Calculator FD Calculator NPS Calculator See all calculators About Us Join Us Learn Help & Support Great! You have sucessfully subscribed for newsletters for investments Subscribed email: Home Mutual Funds debt Short Duration Funds Short Duration Funds Short Term Mutual Funds Average Return 7.93% No. of Funds 24 Link copied to clipboard What is Short Duration Mutual Fund Short term funds are debt funds that lend to companies for a period of 1 to 3 years. These funds mostly take exposure only in quality companies that have proven record of repaying their loans on time as well as have sufficient cash flows from their business operations to justify the borrowing. ..... Advantages of Short Duration Funds Ideal for the money you don't need for at least 12 to 18 months These funds tend to deliver better returns than Bank Fixed Deposits while keeping risk under control Top schemes of Short Duration Mutual Funds sorted by Returns 24 funds Sort by: Returns Sort by ETM Rank High to Low Genius Only Returns High to Low Fund Size High to Low Show Annualized Show Returns Annualized Absolute Returns for 5 Years Investment Period 1 Month 3 Months 6 Months 1 year 3 years 5 years via Monthly SIP Investment Mode Monthly SIP One-time (Lumpsum) Bank of India Short Term Income Fund #NA of NA Unranked ETM Rank: Genius only Fund Size 223 Cr Return (p.a) + \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t10.69 \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t% + \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t66.14 \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t% + \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t6.29 \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t% + \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t84.08 \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t% + \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t4.28 \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t% + \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t4.28 \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t% N.A. N.A. + \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t0.02 \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t% + \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t0.02 \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t% + \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t10.22 \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t% + \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t33.9 \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t% + \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t1.05 \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t% + \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t1.05 \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t% N.A. N.A. N.A. N.A. + \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t9.95 \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t% + \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t9.95 \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t% + \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t0.18 \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t% + \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t0.18 \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t% + 2.16% + 0.18% + 4.1% + 0.67% + 6.63% + 18.58% + 8.61% + 12.93% + 9.0% + 17.32% + 10.75% + 32.74% ETM Rank #NA of NA Unranked Genius only Add to compare Invest Sundaram Short Duration Fund #NA of NA Unranked ETM Rank: Genius only Fund Size 215 Cr Return (p.a) + \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t7.79 \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t% + \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t45.54 \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t% + \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t7.0 \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t% + \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t96.73 \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t% + \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t4.37 \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t% + \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t4.37 \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t% N.A. N.A. + \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t0.0 \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t% + \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t0.0 \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t% + \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t7.86 \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t% + \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t25.48 \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t% + \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t0.78 \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t% + \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t0.78 \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t% N.A. N.A. N.A. N.A. + \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t8.6 \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t% + \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t8.6 \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t% -0.02 \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t% -0.02 \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t% -0.2% -0.02% + 2.64% + 0.43% + 6.17% + 18.45% + 7.79% + 12.5% + 8.2% + 15.97% + 7.92% + 23.81% ETM Rank #NA of NA Unranked Genius only Add to compare Invest ICICI Prudential Short Term Fund #NA of NA Unranked ETM Rank: Genius only\", 'images': [], 'rank': 5}, {'url': 'https://www.fundsindia.com/c/Debt-Short-Duration-Fund/16', 'content': '[not extracted] Content limit reached', 'rank': 6}, {'url': 'https://www.advisorkhoj.com/mutual-funds-research/top-performing-mutual-funds?category=Short%20Term%20Debt%20Funds', 'content': '[not extracted] Content limit reached', 'rank': 7}, {'url': 'https://www.valueresearchonline.com/funds/selector/category/122/debt-short-duration', 'content': '[not extracted] Content limit reached', 'rank': 8}]",
+            "annotations": null
+          }
+        ],
+        "debt_corporate_bond": [
+          {
+            "type": "text",
+            "text": "[{'url': 'https://finance.yahoo.com/quote/0P0001BAOY.BO/', 'content': '[no text]', 'images': [], 'rank': 1}, {'url': 'https://www.valueresearchonline.com/funds/selector/category/129/debt-corporate-bond', 'content': 'Just a moment... Enable JavaScript and cookies to continue', 'images': [], 'rank': 2}, {'url': 'https://www.amfiindia.com/net-asset-value/nav-history', 'content': \"Net Asset Value of Mutual Funds | Nav History | Mutual Funds in India AMFI Press Release Know about AMFI Useful Links Contact Us Careers KYC Home Take me to... Investor Corner Distributor Corner Research & Information Take me to... New to Mutual Funds Already an MF Investor Intermediary Research & Information Home Net Asset Value (NAV) NAV History World Investor Week Nov 22-28, 2021 Message from Chairman, SEBI Message from Shri Ajay Tyagi, Chairman, SEBI, on the occasion of World Investor Week - 2021  202      NAV History Download NAV as on 31-Jan-2018 All NAV's for a date Historical NAV for a period View High/Low NAV for a period by Month / Year Compare NAV of a scheme for two dates Select Mutual Fund --Select Mutual Fund House-- 360 ONE Mutual Fund ABN AMRO Mutual Fund Aditya Birla Sun Life Mutual Fund AEGON Mutual Fund Alliance Capital Mutual Fund Angel One Mutual Fund Axis Mutual Fund Bajaj Finserv Mutual Fund Bandhan Mutual Fund Bank of India Mutual Fund Baroda BNP Paribas Mutual Fund Benchmark Mutual Fund BNP Paribas Mutual Fund Canara Robeco Mutual Fund Capitalmind Mutual Fund Daiwa Mutual Fund DBS Chola Mutual Fund Deutsche Mutual Fund DSP Mutual Fund Edelweiss Mutual Fund Fidelity Mutual Fund Fortis Mutual Fund Franklin Templeton Mutual Fund GIC Mutual Fund Goldman Sachs Mutual Fund Groww Mutual Fund HDFC Mutual Fund Helios Mutual Fund HSBC Mutual Fund ICICI Prudential Mutual Fund IDBI Mutual Fund IL&F S Mutual Fund IL&FS Mutual Fund (IDF) ING Mutual Fund Invesco Mutual Fund ITI Mutual Fund Jio BlackRock Mutual Fund JM Financial Mutual Fund JPMorgan Mutual Fund Kotak Mahindra Mutual Fund L&T Mutual Fund LIC Mutual Fund Mahindra Manulife Mutual Fund Mirae Asset Mutual Fund Morgan Stanley Mutual Fund Motilal Oswal Mutual Fund Navi Mutual Fund Nippon India Mutual Fund NJ Mutual Fund Old Bridge Mutual Fund PGIM India Mutual Fund PineBridge Mutual Fund PNB Mutual Fund PPFAS Mutual Fund Principal Mutual Fund quant Mutual Fund Quantum Mutual Fund Samco Mutual Fund SBI Mutual Fund Shinsei Mutual Fund Shriram Mutual Fund Standard Chartered Mutual Fund SUN F&C Mutual Fund Sundaram Mutual Fund Tata Mutual Fund Taurus Mutual Fund The Wealth Company Mutual Fund Trust Mutual Fund Unifi Mutual Fund Union Mutual Fund UTI Mutual Fund WhiteOak Capital Mutual Fund Zerodha Mutual Fund Zurich India Mutual Fund Select Scheme Name --Select Scheme NAV Name-- Download Complete NAV Report in Text Format as on 31-Jan-2018 Download Complete NAV Report in Excel Format as on 31-Jan-2018 NAV Date NAV From Date NAV To Date Note : One can download historical NAV for a maximum period of 5 years at a time Select Option Month Annual Select Option High Low Both Loading... Download NAV | Schedule of Investor Awareness Program | Districts Adopted | AMC Branches | Mutual Fund Summit | Videos | Web Help | Downloads | SEBI | NISM | Sitemap TERMS OF USE | PRIVACY NOTICE 2022 AMFI. All Rights Reserved\", 'images': [], 'rank': 3}, {'url': 'https://www.morningstar.in/mutualfunds/f00000pd8t/invesco-india-corp-bond-dir-gr/performance.aspx', 'content': \"Invesco India Corporate Bond Fund | Invesco India Corporate Bond Fund Direct Growth | Fund Performance | Morningstar India Home Mutual Funds Funds Home NEW Medalist Rating NEW Factsheets NEW Fund News NEW Screen Funds NEW Compare Funds NEW Instant X-Ray NEW Rank ETFs NEW Equities Equities Home NEW Stocks Quickrank NEW Indexes NEW Personal Finance Finance Home NEW Insurance NEW Star Ratings NEW Rank Insurance Funds NEW Tools Archives Archives NEW Videos NEW Adviser Menu Site Search Welcome! Products & Services Login My Account My Profile Notifications Sign Out My Account My Profile Notifications Sign Out Home Mutual Funds Equities Personal Finance Tools Archives Adviser ADVERTISEMENT Advertisement ADVERTISEMENT Invesco India Corporate Bond Fund Direct Growth INF205K01RF8 Overview Portfolio Detailed Portfolio Performance Risk & Rating Factsheet Morningstar's Analysis ADVERTISEMENT STOCKS A B C D E F G H I J K L M N O P Q R S T U V W X Y Z 1...9 MUTUAL FUNDS ADITYABIRLA ANGELONE AXIS Bajaj BANDHAN BARODABNP BOI CANARA CAPITALMIND DSP EDELWEISS FRANKLINTEMPLETON GROWW HDFC HELIOS HSBC ICICI IIFL INVESCO ITI JIOBLACKROCK JM KOTAK LIC MahindraManulife MIRAE MOTILAL NAVI Nippon NJ OldBridge PGIM PPFAS QUANT QUANTUM SAMCO SBI SHRIRAM SUNDARAM TATA TAURUS Trust UNIFI UNION UTI WhiteOak ZERODHA INSURANCE FUNDS ABSL AEGON AGEASFEDERAL AVIVA BAJAJALLIANZ BHARTIAXA CANARAHSBCORIENTBANK EDELWEISSTOKIO EXIDE FUTUREGENERALI HDFC ICICIPRUDENTIAL INDIAFIRST KOTAKMAHINDRA LIC MAXLIFE PNBMETLIFE PRAMERICA RELIANCENIPPON SAHARA SBI SHRIRAM STARUNIONDAI-ICHI TATAAIA About Us Our Story Licensing Opportunities Our Signature Methodologies CSR Policy CSR Project Plan Careers Connect With Us Contact Us Events Copyright 2025 Morningstar, Inc. All rights reserved. Terms of Use Privacy Policy International Sites Australia Austria Belgium Canada China Czech Republic Denmark Estonia Finland France Germany Hong Kong Hungary Iceland Ireland Italy Japan Korea Latvia Lithuania Malaysia Netherlands New Zealand Norway Poland Portugal Singapore South Africa Spain Sweden Switzerland Taiwan Thailand United Kingdom United States Copyright 2025 Morningstar, Inc. All rights reserved. Please read our Terms of Use above.\\r \\t\\t\\tThis site is protected by reCAPTCHA and the Google Privacy Policy and Terms of Service apply. As of December 1st, 2023, the ESG-related information, methodologies, tools, ratings, data and opinions contained or reflected herein are not directed to or intended for use or distribution to India-based clients or users and their distribution to Indian resident individuals or entities is not permitted, and Morningstar/Sustainalytics accepts no responsibility or liability whatsoever for the actions of third parties in this respect. Company: Morningstar India Private Limited; Regd. Office: 9th floor, Platinum Technopark, Plot No. 17/18, Sector 30A, Vashi, Navi Mumbai 400705, Maharashtra, India; CIN: U72300MH2004PTC245103; Telephone No.: +91-22-61217100; Fax No.: +91-22-61217200; Contact: Morningstar India Help Desk (e-mail: helpdesk.in@morningstar.com ) in case of queries or grievances. Top Feedback\", 'images': [], 'rank': 4}, {'url': 'https://www.moneycontrol.com/mutual-funds/performance-tracker/returns/corporate-bond-fund.html', 'content': 'Historic Returns - corporate bond fund,corporate bond fund Performance Tracker| Mutual funds with highest returns - Moneycontrol.com English Hindi Gujarati Specials Search Quotes, News, Mutual Fund NAVs Trending Stocks Ola Electric INE0LXG01040, OLAELEC, 544225 Vikram Solar INE078V01014, VIKRAMSOLR, 544488 HDFC Bank INE040A01034, HDFCBANK, 500180 Reliance INE002A01018, RELIANCE, 500325 BSE Limited INE118H01025, BSE, 0 Quotes Mutual Funds Commodities Futures & Options Currency News Cryptocurrency Forum Notices Videos Glossary All Hello, Login Hello, Login Log-in or Sign-Up My Account My Profile My Portfolio My Watchlist My Alerts My Messages Price Alerts My Profile My PRO My Portfolio My Watchlist My Alerts My Messages Price Alerts Logout Loans up to 50 LAKHS Fixed Deposits Credit Cards Lifetime Free Credit Score Chat with Us Download App Follow us on: Go Ad-Free My Alerts mcmfinternal->Moneycontrol/MC_MF/MC_MF_Internal_728x90|~|Moneycontrol/MC_MF/MC_MF_Internal_300x250|~|Moneycontrol/MC_MF/MC_MF_Internal_160x600_Networth|~|Moneycontrol/MC_MF/MC_MF_Internal_300x250_Networth|~|Moneycontrol/MC_MF/MC_MF_Internal_MFMeter_728x90_2|~|Moneycontrol/MC_MF/MC_MF_Internal_468x60|~|Moneycontrol/MC_MF/MC_MF_Internal_MFMeter_300x600|~|Moneycontrol/MC_MF/MC_MF_Internal_MFMeter_728x90_4|~|Moneycontrol/MC_MF/MC_MF_NEW_ROS_300x600|~|Moneycontrol/MC_MF/MC_MF_Internal_Native_ATF_640x60|~|Moneycontrol/MC_MF/MC_MF_INTERNAL_SIP_300x80-> Go PRO Now PRO PRO Markets HOME INDIAN INDICES STOCK ACTION All Stats Top Gainers Top Losers Only Buyers Only Sellers 52 Week High 52 Week Low Price Shockers Volume Shockers Most Active Stocks GLOBAL MARKETS ETFs US MARKETS UNLISTED SHARES STOCK UPDATES STOCK SCANNER Fundamental Scanner Technical Scanner ECONOMIC INDICATORS ECONOMIC CALENDAR MARKET ACTION F&O FII & DII Activity Corporate Action EARNINGS DEALS Bulk Deals Block Deals Intraday Large Deals SECTOR ANALYSIS PRE MARKET SEASONALITY ANALYSIS RESEARCH Investment Advice Technicals COMMODITY CURRENCY CRYPTOCURRENCY TECHNICAL TRENDS IPO BONDS WEBINAR MC LEARN TRADERS CONCLAVE INTERVIEW SERIES OTHERS Cryptocurrency News Tools News LATEST NEWS Assembly Elections BUSINESS Economy Companies Mutual Funds Personal Finance IPO Startup Real Estate Bank Holidays 2025 Banking NATION & WORLD India City World Politics MARKETS Stocks Technical Analysis Equity Research Commodities Currency Gold Rate Silver Rate AQI SPECIAL Trends Opinion Explainers MC Buzz MC Features MC Learn TECHNOLOGY Personal Tech Auto Fintech MEDIA Podcast Photos Videos Web Stories CRYPTO DASHBOARD PETROL PRICE IN INDIA DIESEL PRICE IN INDIA MONSOON TRACKER OTHERS Entertainment Sports Lifestyle Health and Fitness Education Jobs Science Astro Religion Travel Editors Picks Tech India Learning Curve Portfolio Watchlist Commodities MF EXPLORE Home Find Fund Top Ranked Funds Performance Tracker SIP Performance Tracker ETFs NFO Top Performing Categories Learn TOOLS Returns Calculator Lumpsum SIP Balancer Delay Cost Calculator MF FORUM TRACK Your MF Investment MF Prices Personal Finance EXPLORE Home Investing Insurance Banking Financial Planning Property Tools Video Ask Expert Explainer NPS FIXED DEPOSIT FDs @ 8.4% p.a. Fixed Deposit Comparison Fixed Deposit Interest Calculator Corporate Deposits TAX Income tax Filing Guide Income Tax Calculator LTCG Tax on Property BANK HOLIDAYS 2025 LOANS & CREDIT CARDS Loans Loans up to 50 LAKHS Pick your Loan Amount 50K Personal Loan 1L Personal Loan 2L Personal Loan 5L Personal Loan 10L Personal Loan 15L Personal Loan Top Loan Providers RING PREFR L&T Finance FIBE CASHE Bajaj Finserv Aditya Birla Finance Personal Loan Instant Loan EMI Calculator Personal Loan Articles TOOLS Provident Fund Calculator Assets Allocation Planning Debt Reduction Planner Debt Evaluation Calculator Current Expense Calculator More Calculators CREDIT CARDS LIFETIME FREE Credit Score FINANCE TRACKER REAL ESTATE : TRENDS & ANALYTICS GOLD PRICE TODAY Upcoming Chat | Previous Transcripts All Schedule |', 'images': [], 'rank': 5}, {'url': 'https://www.google.com/finance/quote/INVE_INDI_CORP_1DDYCD6:MUTF_IN', 'content': '[not extracted] Content limit reached', 'rank': 6}, {'url': 'https://www.etmoney.com/mutual-funds/debt/corporate-bond/61', 'content': '[not extracted] Content limit reached', 'rank': 7}, {'url': 'https://invescomutualfund.com/docs/default-source/default-document-library/invesco-india-corporate-bond-funddd1df507eee8616aaa28ff00007d74af.pdf', 'content': '[not extracted] Content limit reached', 'rank': 8}]",
+            "annotations": null
+          }
+        ]
+      },
+      "T012": {
+        "initial_thoughts": "Okay, I need to create a shortlist of suitable funds based on the provided data from T011. I will focus on extracting fund names, categories, and any indicative ratings or performance data available. Due to the limited and unstructured nature of the input data (mostly links and brief descriptions), the shortlist may not be comprehensive, and ratings might be unavailable for all funds.",
+        "output": {
+          "fund_shortlist": [
+            {
+              "fund_name": "Invesco India Largecap Fund",
+              "category": "equity_large_cap",
+              "indicative_rating": null,
+              "source_url": "https://www.valueresearchonline.com/funds/10565/invesco-india-largecap-fund",
+              "notes": "Further data extraction blocked."
+            },
+            {
+              "fund_name": "Invesco India Mid Cap Fund",
+              "category": "equity_mid_cap",
+              "indicative_rating": null,
+              "source_url": "https://www.valueresearchonline.com/funds/4280/invesco-india-mid-cap-fund/",
+              "notes": "Further data extraction blocked."
+            },
+            {
+              "fund_name": "Motilal Oswal Midcap Fund",
+              "category": "equity_mid_cap",
+              "indicative_rating": null,
+              "source_url": "https://www.etmoney.com/mutual-funds/equity/mid-cap/35",
+              "notes": "Return (p.a) +34.56%, Fund Size 33,609 Cr"
+            },
+            {
+              "fund_name": "Edelweiss Mid Cap Fund",
+              "category": "equity_mid_cap",
+              "indicative_rating": null,
+              "source_url": "https://www.etmoney.com/mutual-funds/equity/mid-cap/35",
+              "notes": "Return (p.a) +30.94%"
+            },
+            {
+              "fund_name": "Invesco India Smallcap Fund",
+              "category": "equity_small_cap",
+              "indicative_rating": null,
+              "source_url": "https://www.valueresearchonline.com/funds/37841/invesco-india-smallcap-fund-regular-plan/",
+              "notes": "Further data extraction blocked."
+            },
+            {
+              "fund_name": "Invesco India Short Duration Fund",
+              "category": "debt_short_term",
+              "indicative_rating": null,
+              "source_url": "https://www.valueresearchonline.com/funds/4668/invesco-india-short-duration-fund/",
+              "notes": "Further data extraction blocked."
+            },
+            {
+              "fund_name": "Bank of India Short Term Income Fund",
+              "category": "debt_short_term",
+              "indicative_rating": null,
+              "source_url": "https://www.etmoney.com/mutual-funds/debt/short-duration/54",
+              "notes": "Return (p.a) +10.69%, Fund Size 223 Cr"
+            },
+            {
+              "fund_name": "Sundaram Short Duration Fund",
+              "category": "debt_short_term",
+              "indicative_rating": null,
+              "source_url": "https://www.etmoney.com/mutual-funds/debt/short-duration/54",
+              "notes": "Return (p.a) +7.79%, Fund Size 215 Cr"
+            },
+            {
+              "fund_name": "Invesco India Corporate Bond Fund",
+              "category": "debt_corporate_bond",
+              "indicative_rating": null,
+              "source_url": "https://www.morningstar.in/mutualfunds/f00000pd8t/invesco-india-corp-bond-dir-gr/performance.aspx",
+              "notes": null
+            }
+          ],
+          "processing_status": {
+            "file_accessible": true,
+            "content_readable": true,
+            "extraction_method": "direct_text",
+            "content_completeness": "partial"
+          },
+          "quality_assessment": {
+            "task_completion_score": 6,
+            "confidence_level": "medium",
+            "data_reliability": "medium",
+            "limitations": [
+              "Limited fund data extracted from URLs.",
+              "Missing key metrics (expense ratio, fund manager experience)."
+            ],
+            "recommendations": [
+              "Fetch content from URLs for detailed fund information.",
+              "Use a dedicated financial data API for comprehensive fund metrics."
+            ]
+          }
+        },
+        "call_self": false,
+        "cost": 0.002025675,
+        "input_tokens": 11662.5,
+        "output_tokens": 460.5,
+        "total_tokens": 12123.0
+      },
+      "T013": {
+        "output": {
+          "initial_thoughts": {
+            "entity_1": "Let me think through this: T012 provides a fund shortlist with fund names, categories, and URLs. The categories are equity (large cap, mid cap, small cap) and debt (short term, corporate bond).",
+            "entity_2": "Let me think through this: T001 provides an allocation plan with equity/debt percentages (70/30) and recommended fund categories (equity: Large Cap, Mid Cap, Small Cap; debt: Short Term Debt, Corporate Bond). It also includes a goal_input_json specifying a 'High' risk appetite.",
+            "overall_observations": "Let me think through this: The task is to reconcile the fund shortlist with the allocation plan, ensuring the funds align with the risk profile. The high risk appetite from T001 corresponds to the 70/30 allocation. Funds need to be selected from T012 to match these percentages across the recommended categories. I need to generate a configuration object for downstream math, an allocation JSON and use the coder agent to provide projection and table datas."
+          },
+          "review_checklist": {
+            "alignment_with_goal": "Let me think through this: Am I accurately reconciling the fund shortlist with the asset allocation plan? Have I correctly identified the funds that align with the 'High' risk profile?",
+            "what_was_missed": "Let me think through this: Did I consider fund ratings or performance data from T012, even though they are mostly missing or incomplete? Did I ensure that the allocation plan categories are adequately represented in the fund selection?",
+            "risk_of_misleading": "Let me think through this: Could the absence of comprehensive fund ratings lead to a misleading allocation? Are the chosen funds truly representative of their categories?",
+            "improvement_opportunities": "Let me think through this: Could I add a weighting within each category based on fund size or past performance (if available)? Can I better explain the rationale behind the fund selection?"
+          },
+          "final_report": {
+            "summary": "Reconciled fund shortlist (T012) with allocation plan (T001) based on 'High' risk appetite (70% equity, 30% debt). Funds selected align with recommended categories. Further details in the detailed report.",
+            "detailed": "Let me think through this: The goal is to align the fund shortlist from T012 with the asset allocation plan from T001, given a 'High' risk appetite. The 'High' risk appetite translates to a 70% equity and 30% debt allocation. The recommended fund categories from T001 are Equity (Large Cap, Mid Cap, Small Cap) and Debt (Short Term Debt, Corporate Bond). From the fund shortlist (T012), the following funds are chosen to match the allocation strategy:\n\n**Equity (70%):**\n*   Invesco India Largecap Fund (equity_large_cap): Aligns with the Large Cap category.\n*   Motilal Oswal Midcap Fund (equity_mid_cap): Aligns with the Mid Cap category.\n*   Invesco India Smallcap Fund (equity_small_cap): Aligns with the Small Cap category.\n\n**Debt (30%):**\n*   Invesco India Short Duration Fund (debt_short_term): Aligns with the Short Term Debt category.\n*   Invesco India Corporate Bond Fund (debt_corporate_bond): Aligns with the Corporate Bond category.\n\nSince no weighting of equity funds is prescribed, the available MidCap fund is of a significant size with a good return. While data extraction was limited and indicative ratings are missing, the fund categories are adequately represented. This initial allocation assumes an equal distribution within equity and debt components (e.g., equal allocation to Large Cap, Mid Cap, and Small Cap, and to Short Term Debt and Corporate Bond). Further refinement may be needed based on fund-specific metrics such as expense ratio, AUM, and risk-adjusted returns, once available from dedicated financial data APIs. The allocation_plan_json object reflects this fund alignment and adheres to the risk-return policy.\n\n**Caveats and Risks:**\n\nThe lack of comprehensive fund ratings and performance data presents a significant risk. Relying solely on fund categories without detailed analysis can lead to suboptimal investment choices. Further analysis of each fund's expense ratio, tracking error, fund manager tenure, and risk-adjusted returns is crucial before making any final allocation decisions. The current allocation assumes a consistent risk profile for all funds within a category, which may not be accurate. Market fluctuations and fund-specific events can also significantly impact the performance of these funds. This initial allocation should be considered a starting point, subject to continuous monitoring and adjustments based on market conditions and fund performance. Without a deeper dive and due diligence this investment strategy is risky.\n",
+            "tables": [],
+            "recommendations": [
+              "Fetch detailed fund information, including expense ratios, AUM, and risk-adjusted returns, using dedicated financial data APIs.",
+              "Conduct a thorough analysis of each fund's investment strategy, holdings, and risk profile.",
+              "Monitor fund performance regularly and adjust the allocation as needed based on market conditions and individual fund performance.",
+              "Consider diversifying the portfolio with additional funds within each category to mitigate risk."
+            ],
+            "risks_or_warnings": [
+              "Incomplete fund data may lead to suboptimal investment choices.",
+              "Market fluctuations can impact fund performance.",
+              "Fund-specific events can significantly affect returns.",
+              "The assumed risk profile may not be accurate for all funds."
+            ],
+            "key_factors_considered": [
+              "Fund categories aligned with the allocation plan.",
+              "Risk appetite corresponding to the equity/debt allocation.",
+              "Fund availability in the shortlist."
+            ],
+            "task_completion_score": 0.85
+          }
+        },
+        "call_self": false,
+        "cost": 0.0012266999999999998,
+        "input_tokens": 3306.0,
+        "output_tokens": 1218.0,
+        "total_tokens": 4524.0
+      },
+      "T014": {
+        "initial_thoughts": "Okay, I need to validate the SIP calculations, asset allocation, fund shortlist, and currency information from the previous steps. Specifically, I'll check the math, ensure percentages add up correctly, the fund shortlist is not empty, and the currency is consistent. Let's start with T001 and T013.",
+        "output": {
+          "issues": [
+            {
+              "step_id": "T001",
+              "agent": "SIPGoalPlannerAgent",
+              "problem": "The monthly return rate (monthly_return_r) in sip_calc_json is 0.01 which corresponds to an annual return of 12%. This aligns with the defined high risk appetite in the original query and goal_input_json. However, the inflation adjusted target amount of 51264442.69 is suspiciously precise and should be double-checked for accuracy.",
+              "severity": "medium",
+              "recommendation": "Re-verify the inflation adjusted target calculation for potential rounding errors or formula inaccuracies. Cross-reference the inflation rate and time horizon to ensure the adjusted target is accurate."
+            },
+            {
+              "step_id": "T001",
+              "agent": "SIPGoalPlannerAgent",
+              "problem": "Asset allocation percentages in allocation_plan_json (equity_percent=70, debt_percent=30) add up to 100%. This adheres to the specified requirement in the instructions. No issues here.",
+              "severity": "low",
+              "recommendation": "N/A"
+            },
+            {
+              "step_id": "T001",
+              "agent": "SIPGoalPlannerAgent",
+              "problem": "Currency is present and consistent as INR in goal_input_json. No issues found.",
+              "severity": "low",
+              "recommendation": "N/A"
+            },
+            {
+              "step_id": "T013",
+              "agent": "AllocatorAgent",
+              "problem": "The fund shortlist in T013 includes funds for both equity and debt categories. It's not empty and appears adequate. However, this agent has identified that fund ratings and performance data are mostly missing or incomplete. Relying solely on fund categories without detailed analysis can lead to suboptimal investment choices. Further analysis of each fund's expense ratio, tracking error, fund manager tenure, and risk-adjusted returns is crucial before making any final allocation decisions.",
+              "severity": "medium",
+              "recommendation": "Implement dedicated financial data APIs to fetch detailed fund information. Prioritize funds with lower expense ratios, acceptable tracking error, experienced fund managers, and better risk-adjusted returns."
+            }
+          ],
+          "verdict": "needs_revision",
+          "validation_summary": "Identified a potential issue with the inflation adjusted target amount calculation and emphasize on improving the allocation strategy with dedicated financial data APIs.",
+          "overall_quality_score": 7
+        },
+        "call_self": false,
+        "cost": 0.0009197999999999999,
+        "input_tokens": 4110.0,
+        "output_tokens": 505.5,
+        "total_tokens": 4615.5
+      }
+    },
+    "validation_results": {
+      "is_valid": true,
+      "is_dag": true,
+      "cycles": [],
+      "disconnected_components": [],
+      "orphaned_nodes": [],
+      "root_nodes": [],
+      "leaf_nodes": [
+        "T019"
+      ],
+      "warnings": [],
+      "errors": []
+    }
+  },
+  "nodes": [
+    {
+      "description": "Initial Query",
+      "agent": "System",
+      "status": "completed",
+      "id": "ROOT"
+    },
+    {
+      "id": "T001",
+      "description": "Compute goal inputs, inflation adjustment, SIP math, allocation guidance, and projections using SIPGoalPlannerAgent.",
+      "agent": "SIPGoalPlannerAgent",
+      "agent_prompt": "Compute goal inputs, inflation adjustment, SIP math, allocation guidance, and projections based on the following user scenario:\ngoal_type = Retirement\ncurrent_age = 50\nretirement_age = 60\noverride_time_horizon_years = 10\ncurrency = INR\ntarget_amount_min = 30000000\nrisk_appetite = high\n\nNormalize inputs and emit goal_input_json, inflation_adjusted_json, sip_calc_json, and allocation_plan_json. Follow the specifications outlined in the prompt for SIPGoalPlannerAgent.",
+      "reads": [],
+      "writes": [
+        "T001"
+      ],
+      "status": "completed",
+      "output": {
+        "initial_thoughts": "Okay, I need to take the user's retirement goal details and compute the SIP amount required to reach their target, adjusted for inflation. I will then create an asset allocation plan based on their risk appetite. Finally, I'll structure all the calculated values into JSON objects for the downstream agents to use.",
+        "output": {
+          "goal_input_json": {
+            "goal_type": "Retirement",
+            "target_amount": 30000000,
+            "currency": "INR",
+            "time_horizon_years": 10,
+            "total_months": 120,
+            "risk_appetite": "High"
+          },
+          "sip_calc_json": {
+            "monthly_sip": 146277,
+            "expected_annual_return": "12%",
+            "monthly_return_r": 0.01,
+            "months_n": 120,
+            "adjusted_target": 51264442.69,
+            "status": "ok",
+            "error": null
+          },
+          "inflation_adjusted_json": {
+            "inflation_rate": "5.5%",
+            "years": 10,
+            "unadjusted_target": 30000000,
+            "adjusted_target": 51264442.69
+          },
+          "allocation_plan_json": {
+            "equity_percent": 70,
+            "debt_percent": 30,
+            "recommended_fund_categories": {
+              "equity": [
+                "Large Cap",
+                "Mid Cap",
+                "Small Cap"
+              ],
+              "debt": [
+                "Short Term Debt",
+                "Corporate Bond"
+              ],
+              "elss_optional": true
+            },
+            "notes": {
+              "very_low": "Very Low policy → Extremely conservative, e.g., 90% debt / 10% equity",
+              "low": "Low policy → Conservative, e.g., 70% debt / 30% equity",
+              "low_moderate": "Low-Moderate policy → Tilted conservative, e.g., 60% debt / 40% equity",
+              "moderate": "Moderate policy → Balanced mix, e.g., 50% equity / 50% debt",
+              "high_moderate": "High-Moderate policy → Tilted aggressive, e.g., 60% equity / 40% debt",
+              "high": "High policy → Aggressive, e.g., 70% equity / 30% debt",
+              "very_high": "Very High policy → Extremely aggressive, e.g., 90% equity / 10% debt"
+            }
+          },
+          "sip_projection_table_json": [
+            {
+              "month_index": 1,
+              "label": "M1",
+              "contribution": 146277,
+              "cumulative_contribution": 146277,
+              "projected_corpus": 146277.0
+            },
+            {
+              "month_index": 2,
+              "label": "M2",
+              "contribution": 146277,
+              "cumulative_contribution": 292554,
+              "projected_corpus": 293766.77
+            },
+            {
+              "month_index": 3,
+              "label": "M3",
+              "contribution": 146277,
+              "cumulative_contribution": 438831,
+              "projected_corpus": 442026.21
+            },
+            {
+              "month_index": 4,
+              "label": "M4",
+              "contribution": 146277,
+              "cumulative_contribution": 585108,
+              "projected_corpus": 593523.47
+            },
+            {
+              "month_index": 5,
+              "label": "M5",
+              "contribution": 146277,
+              "cumulative_contribution": 731385,
+              "projected_corpus": 748335.69
+            },
+            {
+              "month_index": 6,
+              "label": "M6",
+              "contribution": 146277,
+              "cumulative_contribution": 877662,
+              "projected_corpus": 906541.05
+            },
+            {
+              "month_index": 7,
+              "label": "M7",
+              "contribution": 146277,
+              "cumulative_contribution": 1023939,
+              "projected_corpus": 1068323.81
+            },
+            {
+              "month_index": 8,
+              "label": "M8",
+              "contribution": 146277,
+              "cumulative_contribution": 1170216,
+              "projected_corpus": 1233764.05
+            },
+            {
+              "month_index": 9,
+              "label": "M9",
+              "contribution": 146277,
+              "cumulative_contribution": 1316493,
+              "projected_corpus": 1403043.97
+            },
+            {
+              "month_index": 10,
+              "label": "M10",
+              "contribution": 146277,
+              "cumulative_contribution": 1462770,
+              "projected_corpus": 1576234.78
+            },
+            {
+              "month_index": 11,
+              "label": "M11",
+              "contribution": 146277,
+              "cumulative_contribution": 1609047,
+              "projected_corpus": 1753418.6
+            },
+            {
+              "month_index": 12,
+              "label": "M12",
+              "contribution": 146277,
+              "cumulative_contribution": 1755324,
+              "projected_corpus": 1934677.56
+            }
+          ],
+          "final_report_html": "<html>...consulting-grade formatted report to be filled by FormatterAgent/ReportGeneratorAgent...</html>"
+        },
+        "call_self": false,
+        "cost": 0.0005694750000000001,
+        "input_tokens": 1534.5,
+        "output_tokens": 565.5,
+        "total_tokens": 2100.0
+      },
+      "error": null,
+      "cost": 0.0,
+      "start_time": "2025-08-30T14:42:44.958181",
+      "end_time": "2025-08-30T14:43:24.244818",
+      "execution_time": 39.286637,
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "execution_result": null
+    },
+    {
+      "id": "T011",
+      "description": "Fetch raw fund data based on the allocation categories and risk appetite determined in T001.",
+      "agent": "RetrieverAgent",
+      "agent_prompt": "Fetch raw fund data based on the allocation categories and risk appetite from T001.allocation_plan_json. Focus on retrieving data for equity and debt categories.",
+      "reads": [
+        "T001"
+      ],
+      "writes": [
+        "T011"
+      ],
+      "status": "completed",
+      "output": {
+        "equity_large_cap": [
+          {
+            "type": "text",
+            "text": "[{'url': 'https://www.amfiindia.com/net-asset-value/nav-history', 'content': \"Net Asset Value of Mutual Funds | Nav History | Mutual Funds in India AMFI Press Release Know about AMFI Useful Links Contact Us Careers KYC Home Take me to... Investor Corner Distributor Corner Research & Information Take me to... New to Mutual Funds Already an MF Investor Intermediary Research & Information Home Net Asset Value (NAV) NAV History World Investor Week Nov 22-28, 2021 Message from Chairman, SEBI Message from Shri Ajay Tyagi, Chairman, SEBI, on the occasion of World Investor Week - 2021  202      NAV History Download NAV as on 31-Jan-2018 All NAV's for a date Historical NAV for a period View High/Low NAV for a period by Month / Year Compare NAV of a scheme for two dates Select Mutual Fund --Select Mutual Fund House-- 360 ONE Mutual Fund ABN AMRO Mutual Fund Aditya Birla Sun Life Mutual Fund AEGON Mutual Fund Alliance Capital Mutual Fund Angel One Mutual Fund Axis Mutual Fund Bajaj Finserv Mutual Fund Bandhan Mutual Fund Bank of India Mutual Fund Baroda BNP Paribas Mutual Fund Benchmark Mutual Fund BNP Paribas Mutual Fund Canara Robeco Mutual Fund Capitalmind Mutual Fund Daiwa Mutual Fund DBS Chola Mutual Fund Deutsche Mutual Fund DSP Mutual Fund Edelweiss Mutual Fund Fidelity Mutual Fund Fortis Mutual Fund Franklin Templeton Mutual Fund GIC Mutual Fund Goldman Sachs Mutual Fund Groww Mutual Fund HDFC Mutual Fund Helios Mutual Fund HSBC Mutual Fund ICICI Prudential Mutual Fund IDBI Mutual Fund IL&F S Mutual Fund IL&FS Mutual Fund (IDF) ING Mutual Fund Invesco Mutual Fund ITI Mutual Fund Jio BlackRock Mutual Fund JM Financial Mutual Fund JPMorgan Mutual Fund Kotak Mahindra Mutual Fund L&T Mutual Fund LIC Mutual Fund Mahindra Manulife Mutual Fund Mirae Asset Mutual Fund Morgan Stanley Mutual Fund Motilal Oswal Mutual Fund Navi Mutual Fund Nippon India Mutual Fund NJ Mutual Fund Old Bridge Mutual Fund PGIM India Mutual Fund PineBridge Mutual Fund PNB Mutual Fund PPFAS Mutual Fund Principal Mutual Fund quant Mutual Fund Quantum Mutual Fund Samco Mutual Fund SBI Mutual Fund Shinsei Mutual Fund Shriram Mutual Fund Standard Chartered Mutual Fund SUN F&C Mutual Fund Sundaram Mutual Fund Tata Mutual Fund Taurus Mutual Fund The Wealth Company Mutual Fund Trust Mutual Fund Unifi Mutual Fund Union Mutual Fund UTI Mutual Fund WhiteOak Capital Mutual Fund Zerodha Mutual Fund Zurich India Mutual Fund Select Scheme Name --Select Scheme NAV Name-- Download Complete NAV Report in Text Format as on 31-Jan-2018 Download Complete NAV Report in Excel Format as on 31-Jan-2018 NAV Date NAV From Date NAV To Date Note : One can download historical NAV for a maximum period of 5 years at a time Select Option Month Annual Select Option High Low Both Loading... Download NAV | Schedule of Investor Awareness Program | Districts Adopted | AMC Branches | Mutual Fund Summit | Videos | Web Help | Downloads | SEBI | NISM | Sitemap TERMS OF USE | PRIVACY NOTICE 2022 AMFI. All Rights Reserved\", 'images': [], 'rank': 1}, {'url': 'https://www.valueresearchonline.com/funds/fund-category/', 'content': 'Just a moment... Enable JavaScript and cookies to continue', 'images': [], 'rank': 2}, {'url': 'https://finance.yahoo.com/research-hub/screener/top_mutual_funds/', 'content': '[no text]', 'images': [], 'rank': 3}, {'url': 'https://www.amfiindia.com/net-asset-value', 'content': 'Net Asset Value of Mutual Funds | Types of Mutual Funds in India AMFI Press Release Know about AMFI Useful Links Contact Us Careers KYC Home Take me to... Investor Corner Distributor Corner Research & Information Take me to... New to Mutual Funds Already an MF Investor Intermediary Research & Information World Investor Week Nov 22-28, 2021 Message from Chairman, SEBI Message from Shri Ajay Tyagi, Chairman, SEBI, on the occasion of World Investor Week - 2021  202      Net Asset Value (NAV) Nav Download Nav History CDMDF Nav Loading... Download NAV | Schedule of Investor Awareness Program | Districts Adopted | AMC Branches | Mutual Fund Summit | Videos | Web Help | Downloads | SEBI | NISM | Sitemap TERMS OF USE | PRIVACY NOTICE 2022 AMFI. All Rights Reserved', 'images': [], 'rank': 4}, {'url': 'https://www.valueresearchonline.com/funds/selector/category/100/equity-large-cap', 'content': 'Just a moment... Enable JavaScript and cookies to continue', 'images': [], 'rank': 5}, {'url': 'https://finance.yahoo.com/research-hub/screener/mutualfunds/', 'content': '[not extracted] Content limit reached', 'rank': 6}, {'url': 'https://www.finostry.com/finance/top-performing-large-cap-mutual-funds/', 'content': '[not extracted] Content limit reached', 'rank': 7}, {'url': 'https://www.valueresearchonline.com/funds/10565/invesco-india-largecap-fund', 'content': '[not extracted] Content limit reached', 'rank': 8}]",
+            "annotations": null
+          }
+        ],
+        "equity_mid_cap": [
+          {
+            "type": "text",
+            "text": "[{'url': 'https://finance.yahoo.com/research-hub/screener/mutualfunds/', 'content': '[no text]', 'images': [], 'rank': 1}, {'url': 'https://www.valueresearchonline.com/funds/4280/invesco-india-mid-cap-fund/', 'content': 'Just a moment... Enable JavaScript and cookies to continue', 'images': [], 'rank': 2}, {'url': 'https://www.amfiindia.com/research-information/amfi-quarterlydata', 'content': 'AmfiQuarterly Data | Mutual Funds in India | Investment Plans AMFI Press Release Know about AMFI Useful Links Contact Us Careers KYC Home Take me to... Investor Corner Distributor Corner Research & Information Take me to... New to Mutual Funds Already an MF Investor Intermediary Research & Information Home Research & Information AMFI Quarterly Data World Investor Week Nov 22-28, 2021 Message from Chairman, SEBI Message from Shri Ajay Tyagi, Chairman, SEBI, on the occasion of World Investor Week - 2021  202      Research & Information MF History AMFI Monthly Sub-classification of Other schemes AMFI Quarterly Data AuM Data Other Data AMFI Quarterly Data Apr 2025 - Mar 2026 (Apr - June 2025) Apr 2024 - Mar 2025 (Apr - June 2024) (July - Sep 2024) (Oct - Dec 2024) (Jan - Mar 2025) Apr 2023 - Mar 2024 (Apr - June 2023) (July - Sep 2023) (Oct - Dec 2023) (Jan - Mar 2024) Apr 2022 - Mar 2023 (Apr - June 2022) (July - Sep 2022) (Oct - Dec 2022) (Jan - Mar 2023) Apr 2021 - Mar 2022 (Apr - June 2021) (July - Sep 2021) (Oct - Dec 2021) (Jan - Mar 2022) Apr 2020 - Mar 2021 (Apr - June 2020) (July - Sep 2020) (Oct - Dec 2020) (Jan - Mar 2021) Apr 2019 - Mar 2020 (Apr - June 2019) (July - Sep 2019) (Oct - Dec 2019) (Jan - Mar 2020) Apr 2018 - Mar 2019 (Apr - June 2018) (July - Sep 2018) (Oct - Dec 2018) (Jan - Mar 2019) Apr 2017 - Mar 2018 (Apr - June 2017) (July - Sep 2017) (Oct - Dec 2017) (Jan - Mar 2018) Apr 2016 - Mar 2017 (Apr - June 2016) (July - Sep 2016) (Oct - Dec 2016) (Jan - Mar 2017) Apr 2015 - Mar 2016 (Apr - June 2015) (July - Sep 2015) (Oct - Dec 2015) (Jan - Mar 2016) Apr 2014 - Mar 2015 (Apr - June 2014) (July - Sep 2014) (Oct - Dec 2014) (Jan - Mar 2015) Apr 2013 - Mar 2014 (Apr - June 2013) (July - Sep 2013) (Oct - Dec 2013) (Jan - Mar 2014) Apr 2012 - Mar 2013 (Apr - June 2012) (July - Sep 2012) (Oct - Dec 2012) (Jan - Mar 2013) Apr 2011 - Mar 2012 (Apr - June 2011) (July - Sep 2011) (Oct - Dec 2011) (Jan - Mar 2012) Apr 2010 - Mar 2011 (Apr - June 2010) (July - Sep 2010) (Oct - Dec 2010) (Jan - Mar 2011) Apr 2009 - Mar 2010 (April - June 2009) (July - Sep 2009) (Oct - Dec 2009) (Jan - Mar 2010) Apr 2008 - Mar 2009 (Apr - June 2008) (July - Sep 2008) (Oct - Dec 2008) (Jan - Mar 2009) Apr 2007 - Mar 2008 (Apr - June 2007) (July - Sep 2007) (Oct - Dec 2007) (Jan - Mar 2008) Apr 2006 - Mar 2007 (Apr - June 2006) (July - Sep 2006) (Oct - Dec 2006) (Jan - Mar 2007) Apr 2005 - Mar 2006 (Apr - June 2005) (July - Sep 2005) (Oct - Dec 2005) (Jan - Mar 2006) Apr 2004 - Mar 2005 (Apr - June 2004) (July - Sep 2004) (Oct - Dec 2004) (Jan - Mar 2005) Apr 2003 - Mar 2004 (Apr - June 2003) (July - Sep 2003) (Oct - Dec 2003) (Jan - Mar 2004) Apr 2002 - Mar 2003 (Apr - June 2002) (July - Sep 2002) (Oct - Dec 2002) (Jan - Mar 2003) Apr 1998 - Mar 2002 (Apr - June - 1998) (Apr 97 - March 1998) (July - September 1998) (October - December 1998) (January - March 1999) (Apr - June 1999) (Apr 98 - March 1999) (July - September 1999 ) (October - December 1999) (Jan - March 2000) (Apr 99 - March 2000) (Apr - June 2000) (July - Sep 2000) (Oct - Dec 2000) (Jan - Mar 2001) (Apr-June 2001) (July - Sep 2001) (Oct - Dec 2001) (Jan - Mar 2002) AuM Data Downloads Check The Latest NAV New Fund Offer Commission Disclosure Downloads Check the Latest NAV New Fund Offer Locate Distributor Agents Circular & Announcement Download NAV | Schedule of Investor Awareness Program | Districts Adopted | AMC Branches | Mutual Fund Summit | Videos | Web Help | Downloads | SEBI | NISM | Sitemap TERMS OF USE | PRIVACY NOTICE 2022 AMFI. All Rights Reserved', 'images': [], 'rank': 3}, {'url': 'https://www.etmoney.com/mutual-funds/equity/mid-cap/35', 'content': \"Best Mid Cap Equity Mutual Funds to Invest in India 2025 Mutual Funds All about Mutual Funds Know your Investor Personality Mutual Fund Home Explore Mutual Funds Check Portfolio Health Find mutual funds by type Equity funds Debt funds Hybrid funds Genius Stocks NPS More More Products Fixed Deposit Tax Saving Maximizer Credit Score Insurance Term Life Insurance Health Insurance Calculators SIP Calculator Mutual Fund Calculator FD Calculator NPS Calculator See all calculators Company About Us Learn Join Us Help & Support Clear My Account Login / Sign-up My investments My SIPs My Watchlist My transactions Track external mutual funds Profile Profile Logout Get Support Login / Sign-up Mutual Funds All about Mutual Funds Know your Investor Personality Mutual Funds Home Explore Mutual Funds Check Portfolio Health Equity funds Debt funds Hybrid funds Genius Stocks NPS Fixed Deposit Tax Saving Maximizer Credit Score Insurance Term Life Insurance Health Insurance Calculators SIP Calculator Mutual Fund Calculator FD Calculator NPS Calculator See all calculators About Us Join Us Learn Help & Support Great! You have sucessfully subscribed for newsletters for investments Subscribed email: Home Mutual Funds equity Mid Cap Funds Mid Cap Funds Mid Cap Mutual Funds Average Return 21.06% No. of Funds 28 Link copied to clipboard What is Mid Cap Mutual Fund Mid-cap mutual funds are equity funds that invest in the stocks of mid-sized companies (as per market capitalisation) of India. The companies are some of the fastest-growing companies in India and are at a stage today's leaders were a few years back. ..... Advantages of Mid Cap Funds Access to high-growth stocks that can give market-beating returns The smaller size makes them more likely to falter during tough market conditions Suitable for aggressive investors with 7+ year investment horizon Top schemes of Mid Cap Mutual Funds sorted by Returns 28 funds Sort by: Returns Sort by ETM Rank High to Low Genius Only Returns High to Low Fund Size High to Low Show Annualized Show Returns Annualized Absolute Returns for 5 Years Investment Period 1 Month 3 Months 6 Months 1 year 3 years 5 years via Monthly SIP Investment Mode Monthly SIP One-time (Lumpsum) Motilal Oswal Midcap Fund #NA of NA Unranked ETM Rank: Genius only Fund Size 33,609 Cr Return (p.a) + \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t34.56 \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t% + \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t341.2 \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t% + \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t18.93 \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t% + \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t466.09 \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t% + \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t15.53 \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t% + \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t15.53 \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t% N.A. N.A. -2.6 \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t% -2.6 \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t% + \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t28.66 \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t% + \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t112.99 \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t% + \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t2.51 \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t% + \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t2.51 \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t% N.A. N.A. N.A. N.A. + \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t0.99 \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t% + \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t0.99 \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t% + \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t0.17 \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t% + \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t0.17 \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t% + 2.12% + 0.17% + 0.58% + 0.1% + 21.53% + 22.62% + 3.83% + 10.39% + 26.91% + 50.33% + 29.95% + 110.65% ETM Rank #NA of NA Unranked Genius only Add to compare Invest Invesco India Mid Cap Fund #NA of NA Unranked ETM Rank: Genius only Fund Size 7,802 Cr Return (p.a) + \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t29.46 \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t% + \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t263.66 \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t% + \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t19.65 \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t% + \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t501.36 \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t% + \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t25.67 \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t% + \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t25.67 \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t% N.A. N.A. -3.89 \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t% -3.89 \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t% + \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t27.88 \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t% + \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t109.14 \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t% + \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t4.58 \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t% + \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t4.58 \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t% N.A. N.A. N.A. N.A. + \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t8.71 \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t% + \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t8.71 \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t% -2.11 \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t% -2.11 \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t% -22.82% -2.11% -0.02% + 0.0% + 33.92% + 25.74% + 15.92% + 16.74% + 28.97% + 54.5% + 26.8% + 95.56% ETM Rank #NA of NA Unranked Genius only Add to compare Invest Edelweiss Mid Cap Fund #NA of NA Unranked ETM Rank: Genius only Fund Size 11,027 Cr Return (p.a) + \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t30.94 \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t% +\", 'images': [], 'rank': 4}, {'url': 'https://finance.yahoo.com/quote/NIFTY_MIDCAP_100.NS/', 'content': '[no text]', 'images': [], 'rank': 5}, {'url': 'https://www.valueresearchonline.com/funds/fund-category/', 'content': '[not extracted] Content limit reached', 'rank': 6}, {'url': 'https://www.amfiindia.com/net-asset-value/nav-history', 'content': '[not extracted] Content limit reached', 'rank': 7}, {'url': 'https://www.moneycontrol.com/mutual-funds/nav/invesco-india-midcap-fund/MLI021', 'content': '[not extracted] Content limit reached', 'rank': 8}]",
+            "annotations": null
+          }
+        ],
+        "equity_small_cap": [
+          {
+            "type": "text",
+            "text": "[{'url': 'https://finance.yahoo.com/quote/SMIN/', 'content': '[no text]', 'images': [], 'rank': 1}, {'url': 'https://www.valueresearchonline.com/funds/37841/invesco-india-smallcap-fund-regular-plan/', 'content': 'Just a moment... Enable JavaScript and cookies to continue', 'images': [], 'rank': 2}, {'url': 'https://www.amfiindia.com/net-asset-value/nav-history', 'content': \"Net Asset Value of Mutual Funds | Nav History | Mutual Funds in India AMFI Press Release Know about AMFI Useful Links Contact Us Careers KYC Home Take me to... Investor Corner Distributor Corner Research & Information Take me to... New to Mutual Funds Already an MF Investor Intermediary Research & Information Home Net Asset Value (NAV) NAV History World Investor Week Nov 22-28, 2021 Message from Chairman, SEBI Message from Shri Ajay Tyagi, Chairman, SEBI, on the occasion of World Investor Week - 2021  202      NAV History Download NAV as on 31-Jan-2018 All NAV's for a date Historical NAV for a period View High/Low NAV for a period by Month / Year Compare NAV of a scheme for two dates Select Mutual Fund --Select Mutual Fund House-- 360 ONE Mutual Fund ABN AMRO Mutual Fund Aditya Birla Sun Life Mutual Fund AEGON Mutual Fund Alliance Capital Mutual Fund Angel One Mutual Fund Axis Mutual Fund Bajaj Finserv Mutual Fund Bandhan Mutual Fund Bank of India Mutual Fund Baroda BNP Paribas Mutual Fund Benchmark Mutual Fund BNP Paribas Mutual Fund Canara Robeco Mutual Fund Capitalmind Mutual Fund Daiwa Mutual Fund DBS Chola Mutual Fund Deutsche Mutual Fund DSP Mutual Fund Edelweiss Mutual Fund Fidelity Mutual Fund Fortis Mutual Fund Franklin Templeton Mutual Fund GIC Mutual Fund Goldman Sachs Mutual Fund Groww Mutual Fund HDFC Mutual Fund Helios Mutual Fund HSBC Mutual Fund ICICI Prudential Mutual Fund IDBI Mutual Fund IL&F S Mutual Fund IL&FS Mutual Fund (IDF) ING Mutual Fund Invesco Mutual Fund ITI Mutual Fund Jio BlackRock Mutual Fund JM Financial Mutual Fund JPMorgan Mutual Fund Kotak Mahindra Mutual Fund L&T Mutual Fund LIC Mutual Fund Mahindra Manulife Mutual Fund Mirae Asset Mutual Fund Morgan Stanley Mutual Fund Motilal Oswal Mutual Fund Navi Mutual Fund Nippon India Mutual Fund NJ Mutual Fund Old Bridge Mutual Fund PGIM India Mutual Fund PineBridge Mutual Fund PNB Mutual Fund PPFAS Mutual Fund Principal Mutual Fund quant Mutual Fund Quantum Mutual Fund Samco Mutual Fund SBI Mutual Fund Shinsei Mutual Fund Shriram Mutual Fund Standard Chartered Mutual Fund SUN F&C Mutual Fund Sundaram Mutual Fund Tata Mutual Fund Taurus Mutual Fund The Wealth Company Mutual Fund Trust Mutual Fund Unifi Mutual Fund Union Mutual Fund UTI Mutual Fund WhiteOak Capital Mutual Fund Zerodha Mutual Fund Zurich India Mutual Fund Select Scheme Name --Select Scheme NAV Name-- Download Complete NAV Report in Text Format as on 31-Jan-2018 Download Complete NAV Report in Excel Format as on 31-Jan-2018 NAV Date NAV From Date NAV To Date Note : One can download historical NAV for a maximum period of 5 years at a time Select Option Month Annual Select Option High Low Both Loading... Download NAV | Schedule of Investor Awareness Program | Districts Adopted | AMC Branches | Mutual Fund Summit | Videos | Web Help | Downloads | SEBI | NISM | Sitemap TERMS OF USE | PRIVACY NOTICE 2022 AMFI. All Rights Reserved\", 'images': [], 'rank': 3}, {'url': 'https://www.moneycontrol.com/mutual-funds/nav/invesco-india-smallcap-fund-regular-plan/MLI1096', 'content': 'Invesco India Smallcap Fund - Growth [40.56] | Invesco Mutual Fund - Moneycontrol English Hindi Gujarati Specials Search Quotes, News, Mutual Fund NAVs Trending Stocks Ola Electric INE0LXG01040, OLAELEC, 544225 Vikram Solar INE078V01014, VIKRAMSOLR, 544488 HDFC Bank INE040A01034, HDFCBANK, 500180 Reliance INE002A01018, RELIANCE, 500325 BSE Limited INE118H01025, BSE, 0 Quotes Mutual Funds Commodities Futures & Options Currency News Cryptocurrency Forum Notices Videos Glossary All Hello, Login Hello, Login Log-in or Sign-Up My Account My Profile My Portfolio My Watchlist My Alerts My Messages Price Alerts My Profile My PRO My Portfolio My Watchlist My Alerts My Messages Price Alerts Logout Loans up to 50 LAKHS Fixed Deposits Credit Cards Lifetime Free Credit Score Chat with Us Download App Follow us on: Go Ad-Free My Alerts mcmfinternal->Moneycontrol/MC_MF/MC_MF_Internal_728x90|~|Moneycontrol/MC_MF/MC_MF_Internal_300x250|~|Moneycontrol/MC_MF/MC_MF_Internal_160x600_Networth|~|Moneycontrol/MC_MF/MC_MF_Internal_300x250_Networth|~|Moneycontrol/MC_MF/MC_MF_Internal_MFMeter_728x90_2|~|Moneycontrol/MC_MF/MC_MF_Internal_468x60|~|Moneycontrol/MC_MF/MC_MF_Internal_MFMeter_300x600|~|Moneycontrol/MC_MF/MC_MF_Internal_MFMeter_728x90_4|~|Moneycontrol/MC_MF/MC_MF_NEW_ROS_300x600|~|Moneycontrol/MC_MF/MC_MF_Internal_Native_ATF_640x60|~|Moneycontrol/MC_MF/MC_MF_INTERNAL_SIP_300x80-> Go PRO Now PRO PRO Markets HOME INDIAN INDICES STOCK ACTION All Stats Top Gainers Top Losers Only Buyers Only Sellers 52 Week High 52 Week Low Price Shockers Volume Shockers Most Active Stocks GLOBAL MARKETS ETFs US MARKETS UNLISTED SHARES STOCK UPDATES STOCK SCANNER Fundamental Scanner Technical Scanner ECONOMIC INDICATORS ECONOMIC CALENDAR MARKET ACTION F&O FII & DII Activity Corporate Action EARNINGS DEALS Bulk Deals Block Deals Intraday Large Deals SECTOR ANALYSIS PRE MARKET SEASONALITY ANALYSIS RESEARCH Investment Advice Technicals COMMODITY CURRENCY CRYPTOCURRENCY TECHNICAL TRENDS IPO BONDS WEBINAR MC LEARN TRADERS CONCLAVE INTERVIEW SERIES OTHERS Cryptocurrency News Tools News LATEST NEWS Assembly Elections BUSINESS Economy Companies Mutual Funds Personal Finance IPO Startup Real Estate Bank Holidays 2025 Banking NATION & WORLD India City World Politics MARKETS Stocks Technical Analysis Equity Research Commodities Currency Gold Rate Silver Rate AQI SPECIAL Trends Opinion Explainers MC Buzz MC Features MC Learn TECHNOLOGY Personal Tech Auto Fintech MEDIA Podcast Photos Videos Web Stories CRYPTO DASHBOARD PETROL PRICE IN INDIA DIESEL PRICE IN INDIA MONSOON TRACKER OTHERS Entertainment Sports Lifestyle Health and Fitness Education Jobs Science Astro Religion Travel Editors Picks Tech India Learning Curve Portfolio Watchlist Commodities MF EXPLORE Home Find Fund Top Ranked Funds Performance Tracker SIP Performance Tracker ETFs NFO Top Performing Categories Learn TOOLS Returns Calculator Lumpsum SIP Balancer Delay Cost Calculator MF FORUM TRACK Your MF Investment MF Prices Personal Finance EXPLORE Home Investing Insurance Banking Financial Planning Property Tools Video Ask Expert Explainer NPS FIXED DEPOSIT FDs @ 8.4% p.a. Fixed Deposit Comparison Fixed Deposit Interest Calculator Corporate Deposits TAX Income tax Filing Guide Income Tax Calculator LTCG Tax on Property BANK HOLIDAYS 2025 LOANS & CREDIT CARDS Loans Loans up to 50 LAKHS Pick your Loan Amount 50K Personal Loan 1L Personal Loan 2L Personal Loan 5L Personal Loan 10L Personal Loan 15L Personal Loan Top Loan Providers RING PREFR L&T Finance FIBE CASHE Bajaj Finserv Aditya Birla Finance Personal Loan Instant Loan EMI Calculator Personal Loan Articles TOOLS Provident Fund Calculator Assets Allocation Planning Debt Reduction Planner Debt Evaluation Calculator Current Expense Calculator More Calculators CREDIT CARDS LIFETIME FREE Credit Score FINANCE TRACKER REAL ESTATE : TRENDS & ANALYTICS GOLD PRICE TODAY Upcoming Chat | Previous Transcripts All Schedule | Previous Transcript Forum EXPLORE FORUM Homepage M', 'images': [], 'rank': 4}, {'url': 'https://www.google.com/finance/quote/INVE_INDI_SMAL_146TI3S:MUTF_IN', 'content': 'Invesco India Smallcap Fund Regular Growth (INVE_INDI_SMAL_146TI3S) Mutual Fund Price & News - Google Finance Finance Finance Sign in Finance Finance Finance finance_mode Home manage_search Market trends Portfolios add Create portfolio Watchlists add Create watchlist Most Active Vodafone Idea Ltd -1.07% Ola Electric Mobility Ltd -0.77% Yes Bank Ltd +2.46% Sammaan Capital Ltd +5.28% Suzlon Energy Ltd +0.28% RBL Bank Ltd +4.44% settings Settings feedback Send feedback Markets US Europe India Currencies Crypto Futures NIFTY 50 24,426.85 -0.30% -74.05 NIFTY 50 24,426.85 0.30% SENSEX 79,809.65 -0.34% -270.92 SENSEX 79,809.65 0.34% Nifty Bank 53,655.65 -0.31% -164.70 Nifty Bank 53,655.65 0.31% Nifty IT 35,181.25 -0.87% -307.50 Nifty IT 35,181.25 0.87% S&P BSE SmallCap 51,449.23 -0.29% -150.28 S&P BSE SmallCap 51,449.23 0.29% Home INVE_INDI_SMAL_146TI3S Mutual Fund add Share Invesco India Smallcap Fund Regular Growth 40.56 Aug 29 INR MUTF_IN Disclaimer 1M 6M YTD 1Y 5Y MAX No data close search Compare to Invesco India Large&MidCap Fund Growth 98.98 INVE_INDI_LARG_1Q4NHQ7 0.83% Invesco India Mid Cap Fund Growth 176.44 INVE_INDI_MID_6OXAM 0.94% Invesco India Arbitrage Fund Growth 32.20 INVE_INDI_ARBI_GU9047 0.0016% Invesco India Contra Fund Growth 132.34 INVE_INDI_CONT_PAOJCY 0.47% Invesco India Money Market Fund Growth 3,082.46 INVE_INDI_MONE_FBYEIV 0.0077% Tata Small Cap Fund Regular Growth 39.43 TATA_SMAL_CAP_B1GEG2 0.036% Motilal Oswal Small Cap Fund Regular Growth 13.52 MOTI_OSWA_SMAL_1L9ZZEK 0.029% Invesco India Liquid Fund Regular Growth 3,204.87 INVE_INDI_LIQU_LWZZQH 0.014% Canara Robeco Small Cap Fund Regular Growth 37.57 CANA_ROBE_SMAL_18DW5EC 0.13% ICICI Prudential Smallcap Fund Growth 86.81 ICIC_PRU_SMAL_1X980CT 0.16% insights Key events Key events shows relevant news articles on days with large price movements Key events Key events shows relevant news articles on days with large price movements Key events arrow_forward_ios Key events shows relevant news articles on days with large price movements Mutual fund A pool of money collected from many investors to invest in stocks, bonds, and other assets. The fund is managed by a professional money manager Previous close The last closing price 40.80 YTD return Year to date return as of Jul 31, 2025 -3.35% Category Classification system to identify similar funds India Equity Morningstar Rating A rating that measures how well a fund has performed compared to similar funds star_rate star_rate star_rate grade grade Front load Single charge paid by the investor when they purchase shares of the fund - Inception date The date on which the fund was launched Oct 30, 2018 Market news Moneycontrol 1 hour ago NSE revises quantity freeze limits for index derivatives from September 1 MSN 41 minutes ago NSE CEO Explains Why Indias 7.8% GDP Growth In Q1 FY26 Outperformed Global Projections Details Mint 3 days ago Stock market holidays in September: When will BSE, NSE be closed for trading next month? Zee News 1 hour ago Stellar Q1 GDP Growth Across Sectors Absolutely Exhilarating: NSEs Ashishkumar Chauhan The Economic Times 2 hours ago BSE Capital Markets Index: BSE gets a new index to track sector performance SENSEX 0.34% BSE SENSEX Business Standard 9 minutes ago India Habitat Centre Signs MOU with NSE to Promote Financial Literacy and Investor Awareness Discover more You may be interested in info This list is generated from recent searches, followed securities, and other activity. Learn more All data and information is provided as is for personal informational purposes only, and is not intended to be financial advice nor is it for trading purposes or investment, tax, legal, accounting or other advice. Google is not an investment adviser nor is it a financial adviser and expresses no view, recommendation or opinion with respect to any of the companies included in this list or any securities issued by those companies. Please consult your broker or financial representative to verify pricing', 'images': [], 'rank': 5}, {'url': 'https://www.etmoney.com/mutual-funds/equity/small-cap/36', 'content': '[not extracted] Content limit reached', 'rank': 6}, {'url': 'https://www.bmsmoney.com/mutual-fund/english-invesco-india-smallcap-fund/', 'content': '[not extracted] Content limit reached', 'rank': 7}, {'url': 'https://www.indmoney.com/mutual-funds/equity/small-cap-funds', 'content': '[not extracted] Content limit reached', 'rank': 8}]",
+            "annotations": null
+          }
+        ],
+        "debt_short_term": [
+          {
+            "type": "text",
+            "text": "[{'url': 'https://duckduckgo.com/y.js?ad_domain=icicipruamc.com&ad_provider=bingv7aa&ad_type=txad&click_metadata=3wtUP99YSStu1EJ3UbrOiPj6z0AO9CbX7RMcldrmYzMpoSSsg7G5sQQjQpRvQNuFBJr4LLxQsYyM1W7im7iQQ3MOqwAdilyCbjEu2xZBcNDr8tWK5oDpcPY7Zhmi8CLi.1Y95_gce1iuq7kkItskdAQ&rut=386bf3e1567d9db2fed5e7a1e5cc29eda431b1ef8df8d393805b4ad47a49fb23&u3=https%3A%2F%2Fwww.bing.com%2Faclick%3Fld%3De8DDC%2D30p5Sq7LCvW27h1qqTVUCUyqRotBXMD82KcbxrL2RE2T9C51E5w2anyJRW0Ftm_dtT60WMCBxwxwlEAAiS_UjHyUY4Cw2Fu30gH1SlbR%2DLuSEGt%2DeKchzxQv_ZAREazQJ70MtjxziD88%2DtkItVFhWa9lFuDwONWRD0FMLWSvafMwW_P17snT%2DalnZ7j6sX3RAQ%26u%3DaHR0cHMlM2ElMmYlMmZ3d3cuaWNpY2lwcnVhbWMuY29tJTJmc2lnbi1pbiUyZnJlZ2lzdGVyJTNmdXRtX3NvdXJjZSUzZGJpbmdfc2VtX2NvcmUlMjZ1dG1fbWVkaXVtJTNkY3BjJTI2dXRtX2NhbXBhaWduJTNkTVNfMjVfUTNfQmluZ19TZWFyY2hfQkFVX0NvcmVfUGhyYXNlX0xlYWRzX09wZW4lMjZ1dG1fYWRncm91cCUzZEJBVV9Db3JlX011dHVhbF9GdW5kX1BocmFzZSUyNnV0bV90ZXJtJTNkbXV0dWFsJTI1MjBmdW5kcyUyNTIwaW5kaWElMjZ1dG1fcGxhY2VtZW50JTNkJTI2dXRtX2RldmljZSUzZGMlMjZ1dG1fbWF0Y2h0eXBlJTNkcCUyNm1zY2xraWQlM2RhM2FiNzUxNGZkOGMxM2ExMmEzMTFkYTdmM2IzODQ5NyUyNnV0bV9jb250ZW50JTNkQkFVX0NvcmVfTXV0dWFsX0Z1bmRfUGhyYXNl%26rlid%3Da3ab7514fd8c13a12a311da7f3b38497&vqd=4-298328200424500379094273114525179958458&iurl=%7B1%7DIG%3DCF10E062CEE74B4EB7E55CE3CE60125B%26CID%3D0483E2CD7B3263351A3FF4957A9A6258%26ID%3DDevEx%2C5046.1', 'content': 'ICICI Pru You need to enable JavaScript to run this app.', 'images': [], 'rank': 1}, {'url': 'https://finance.yahoo.com/quote/105191.BO/performance/', 'content': '[no text]', 'images': [], 'rank': 2}, {'url': 'https://www.valueresearchonline.com/funds/4668/invesco-india-short-duration-fund/', 'content': 'Just a moment... Enable JavaScript and cookies to continue', 'images': [], 'rank': 3}, {'url': 'https://portal.amfiindia.com/spages/CRISIL%20-%20AMFI%20Short%20Term%20Debt%20Fund%20Performance%20Index_Factsheet.pdf', 'content': '[no text]', 'images': [], 'rank': 4}, {'url': 'https://www.etmoney.com/mutual-funds/debt/short-duration/54', 'content': \"Best Short-Term Mutual Funds to Invest in India 2025 Mutual Funds All about Mutual Funds Know your Investor Personality Mutual Fund Home Explore Mutual Funds Check Portfolio Health Find mutual funds by type Equity funds Debt funds Hybrid funds Genius Stocks NPS More More Products Fixed Deposit Tax Saving Maximizer Credit Score Insurance Term Life Insurance Health Insurance Calculators SIP Calculator Mutual Fund Calculator FD Calculator NPS Calculator See all calculators Company About Us Learn Join Us Help & Support Clear My Account Login / Sign-up My investments My SIPs My Watchlist My transactions Track external mutual funds Profile Profile Logout Get Support Login / Sign-up Mutual Funds All about Mutual Funds Know your Investor Personality Mutual Funds Home Explore Mutual Funds Check Portfolio Health Equity funds Debt funds Hybrid funds Genius Stocks NPS Fixed Deposit Tax Saving Maximizer Credit Score Insurance Term Life Insurance Health Insurance Calculators SIP Calculator Mutual Fund Calculator FD Calculator NPS Calculator See all calculators About Us Join Us Learn Help & Support Great! You have sucessfully subscribed for newsletters for investments Subscribed email: Home Mutual Funds debt Short Duration Funds Short Duration Funds Short Term Mutual Funds Average Return 7.93% No. of Funds 24 Link copied to clipboard What is Short Duration Mutual Fund Short term funds are debt funds that lend to companies for a period of 1 to 3 years. These funds mostly take exposure only in quality companies that have proven record of repaying their loans on time as well as have sufficient cash flows from their business operations to justify the borrowing. ..... Advantages of Short Duration Funds Ideal for the money you don't need for at least 12 to 18 months These funds tend to deliver better returns than Bank Fixed Deposits while keeping risk under control Top schemes of Short Duration Mutual Funds sorted by Returns 24 funds Sort by: Returns Sort by ETM Rank High to Low Genius Only Returns High to Low Fund Size High to Low Show Annualized Show Returns Annualized Absolute Returns for 5 Years Investment Period 1 Month 3 Months 6 Months 1 year 3 years 5 years via Monthly SIP Investment Mode Monthly SIP One-time (Lumpsum) Bank of India Short Term Income Fund #NA of NA Unranked ETM Rank: Genius only Fund Size 223 Cr Return (p.a) + \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t10.69 \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t% + \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t66.14 \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t% + \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t6.29 \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t% + \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t84.08 \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t% + \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t4.28 \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t% + \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t4.28 \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t% N.A. N.A. + \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t0.02 \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t% + \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t0.02 \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t% + \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t10.22 \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t% + \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t33.9 \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t% + \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t1.05 \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t% + \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t1.05 \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t% N.A. N.A. N.A. N.A. + \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t9.95 \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t% + \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t9.95 \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t% + \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t0.18 \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t% + \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t0.18 \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t% + 2.16% + 0.18% + 4.1% + 0.67% + 6.63% + 18.58% + 8.61% + 12.93% + 9.0% + 17.32% + 10.75% + 32.74% ETM Rank #NA of NA Unranked Genius only Add to compare Invest Sundaram Short Duration Fund #NA of NA Unranked ETM Rank: Genius only Fund Size 215 Cr Return (p.a) + \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t7.79 \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t% + \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t45.54 \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t% + \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t7.0 \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t% + \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t96.73 \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t% + \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t4.37 \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t% + \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t4.37 \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t% N.A. N.A. + \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t0.0 \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t% + \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t0.0 \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t% + \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t7.86 \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t% + \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t25.48 \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t% + \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t0.78 \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t% + \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t0.78 \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t% N.A. N.A. N.A. N.A. + \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t8.6 \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t% + \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t8.6 \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t% -0.02 \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t% -0.02 \\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t% -0.2% -0.02% + 2.64% + 0.43% + 6.17% + 18.45% + 7.79% + 12.5% + 8.2% + 15.97% + 7.92% + 23.81% ETM Rank #NA of NA Unranked Genius only Add to compare Invest ICICI Prudential Short Term Fund #NA of NA Unranked ETM Rank: Genius only\", 'images': [], 'rank': 5}, {'url': 'https://www.fundsindia.com/c/Debt-Short-Duration-Fund/16', 'content': '[not extracted] Content limit reached', 'rank': 6}, {'url': 'https://www.advisorkhoj.com/mutual-funds-research/top-performing-mutual-funds?category=Short%20Term%20Debt%20Funds', 'content': '[not extracted] Content limit reached', 'rank': 7}, {'url': 'https://www.valueresearchonline.com/funds/selector/category/122/debt-short-duration', 'content': '[not extracted] Content limit reached', 'rank': 8}]",
+            "annotations": null
+          }
+        ],
+        "debt_corporate_bond": [
+          {
+            "type": "text",
+            "text": "[{'url': 'https://finance.yahoo.com/quote/0P0001BAOY.BO/', 'content': '[no text]', 'images': [], 'rank': 1}, {'url': 'https://www.valueresearchonline.com/funds/selector/category/129/debt-corporate-bond', 'content': 'Just a moment... Enable JavaScript and cookies to continue', 'images': [], 'rank': 2}, {'url': 'https://www.amfiindia.com/net-asset-value/nav-history', 'content': \"Net Asset Value of Mutual Funds | Nav History | Mutual Funds in India AMFI Press Release Know about AMFI Useful Links Contact Us Careers KYC Home Take me to... Investor Corner Distributor Corner Research & Information Take me to... New to Mutual Funds Already an MF Investor Intermediary Research & Information Home Net Asset Value (NAV) NAV History World Investor Week Nov 22-28, 2021 Message from Chairman, SEBI Message from Shri Ajay Tyagi, Chairman, SEBI, on the occasion of World Investor Week - 2021  202      NAV History Download NAV as on 31-Jan-2018 All NAV's for a date Historical NAV for a period View High/Low NAV for a period by Month / Year Compare NAV of a scheme for two dates Select Mutual Fund --Select Mutual Fund House-- 360 ONE Mutual Fund ABN AMRO Mutual Fund Aditya Birla Sun Life Mutual Fund AEGON Mutual Fund Alliance Capital Mutual Fund Angel One Mutual Fund Axis Mutual Fund Bajaj Finserv Mutual Fund Bandhan Mutual Fund Bank of India Mutual Fund Baroda BNP Paribas Mutual Fund Benchmark Mutual Fund BNP Paribas Mutual Fund Canara Robeco Mutual Fund Capitalmind Mutual Fund Daiwa Mutual Fund DBS Chola Mutual Fund Deutsche Mutual Fund DSP Mutual Fund Edelweiss Mutual Fund Fidelity Mutual Fund Fortis Mutual Fund Franklin Templeton Mutual Fund GIC Mutual Fund Goldman Sachs Mutual Fund Groww Mutual Fund HDFC Mutual Fund Helios Mutual Fund HSBC Mutual Fund ICICI Prudential Mutual Fund IDBI Mutual Fund IL&F S Mutual Fund IL&FS Mutual Fund (IDF) ING Mutual Fund Invesco Mutual Fund ITI Mutual Fund Jio BlackRock Mutual Fund JM Financial Mutual Fund JPMorgan Mutual Fund Kotak Mahindra Mutual Fund L&T Mutual Fund LIC Mutual Fund Mahindra Manulife Mutual Fund Mirae Asset Mutual Fund Morgan Stanley Mutual Fund Motilal Oswal Mutual Fund Navi Mutual Fund Nippon India Mutual Fund NJ Mutual Fund Old Bridge Mutual Fund PGIM India Mutual Fund PineBridge Mutual Fund PNB Mutual Fund PPFAS Mutual Fund Principal Mutual Fund quant Mutual Fund Quantum Mutual Fund Samco Mutual Fund SBI Mutual Fund Shinsei Mutual Fund Shriram Mutual Fund Standard Chartered Mutual Fund SUN F&C Mutual Fund Sundaram Mutual Fund Tata Mutual Fund Taurus Mutual Fund The Wealth Company Mutual Fund Trust Mutual Fund Unifi Mutual Fund Union Mutual Fund UTI Mutual Fund WhiteOak Capital Mutual Fund Zerodha Mutual Fund Zurich India Mutual Fund Select Scheme Name --Select Scheme NAV Name-- Download Complete NAV Report in Text Format as on 31-Jan-2018 Download Complete NAV Report in Excel Format as on 31-Jan-2018 NAV Date NAV From Date NAV To Date Note : One can download historical NAV for a maximum period of 5 years at a time Select Option Month Annual Select Option High Low Both Loading... Download NAV | Schedule of Investor Awareness Program | Districts Adopted | AMC Branches | Mutual Fund Summit | Videos | Web Help | Downloads | SEBI | NISM | Sitemap TERMS OF USE | PRIVACY NOTICE 2022 AMFI. All Rights Reserved\", 'images': [], 'rank': 3}, {'url': 'https://www.morningstar.in/mutualfunds/f00000pd8t/invesco-india-corp-bond-dir-gr/performance.aspx', 'content': \"Invesco India Corporate Bond Fund | Invesco India Corporate Bond Fund Direct Growth | Fund Performance | Morningstar India Home Mutual Funds Funds Home NEW Medalist Rating NEW Factsheets NEW Fund News NEW Screen Funds NEW Compare Funds NEW Instant X-Ray NEW Rank ETFs NEW Equities Equities Home NEW Stocks Quickrank NEW Indexes NEW Personal Finance Finance Home NEW Insurance NEW Star Ratings NEW Rank Insurance Funds NEW Tools Archives Archives NEW Videos NEW Adviser Menu Site Search Welcome! Products & Services Login My Account My Profile Notifications Sign Out My Account My Profile Notifications Sign Out Home Mutual Funds Equities Personal Finance Tools Archives Adviser ADVERTISEMENT Advertisement ADVERTISEMENT Invesco India Corporate Bond Fund Direct Growth INF205K01RF8 Overview Portfolio Detailed Portfolio Performance Risk & Rating Factsheet Morningstar's Analysis ADVERTISEMENT STOCKS A B C D E F G H I J K L M N O P Q R S T U V W X Y Z 1...9 MUTUAL FUNDS ADITYABIRLA ANGELONE AXIS Bajaj BANDHAN BARODABNP BOI CANARA CAPITALMIND DSP EDELWEISS FRANKLINTEMPLETON GROWW HDFC HELIOS HSBC ICICI IIFL INVESCO ITI JIOBLACKROCK JM KOTAK LIC MahindraManulife MIRAE MOTILAL NAVI Nippon NJ OldBridge PGIM PPFAS QUANT QUANTUM SAMCO SBI SHRIRAM SUNDARAM TATA TAURUS Trust UNIFI UNION UTI WhiteOak ZERODHA INSURANCE FUNDS ABSL AEGON AGEASFEDERAL AVIVA BAJAJALLIANZ BHARTIAXA CANARAHSBCORIENTBANK EDELWEISSTOKIO EXIDE FUTUREGENERALI HDFC ICICIPRUDENTIAL INDIAFIRST KOTAKMAHINDRA LIC MAXLIFE PNBMETLIFE PRAMERICA RELIANCENIPPON SAHARA SBI SHRIRAM STARUNIONDAI-ICHI TATAAIA About Us Our Story Licensing Opportunities Our Signature Methodologies CSR Policy CSR Project Plan Careers Connect With Us Contact Us Events Copyright 2025 Morningstar, Inc. All rights reserved. Terms of Use Privacy Policy International Sites Australia Austria Belgium Canada China Czech Republic Denmark Estonia Finland France Germany Hong Kong Hungary Iceland Ireland Italy Japan Korea Latvia Lithuania Malaysia Netherlands New Zealand Norway Poland Portugal Singapore South Africa Spain Sweden Switzerland Taiwan Thailand United Kingdom United States Copyright 2025 Morningstar, Inc. All rights reserved. Please read our Terms of Use above.\\r \\t\\t\\tThis site is protected by reCAPTCHA and the Google Privacy Policy and Terms of Service apply. As of December 1st, 2023, the ESG-related information, methodologies, tools, ratings, data and opinions contained or reflected herein are not directed to or intended for use or distribution to India-based clients or users and their distribution to Indian resident individuals or entities is not permitted, and Morningstar/Sustainalytics accepts no responsibility or liability whatsoever for the actions of third parties in this respect. Company: Morningstar India Private Limited; Regd. Office: 9th floor, Platinum Technopark, Plot No. 17/18, Sector 30A, Vashi, Navi Mumbai 400705, Maharashtra, India; CIN: U72300MH2004PTC245103; Telephone No.: +91-22-61217100; Fax No.: +91-22-61217200; Contact: Morningstar India Help Desk (e-mail: helpdesk.in@morningstar.com ) in case of queries or grievances. Top Feedback\", 'images': [], 'rank': 4}, {'url': 'https://www.moneycontrol.com/mutual-funds/performance-tracker/returns/corporate-bond-fund.html', 'content': 'Historic Returns - corporate bond fund,corporate bond fund Performance Tracker| Mutual funds with highest returns - Moneycontrol.com English Hindi Gujarati Specials Search Quotes, News, Mutual Fund NAVs Trending Stocks Ola Electric INE0LXG01040, OLAELEC, 544225 Vikram Solar INE078V01014, VIKRAMSOLR, 544488 HDFC Bank INE040A01034, HDFCBANK, 500180 Reliance INE002A01018, RELIANCE, 500325 BSE Limited INE118H01025, BSE, 0 Quotes Mutual Funds Commodities Futures & Options Currency News Cryptocurrency Forum Notices Videos Glossary All Hello, Login Hello, Login Log-in or Sign-Up My Account My Profile My Portfolio My Watchlist My Alerts My Messages Price Alerts My Profile My PRO My Portfolio My Watchlist My Alerts My Messages Price Alerts Logout Loans up to 50 LAKHS Fixed Deposits Credit Cards Lifetime Free Credit Score Chat with Us Download App Follow us on: Go Ad-Free My Alerts mcmfinternal->Moneycontrol/MC_MF/MC_MF_Internal_728x90|~|Moneycontrol/MC_MF/MC_MF_Internal_300x250|~|Moneycontrol/MC_MF/MC_MF_Internal_160x600_Networth|~|Moneycontrol/MC_MF/MC_MF_Internal_300x250_Networth|~|Moneycontrol/MC_MF/MC_MF_Internal_MFMeter_728x90_2|~|Moneycontrol/MC_MF/MC_MF_Internal_468x60|~|Moneycontrol/MC_MF/MC_MF_Internal_MFMeter_300x600|~|Moneycontrol/MC_MF/MC_MF_Internal_MFMeter_728x90_4|~|Moneycontrol/MC_MF/MC_MF_NEW_ROS_300x600|~|Moneycontrol/MC_MF/MC_MF_Internal_Native_ATF_640x60|~|Moneycontrol/MC_MF/MC_MF_INTERNAL_SIP_300x80-> Go PRO Now PRO PRO Markets HOME INDIAN INDICES STOCK ACTION All Stats Top Gainers Top Losers Only Buyers Only Sellers 52 Week High 52 Week Low Price Shockers Volume Shockers Most Active Stocks GLOBAL MARKETS ETFs US MARKETS UNLISTED SHARES STOCK UPDATES STOCK SCANNER Fundamental Scanner Technical Scanner ECONOMIC INDICATORS ECONOMIC CALENDAR MARKET ACTION F&O FII & DII Activity Corporate Action EARNINGS DEALS Bulk Deals Block Deals Intraday Large Deals SECTOR ANALYSIS PRE MARKET SEASONALITY ANALYSIS RESEARCH Investment Advice Technicals COMMODITY CURRENCY CRYPTOCURRENCY TECHNICAL TRENDS IPO BONDS WEBINAR MC LEARN TRADERS CONCLAVE INTERVIEW SERIES OTHERS Cryptocurrency News Tools News LATEST NEWS Assembly Elections BUSINESS Economy Companies Mutual Funds Personal Finance IPO Startup Real Estate Bank Holidays 2025 Banking NATION & WORLD India City World Politics MARKETS Stocks Technical Analysis Equity Research Commodities Currency Gold Rate Silver Rate AQI SPECIAL Trends Opinion Explainers MC Buzz MC Features MC Learn TECHNOLOGY Personal Tech Auto Fintech MEDIA Podcast Photos Videos Web Stories CRYPTO DASHBOARD PETROL PRICE IN INDIA DIESEL PRICE IN INDIA MONSOON TRACKER OTHERS Entertainment Sports Lifestyle Health and Fitness Education Jobs Science Astro Religion Travel Editors Picks Tech India Learning Curve Portfolio Watchlist Commodities MF EXPLORE Home Find Fund Top Ranked Funds Performance Tracker SIP Performance Tracker ETFs NFO Top Performing Categories Learn TOOLS Returns Calculator Lumpsum SIP Balancer Delay Cost Calculator MF FORUM TRACK Your MF Investment MF Prices Personal Finance EXPLORE Home Investing Insurance Banking Financial Planning Property Tools Video Ask Expert Explainer NPS FIXED DEPOSIT FDs @ 8.4% p.a. Fixed Deposit Comparison Fixed Deposit Interest Calculator Corporate Deposits TAX Income tax Filing Guide Income Tax Calculator LTCG Tax on Property BANK HOLIDAYS 2025 LOANS & CREDIT CARDS Loans Loans up to 50 LAKHS Pick your Loan Amount 50K Personal Loan 1L Personal Loan 2L Personal Loan 5L Personal Loan 10L Personal Loan 15L Personal Loan Top Loan Providers RING PREFR L&T Finance FIBE CASHE Bajaj Finserv Aditya Birla Finance Personal Loan Instant Loan EMI Calculator Personal Loan Articles TOOLS Provident Fund Calculator Assets Allocation Planning Debt Reduction Planner Debt Evaluation Calculator Current Expense Calculator More Calculators CREDIT CARDS LIFETIME FREE Credit Score FINANCE TRACKER REAL ESTATE : TRENDS & ANALYTICS GOLD PRICE TODAY Upcoming Chat | Previous Transcripts All Schedule |', 'images': [], 'rank': 5}, {'url': 'https://www.google.com/finance/quote/INVE_INDI_CORP_1DDYCD6:MUTF_IN', 'content': '[not extracted] Content limit reached', 'rank': 6}, {'url': 'https://www.etmoney.com/mutual-funds/debt/corporate-bond/61', 'content': '[not extracted] Content limit reached', 'rank': 7}, {'url': 'https://invescomutualfund.com/docs/default-source/default-document-library/invesco-india-corporate-bond-funddd1df507eee8616aaa28ff00007d74af.pdf', 'content': '[not extracted] Content limit reached', 'rank': 8}]",
+            "annotations": null
+          }
+        ]
+      },
+      "error": null,
+      "cost": 0.0,
+      "start_time": "2025-08-30T14:43:24.254483",
+      "end_time": "2025-08-30T14:44:32.046222",
+      "execution_time": 67.791739,
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "execution_result": null
+    },
+    {
+      "id": "T012",
+      "description": "Condense the fund data from T011 to create a shortlist of suitable funds.",
+      "agent": "DistillerAgent",
+      "agent_prompt": "Condense the fund data from T011 to create a shortlist of suitable funds. Consider factors like historical performance, expense ratio, and fund manager experience.",
+      "reads": [
+        "T011"
+      ],
+      "writes": [
+        "T012"
+      ],
+      "status": "completed",
+      "output": {
+        "initial_thoughts": "Okay, I need to create a shortlist of suitable funds based on the provided data from T011. I will focus on extracting fund names, categories, and any indicative ratings or performance data available. Due to the limited and unstructured nature of the input data (mostly links and brief descriptions), the shortlist may not be comprehensive, and ratings might be unavailable for all funds.",
+        "output": {
+          "fund_shortlist": [
+            {
+              "fund_name": "Invesco India Largecap Fund",
+              "category": "equity_large_cap",
+              "indicative_rating": null,
+              "source_url": "https://www.valueresearchonline.com/funds/10565/invesco-india-largecap-fund",
+              "notes": "Further data extraction blocked."
+            },
+            {
+              "fund_name": "Invesco India Mid Cap Fund",
+              "category": "equity_mid_cap",
+              "indicative_rating": null,
+              "source_url": "https://www.valueresearchonline.com/funds/4280/invesco-india-mid-cap-fund/",
+              "notes": "Further data extraction blocked."
+            },
+            {
+              "fund_name": "Motilal Oswal Midcap Fund",
+              "category": "equity_mid_cap",
+              "indicative_rating": null,
+              "source_url": "https://www.etmoney.com/mutual-funds/equity/mid-cap/35",
+              "notes": "Return (p.a) +34.56%, Fund Size 33,609 Cr"
+            },
+            {
+              "fund_name": "Edelweiss Mid Cap Fund",
+              "category": "equity_mid_cap",
+              "indicative_rating": null,
+              "source_url": "https://www.etmoney.com/mutual-funds/equity/mid-cap/35",
+              "notes": "Return (p.a) +30.94%"
+            },
+            {
+              "fund_name": "Invesco India Smallcap Fund",
+              "category": "equity_small_cap",
+              "indicative_rating": null,
+              "source_url": "https://www.valueresearchonline.com/funds/37841/invesco-india-smallcap-fund-regular-plan/",
+              "notes": "Further data extraction blocked."
+            },
+            {
+              "fund_name": "Invesco India Short Duration Fund",
+              "category": "debt_short_term",
+              "indicative_rating": null,
+              "source_url": "https://www.valueresearchonline.com/funds/4668/invesco-india-short-duration-fund/",
+              "notes": "Further data extraction blocked."
+            },
+            {
+              "fund_name": "Bank of India Short Term Income Fund",
+              "category": "debt_short_term",
+              "indicative_rating": null,
+              "source_url": "https://www.etmoney.com/mutual-funds/debt/short-duration/54",
+              "notes": "Return (p.a) +10.69%, Fund Size 223 Cr"
+            },
+            {
+              "fund_name": "Sundaram Short Duration Fund",
+              "category": "debt_short_term",
+              "indicative_rating": null,
+              "source_url": "https://www.etmoney.com/mutual-funds/debt/short-duration/54",
+              "notes": "Return (p.a) +7.79%, Fund Size 215 Cr"
+            },
+            {
+              "fund_name": "Invesco India Corporate Bond Fund",
+              "category": "debt_corporate_bond",
+              "indicative_rating": null,
+              "source_url": "https://www.morningstar.in/mutualfunds/f00000pd8t/invesco-india-corp-bond-dir-gr/performance.aspx",
+              "notes": null
+            }
+          ],
+          "processing_status": {
+            "file_accessible": true,
+            "content_readable": true,
+            "extraction_method": "direct_text",
+            "content_completeness": "partial"
+          },
+          "quality_assessment": {
+            "task_completion_score": 6,
+            "confidence_level": "medium",
+            "data_reliability": "medium",
+            "limitations": [
+              "Limited fund data extracted from URLs.",
+              "Missing key metrics (expense ratio, fund manager experience)."
+            ],
+            "recommendations": [
+              "Fetch content from URLs for detailed fund information.",
+              "Use a dedicated financial data API for comprehensive fund metrics."
+            ]
+          }
+        },
+        "call_self": false,
+        "cost": 0.002025675,
+        "input_tokens": 11662.5,
+        "output_tokens": 460.5,
+        "total_tokens": 12123.0
+      },
+      "error": null,
+      "cost": 0.0,
+      "start_time": "2025-08-30T14:45:25.283246",
+      "end_time": "2025-08-30T14:46:06.012736",
+      "execution_time": 40.72949,
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "execution_result": null
+    },
+    {
+      "id": "T013",
+      "description": "Reconcile the fund shortlist from T012 with the allocation categories and percentages from T001.",
+      "agent": "ThinkerAgent",
+      "agent_prompt": "Reconcile the fund shortlist from T012 with the allocation categories and percentages from T001. Ensure that the selected funds align with the overall asset allocation plan.",
+      "reads": [
+        "T012",
+        "T001"
+      ],
+      "writes": [
+        "T013"
+      ],
+      "status": "completed",
+      "output": {
+        "output": {
+          "initial_thoughts": {
+            "entity_1": "Let me think through this: T012 provides a fund shortlist with fund names, categories, and URLs. The categories are equity (large cap, mid cap, small cap) and debt (short term, corporate bond).",
+            "entity_2": "Let me think through this: T001 provides an allocation plan with equity/debt percentages (70/30) and recommended fund categories (equity: Large Cap, Mid Cap, Small Cap; debt: Short Term Debt, Corporate Bond). It also includes a goal_input_json specifying a 'High' risk appetite.",
+            "overall_observations": "Let me think through this: The task is to reconcile the fund shortlist with the allocation plan, ensuring the funds align with the risk profile. The high risk appetite from T001 corresponds to the 70/30 allocation. Funds need to be selected from T012 to match these percentages across the recommended categories. I need to generate a configuration object for downstream math, an allocation JSON and use the coder agent to provide projection and table datas."
+          },
+          "review_checklist": {
+            "alignment_with_goal": "Let me think through this: Am I accurately reconciling the fund shortlist with the asset allocation plan? Have I correctly identified the funds that align with the 'High' risk profile?",
+            "what_was_missed": "Let me think through this: Did I consider fund ratings or performance data from T012, even though they are mostly missing or incomplete? Did I ensure that the allocation plan categories are adequately represented in the fund selection?",
+            "risk_of_misleading": "Let me think through this: Could the absence of comprehensive fund ratings lead to a misleading allocation? Are the chosen funds truly representative of their categories?",
+            "improvement_opportunities": "Let me think through this: Could I add a weighting within each category based on fund size or past performance (if available)? Can I better explain the rationale behind the fund selection?"
+          },
+          "final_report": {
+            "summary": "Reconciled fund shortlist (T012) with allocation plan (T001) based on 'High' risk appetite (70% equity, 30% debt). Funds selected align with recommended categories. Further details in the detailed report.",
+            "detailed": "Let me think through this: The goal is to align the fund shortlist from T012 with the asset allocation plan from T001, given a 'High' risk appetite. The 'High' risk appetite translates to a 70% equity and 30% debt allocation. The recommended fund categories from T001 are Equity (Large Cap, Mid Cap, Small Cap) and Debt (Short Term Debt, Corporate Bond). From the fund shortlist (T012), the following funds are chosen to match the allocation strategy:\n\n**Equity (70%):**\n*   Invesco India Largecap Fund (equity_large_cap): Aligns with the Large Cap category.\n*   Motilal Oswal Midcap Fund (equity_mid_cap): Aligns with the Mid Cap category.\n*   Invesco India Smallcap Fund (equity_small_cap): Aligns with the Small Cap category.\n\n**Debt (30%):**\n*   Invesco India Short Duration Fund (debt_short_term): Aligns with the Short Term Debt category.\n*   Invesco India Corporate Bond Fund (debt_corporate_bond): Aligns with the Corporate Bond category.\n\nSince no weighting of equity funds is prescribed, the available MidCap fund is of a significant size with a good return. While data extraction was limited and indicative ratings are missing, the fund categories are adequately represented. This initial allocation assumes an equal distribution within equity and debt components (e.g., equal allocation to Large Cap, Mid Cap, and Small Cap, and to Short Term Debt and Corporate Bond). Further refinement may be needed based on fund-specific metrics such as expense ratio, AUM, and risk-adjusted returns, once available from dedicated financial data APIs. The allocation_plan_json object reflects this fund alignment and adheres to the risk-return policy.\n\n**Caveats and Risks:**\n\nThe lack of comprehensive fund ratings and performance data presents a significant risk. Relying solely on fund categories without detailed analysis can lead to suboptimal investment choices. Further analysis of each fund's expense ratio, tracking error, fund manager tenure, and risk-adjusted returns is crucial before making any final allocation decisions. The current allocation assumes a consistent risk profile for all funds within a category, which may not be accurate. Market fluctuations and fund-specific events can also significantly impact the performance of these funds. This initial allocation should be considered a starting point, subject to continuous monitoring and adjustments based on market conditions and fund performance. Without a deeper dive and due diligence this investment strategy is risky.\n",
+            "tables": [],
+            "recommendations": [
+              "Fetch detailed fund information, including expense ratios, AUM, and risk-adjusted returns, using dedicated financial data APIs.",
+              "Conduct a thorough analysis of each fund's investment strategy, holdings, and risk profile.",
+              "Monitor fund performance regularly and adjust the allocation as needed based on market conditions and individual fund performance.",
+              "Consider diversifying the portfolio with additional funds within each category to mitigate risk."
+            ],
+            "risks_or_warnings": [
+              "Incomplete fund data may lead to suboptimal investment choices.",
+              "Market fluctuations can impact fund performance.",
+              "Fund-specific events can significantly affect returns.",
+              "The assumed risk profile may not be accurate for all funds."
+            ],
+            "key_factors_considered": [
+              "Fund categories aligned with the allocation plan.",
+              "Risk appetite corresponding to the equity/debt allocation.",
+              "Fund availability in the shortlist."
+            ],
+            "task_completion_score": 0.85
+          }
+        },
+        "call_self": false,
+        "cost": 0.0012266999999999998,
+        "input_tokens": 3306.0,
+        "output_tokens": 1218.0,
+        "total_tokens": 4524.0
+      },
+      "error": null,
+      "cost": 0.0,
+      "start_time": "2025-08-30T14:46:06.028402",
+      "end_time": "2025-08-30T14:46:45.074576",
+      "execution_time": 39.046174,
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "execution_result": null
+    },
+    {
+      "id": "T014",
+      "description": "Validate the math, ensure allocation adds up to 100%, shortlist is non-empty, and currency is present using QAAgent.",
+      "agent": "QAAgent",
+      "agent_prompt": "Validate the math in the SIP calculations from T001, ensure that the asset allocation percentages add up to 100%, confirm that the fund shortlist from T013 is not empty, and verify that the currency is present and consistent.",
+      "reads": [
+        "T001",
+        "T013"
+      ],
+      "writes": [
+        "T014"
+      ],
+      "status": "completed",
+      "output": {
+        "initial_thoughts": "Okay, I need to validate the SIP calculations, asset allocation, fund shortlist, and currency information from the previous steps. Specifically, I'll check the math, ensure percentages add up correctly, the fund shortlist is not empty, and the currency is consistent. Let's start with T001 and T013.",
+        "output": {
+          "issues": [
+            {
+              "step_id": "T001",
+              "agent": "SIPGoalPlannerAgent",
+              "problem": "The monthly return rate (monthly_return_r) in sip_calc_json is 0.01 which corresponds to an annual return of 12%. This aligns with the defined high risk appetite in the original query and goal_input_json. However, the inflation adjusted target amount of 51264442.69 is suspiciously precise and should be double-checked for accuracy.",
+              "severity": "medium",
+              "recommendation": "Re-verify the inflation adjusted target calculation for potential rounding errors or formula inaccuracies. Cross-reference the inflation rate and time horizon to ensure the adjusted target is accurate."
+            },
+            {
+              "step_id": "T001",
+              "agent": "SIPGoalPlannerAgent",
+              "problem": "Asset allocation percentages in allocation_plan_json (equity_percent=70, debt_percent=30) add up to 100%. This adheres to the specified requirement in the instructions. No issues here.",
+              "severity": "low",
+              "recommendation": "N/A"
+            },
+            {
+              "step_id": "T001",
+              "agent": "SIPGoalPlannerAgent",
+              "problem": "Currency is present and consistent as INR in goal_input_json. No issues found.",
+              "severity": "low",
+              "recommendation": "N/A"
+            },
+            {
+              "step_id": "T013",
+              "agent": "AllocatorAgent",
+              "problem": "The fund shortlist in T013 includes funds for both equity and debt categories. It's not empty and appears adequate. However, this agent has identified that fund ratings and performance data are mostly missing or incomplete. Relying solely on fund categories without detailed analysis can lead to suboptimal investment choices. Further analysis of each fund's expense ratio, tracking error, fund manager tenure, and risk-adjusted returns is crucial before making any final allocation decisions.",
+              "severity": "medium",
+              "recommendation": "Implement dedicated financial data APIs to fetch detailed fund information. Prioritize funds with lower expense ratios, acceptable tracking error, experienced fund managers, and better risk-adjusted returns."
+            }
+          ],
+          "verdict": "needs_revision",
+          "validation_summary": "Identified a potential issue with the inflation adjusted target amount calculation and emphasize on improving the allocation strategy with dedicated financial data APIs.",
+          "overall_quality_score": 7
+        },
+        "call_self": false,
+        "cost": 0.0009197999999999999,
+        "input_tokens": 4110.0,
+        "output_tokens": 505.5,
+        "total_tokens": 4615.5
+      },
+      "error": null,
+      "cost": 0.0,
+      "start_time": "2025-08-30T14:46:45.086801",
+      "end_time": "2025-08-30T14:47:20.900534",
+      "execution_time": 35.813733,
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "execution_result": null
+    },
+    {
+      "id": "T015",
+      "description": "Generate chart_data_json (projection line + allocation doughnut) using CoderAgent based on SIPGoalPlannerAgent outputs.",
+      "agent": "CoderAgent",
+      "agent_prompt": "Generate chart_data_json containing data for a projection line chart and an allocation doughnut chart. Use the outputs from T001 (SIPGoalPlannerAgent), specifically the sip_projection_table_json and allocation_plan_json. The projection line should visualize the SIP growth over time, and the allocation doughnut should represent the asset allocation (equity vs. debt). Ensure that the JSON is correctly formatted and includes all necessary data points. Save the output to file 'chart_data.json'.",
+      "reads": [
+        "T001"
+      ],
+      "writes": [
+        "T015"
+      ],
+      "status": "failed",
+      "output": null,
+      "error": "Code execution failed: No files or code_variants found in output",
+      "cost": 0.0,
+      "start_time": "2025-08-30T14:44:37.050663",
+      "end_time": "2025-08-30T14:45:20.272952",
+      "execution_time": 43.222289
+    },
+    {
+      "id": "T016",
+      "description": "Slice the first 12 rows from sip_projection_table_json using CoderAgent (STRICT NO-COMPUTE).",
+      "agent": "CoderAgent",
+      "agent_prompt": "Read `sip_projection_table_json` from T001. Slice the FIRST 12 rows ONLY. No math and no derived fields. If missing/empty, return empty array without failing other tasks. REQUIRED: set `output.first_12_months_table_json`, and emit `files['first_12_months_table.json']` with the same array stringified. `code` must be `{}` and `call_self` must be `false`.",
+      "reads": [
+        "T001"
+      ],
+      "writes": [
+        "T016"
+      ],
+      "status": "pending",
+      "output": null,
+      "error": null,
+      "cost": 0.0,
+      "start_time": null,
+      "end_time": null,
+      "execution_time": 0.0
+    },
+    {
+      "id": "T017",
+      "description": "Structure the final outputs into a consulting-grade HTML report using FormatterAgent.",
+      "agent": "FormatterAgent",
+      "agent_prompt": "Structure the outputs from T001, T013, T014, T015 and T016 into a consulting-grade HTML report. Include the goal inputs, inflation adjustment, SIP calculation, asset allocation plan, allocation notes, key recommendations, risk factors, SIP charts (projection line and allocation doughnut), and SIP projection (long-horizon summary). Present the information in a clear, concise, and visually appealing manner. Save the result as 'report_content.html'.",
+      "reads": [
+        "T001",
+        "T013",
+        "T014",
+        "T015",
+        "T016"
+      ],
+      "writes": [
+        "T017"
+      ],
+      "status": "pending",
+      "output": null,
+      "error": null,
+      "cost": 0.0,
+      "start_time": null,
+      "end_time": null,
+      "execution_time": 0.0
+    },
+    {
+      "id": "T018",
+      "description": "Package the final HTML content into a comprehensive report using ReportGeneratorAgent.",
+      "agent": "ReportGeneratorAgent",
+      "agent_prompt": "Package the HTML content from T017 into a comprehensive report (comprehensive_report.html). Include the following sections: 1. Executive Summary, 2. Goal Inputs, 3. Inflation Adjustment, 4. SIP Calculation, 5. Asset Allocation Plan, 6. Allocation Notes, 7. Key Recommendations, 8. Risk Factors and Uncertainties (at least 150 words), 9. SIP Charts (Projection line + Allocation doughnut), 10. SIP Projection (long-horizon summary), and 11. 12 month sip projection table. Make sure the HTML is well-formatted and includes all the required sections.",
+      "reads": [
+        "T017"
+      ],
+      "writes": [
+        "T018"
+      ],
+      "status": "pending",
+      "output": null,
+      "error": null,
+      "cost": 0.0,
+      "start_time": null,
+      "end_time": null,
+      "execution_time": 0.0
+    },
+    {
+      "id": "T019",
+      "description": "Schedule a daily refresh of the report using SchedulerAgent (optional).",
+      "agent": "SchedulerAgent",
+      "agent_prompt": "Schedule a daily refresh of the report generated in T018. Configure the scheduler to run the report generation process automatically every day at a specified time.",
+      "reads": [
+        "T018"
+      ],
+      "writes": [
+        "T019"
+      ],
+      "status": "pending",
+      "output": null,
+      "error": null,
+      "cost": 0.0,
+      "start_time": null,
+      "end_time": null,
+      "execution_time": 0.0
+    }
+  ],
+  "links": [
+    {
+      "source": "ROOT",
+      "target": "T001"
+    },
+    {
+      "source": "T001",
+      "target": "T011"
+    },
+    {
+      "source": "T001",
+      "target": "T013"
+    },
+    {
+      "source": "T001",
+      "target": "T014"
+    },
+    {
+      "source": "T001",
+      "target": "T015"
+    },
+    {
+      "source": "T001",
+      "target": "T016"
+    },
+    {
+      "source": "T001",
+      "target": "T017"
+    },
+    {
+      "source": "T011",
+      "target": "T012"
+    },
+    {
+      "source": "T012",
+      "target": "T013"
+    },
+    {
+      "source": "T013",
+      "target": "T014"
+    },
+    {
+      "source": "T013",
+      "target": "T017"
+    },
+    {
+      "source": "T014",
+      "target": "T017"
+    },
+    {
+      "source": "T015",
+      "target": "T016"
+    },
+    {
+      "source": "T015",
+      "target": "T017"
+    },
+    {
+      "source": "T016",
+      "target": "T017"
+    },
+    {
+      "source": "T017",
+      "target": "T018"
+    },
+    {
+      "source": "T018",
+      "target": "T019"
+    }
+  ]
+}

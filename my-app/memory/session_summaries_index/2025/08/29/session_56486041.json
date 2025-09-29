@@ -1,0 +1,546 @@
+{
+  "directed": true,
+  "multigraph": false,
+  "graph": {
+    "session_id": "56486041",
+    "original_query": "You are the Orchestrator Agent.Your first action is to call SIPGoalPlannerAgent to compute goal inputs, inflation adjustment, SIP math, allocation guidance, and projections.Do not build any plans until you have read SIPGoalPlannerAgent’s outputs.Wiring RequirementPlannerAgent MUST first read the outputs from SIPGoalPlannerAgent (especially goal_input_json and computed parameters) before creating the final multi-agent plan graph for retrieval, distillation, Q&A, charts, and report.User ScenarioPlan a SIP goal with asset allocation and fund category guidance:goal_type = Retirementcurrent_age = 50retirement_age = 60override_time_horizon_years = 10currency = INRtarget_amount_min = 30000000risk_appetite = highCompute (Deterministic)time_horizon_years = max(override_time_horizon_years, retirement_age - current_age) = max(10, 60 - 50) = 10total_months = time_horizon_years * 12 = 120Risk → Return mapping (annual):very_low: 5%low: 7%low_moderate: 8%moderate: 10%high_moderate: 11%high: 12%very_high: 14%monthly_return_r = annual_return / 12For this scenario (high): annual_return = 12% → monthly_return_r = 0.12 / 12 = 0.01Inflation default: 5.5% annually unless overridden.Do (Step-by-Step)Normalize inputs → emit goal_input_json.Refer “SIP Calculation” from SIPGoalPlannerAgent.Refer “Inflation Adjustment” from SIPGoalPlannerAgent.Refer “Recommendation Engine (Fund Category Types)” from SIPGoalPlannerAgent.Output allocation_plan_json (equity %, debt %, recommended categories, notes).Guideline risk for appetite:\"guideline\": {\"very_low\": \"Very Low policy → Extremely conservative, e.g., 90% debt / 10% equity\",\"low\": \"Low policy → Conservative, e.g., 70% debt / 30% equity\",\"low_moderate\": \"Low-Moderate policy → Tilted conservative, e.g., 60% debt / 40% equity\",\"moderate\": \"Moderate policy → Balanced mix, e.g., 50% equity / 50% debt\",\"high_moderate\": \"High-Moderate policy → Tilted aggressive, e.g., 60% equity / 40% debt\",\"high\": \"High policy → Aggressive, e.g., 70% equity / 30% debt\",\"very_high\": \"Very High policy → Extremely aggressive, e.g., 90% equity / 10% debt\"}Validation Hooks: Validate schema + percentages.Visualization (ReportGeneratorAgent):Pie chart → equity vs debtBar/graph → sub-categoriesStrictness: Never recommend fund names. Only fund categories.Schemasgoal_input_json{ \"goal_type\": string, \"target_amount\": number, \"currency\": \"INR\", \"time_horizon_years\": number, \"total_months\": number, \"risk_appetite\": string }inflation_adjusted_json{ \"inflation_pct\": number, \"years\": number, \"unadjusted_target\": number, \"adjusted_target\": number }sip_calc_json{ \"monthly_return_r\": number, \"months_n\": number, \"adjusted_target\": number, \"monthly_sip\": number, \"status\": \"ok\" | \"error\", \"error\": string | null }allocation_plan_json{\"equity_percent\": number,\"debt_percent\": number,\"recommended_fund_categories\": {\"equity\": string[],\"debt\": string[],\"elss_optional\": boolean},\"notes\": {\"very_low\": string,\"low\": string,\"low_moderate\": string,\"moderate\": string,\"high_moderate\": string,\"high\": string,\"very_high\": string}}Outputs RequiredEmit STRICT JSON (no prose, no markdown):goal_input_jsoninflation_adjusted_jsonsip_calc_jsonallocation_plan_json",
+    "file_manifest": [],
+    "created_at": "2025-08-29T16:47:21.101125",
+    "status": "running",
+    "output_chain": {
+      "T001": {
+        "initial_thoughts": "Okay, I will normalize the inputs, calculate the SIP amount, adjust for inflation, and create an allocation plan based on the user's risk appetite. I will then output the data in JSON format as requested, adhering to the provided schemas and guidelines.",
+        "output": {
+          "goal_input_json": {
+            "goal_type": "Retirement",
+            "target_amount": 30000000,
+            "currency": "INR",
+            "time_horizon_years": 10,
+            "total_months": 120,
+            "risk_appetite": "High"
+          },
+          "inflation_adjusted_json": {
+            "inflation_pct": 5.5,
+            "years": 10,
+            "unadjusted_target": 30000000,
+            "adjusted_target": 51265787.75
+          },
+          "sip_calc_json": {
+            "monthly_return_r": 0.01,
+            "months_n": 120,
+            "adjusted_target": 51265787.75,
+            "monthly_sip": 239667.72,
+            "status": "ok",
+            "error": null
+          },
+          "allocation_plan_json": {
+            "equity_percent": 70,
+            "debt_percent": 30,
+            "recommended_fund_categories": {
+              "equity": [
+                "Large Cap",
+                "Mid Cap",
+                "Small Cap"
+              ],
+              "debt": [
+                "Short Term Debt",
+                "Corporate Bond"
+              ],
+              "elss_optional": true
+            },
+            "notes": {
+              "very_low": "Very Low policy → Extremely conservative, e.g., 90% debt / 10% equity",
+              "low": "Low policy → Conservative, e.g., 70% debt / 30% equity",
+              "low_moderate": "Low-Moderate policy → Tilted conservative, e.g., 60% debt / 40% equity",
+              "moderate": "Moderate policy → Balanced mix, e.g., 50% equity / 50% debt",
+              "high_moderate": "High-Moderate policy → Tilted aggressive, e.g., 60% equity / 40% debt",
+              "high": "High policy → Aggressive, e.g., 70% equity / 30% debt",
+              "very_high": "Very High policy → Extremely aggressive, e.g., 90% equity / 10% debt"
+            }
+          }
+        },
+        "call_self": false,
+        "cost": 0.000352575,
+        "input_tokens": 1096.5,
+        "output_tokens": 313.5,
+        "total_tokens": 1410.0
+      },
+      "T010": {
+        "initial_thoughts": "Let me think through this. The SIPGoalPlannerAgent has already computed the necessary financial data. Now I need to create a plan to fetch relevant fund data, distill a shortlist, reconcile with the allocation categories, validate the data, generate charts, format the output, and generate a final report. The plan will be structured to ensure each step is clear and can be executed independently.",
+        "initial_plan": "Here's how I think the nodes should be called with these edges: The plan will involve fetching fund data based on the allocation plan, distilling a fund shortlist, reconciling this shortlist with allocation categories, validating data integrity, generating visual charts, structuring the final report, and finally, scheduling a refresh. Each node will perform a specific task to contribute to the final SIP goal report.",
+        "validation_thoughts": "Let me briefly go through my validation checklist: I have confirmed that the SIPGoalPlannerAgent output is available, that each step contributes meaningfully to the final goal report, and that the data flow between steps is clear. The plan includes steps for data retrieval, analysis, validation, visualization, and reporting. Also, each Agent has appropriate instructions. And there are no forbidden Agent calls.",
+        "plan_graph": {
+          "nodes": [
+            {
+              "id": "T011",
+              "agent": "RetrieverAgent",
+              "description": "Fetch fund data based on the recommended fund categories from the allocation plan.",
+              "agent_prompt": "Fetch comprehensive fund data (name, returns, expense ratio, AUM) for the following categories: Large Cap, Mid Cap, Small Cap, Short Term Debt, and Corporate Bond. Prioritize funds available in INR. Output the fund data in JSON format.",
+              "reads": [
+                "T001"
+              ],
+              "writes": [
+                "T011"
+              ]
+            },
+            {
+              "id": "T012",
+              "agent": "DistillerAgent",
+              "description": "Create a shortlist of funds based on returns, expense ratio and AUM.",
+              "agent_prompt": "Create a shortlist of top 3-5 funds for each category (Large Cap, Mid Cap, Small Cap, Short Term Debt, and Corporate Bond) based on the data retrieved in T011. Prioritize funds with higher returns, lower expense ratios, and higher AUM. Output fund_shortlist in JSON format.",
+              "reads": [
+                "T011"
+              ],
+              "writes": [
+                "T012"
+              ]
+            },
+            {
+              "id": "T013",
+              "agent": "ThinkerAgent",
+              "description": "Reconcile the fund shortlist with the allocation categories.",
+              "agent_prompt": "Analyze the fund_shortlist from T012 and ensure that the funds align with the allocation categories specified in T001 (allocation_plan_json). If any adjustments are needed to align with the allocation plan, note them. Output the reconciled fund list and adjustments in JSON format.",
+              "reads": [
+                "T012",
+                "T001"
+              ],
+              "writes": [
+                "T013"
+              ]
+            },
+            {
+              "id": "T014",
+              "agent": "QAAgent",
+              "description": "Validate the financial calculations and data.",
+              "agent_prompt": "Validate the accuracy of the calculations from T001 (inflation_adjusted_json and sip_calc_json). Also, validate that the allocation percentages (equity_percent and debt_percent) add up to 100%. Ensure fund_shortlist in T012 is not empty and contains at least 3 funds per category. Verify the presence of currency in T001 is INR. Report any discrepancies or errors found.",
+              "reads": [
+                "T001",
+                "T012"
+              ],
+              "writes": [
+                "T014"
+              ]
+            },
+            {
+              "id": "T015",
+              "agent": "CoderAgent",
+              "description": "Generate JSON for chart data and HTML snippet for embedding the chart.",
+              "agent_prompt": "Using the data from T001 (sip_calc_json, allocation_plan_json) and T013 (reconciled fund list), generate JSON data suitable for creating a pie chart showing equity vs debt allocation, and bar graphs showing sub-category allocation within equity and debt. Also, generate an HTML snippet to embed the chart in a report. Store chart_data_json and embed_snippet_html in output.",
+              "reads": [
+                "T001",
+                "T013"
+              ],
+              "writes": [
+                "T015"
+              ]
+            },
+            {
+              "id": "T016",
+              "agent": "FormatterAgent",
+              "description": "Generate well-formatted HTML structure for the final report.",
+              "agent_prompt": "Using data from T001 (goal_input_json, inflation_adjusted_json, sip_calc_json, allocation_plan_json), T013 (reconciled fund list), T014 (validation report), and T015 (embed_snippet_html), create a comprehensive and well-structured HTML report. Include sections for goal overview, inflation adjustment, SIP calculation, asset allocation, fund recommendations, and validation results. Ensure the report is visually appealing and easy to read, with charts and tables where appropriate. Embed the HTML snippet from T015. Output final HTML content to present as a report.",
+              "reads": [
+                "T001",
+                "T013",
+                "T014",
+                "T015"
+              ],
+              "writes": [
+                "T016"
+              ]
+            },
+            {
+              "id": "T017",
+              "agent": "ReportGeneratorAgent",
+              "description": "Package the final HTML report.",
+              "agent_prompt": "Using the formatted HTML content from T016, create a comprehensive HTML report. Ensure all the sections are well-organized and visually appealing. Include a table of contents for easy navigation. Call the final comprehensive report comprehensive_report.html.",
+              "reads": [
+                "T016"
+              ],
+              "writes": [
+                "T017"
+              ]
+            },
+            {
+              "id": "T018",
+              "agent": "SchedulerAgent",
+              "description": "Schedule a daily refresh of the report.",
+              "agent_prompt": "Schedule a daily refresh of the entire report generation process, starting from T011, to ensure the data is up-to-date. Configure the scheduler to run at 06:00 AM every day. Make sure the final comprehensive_report.html gets updated with the refreshed data.",
+              "reads": [
+                "T017"
+              ],
+              "writes": [
+                "T018"
+              ]
+            }
+          ],
+          "edges": [
+            {
+              "source": "T001",
+              "target": "T011"
+            },
+            {
+              "source": "T011",
+              "target": "T012"
+            },
+            {
+              "source": "T001",
+              "target": "T013"
+            },
+            {
+              "source": "T012",
+              "target": "T013"
+            },
+            {
+              "source": "T001",
+              "target": "T014"
+            },
+            {
+              "source": "T012",
+              "target": "T014"
+            },
+            {
+              "source": "T001",
+              "target": "T015"
+            },
+            {
+              "source": "T013",
+              "target": "T015"
+            },
+            {
+              "source": "T001",
+              "target": "T016"
+            },
+            {
+              "source": "T013",
+              "target": "T016"
+            },
+            {
+              "source": "T014",
+              "target": "T016"
+            },
+            {
+              "source": "T015",
+              "target": "T016"
+            },
+            {
+              "source": "T016",
+              "target": "T017"
+            },
+            {
+              "source": "T017",
+              "target": "T018"
+            }
+          ]
+        },
+        "next_step_id": "T011",
+        "cost": 0.001455975,
+        "input_tokens": 4654.5,
+        "output_tokens": 1263.0,
+        "total_tokens": 5917.5
+      }
+    },
+    "validation_results": {
+      "is_valid": true,
+      "is_dag": true,
+      "cycles": [],
+      "disconnected_components": [],
+      "orphaned_nodes": [],
+      "root_nodes": [],
+      "leaf_nodes": [
+        "T010"
+      ],
+      "warnings": [],
+      "errors": []
+    }
+  },
+  "nodes": [
+    {
+      "description": "Initial Query",
+      "agent": "System",
+      "status": "completed",
+      "id": "ROOT"
+    },
+    {
+      "id": "T001",
+      "agent": "SIPGoalPlannerAgent",
+      "description": "Normalize SIP inputs and compute base parameters.",
+      "agent_prompt": "Emit goal_input_json, inflation_adjusted_json, sip_calc_json, allocation_plan_json. Follow all instructions as requested by the user in the original query.",
+      "reads": [],
+      "writes": [
+        "T001"
+      ],
+      "status": "completed",
+      "output": {
+        "initial_thoughts": "Okay, I will normalize the inputs, calculate the SIP amount, adjust for inflation, and create an allocation plan based on the user's risk appetite. I will then output the data in JSON format as requested, adhering to the provided schemas and guidelines.",
+        "output": {
+          "goal_input_json": {
+            "goal_type": "Retirement",
+            "target_amount": 30000000,
+            "currency": "INR",
+            "time_horizon_years": 10,
+            "total_months": 120,
+            "risk_appetite": "High"
+          },
+          "inflation_adjusted_json": {
+            "inflation_pct": 5.5,
+            "years": 10,
+            "unadjusted_target": 30000000,
+            "adjusted_target": 51265787.75
+          },
+          "sip_calc_json": {
+            "monthly_return_r": 0.01,
+            "months_n": 120,
+            "adjusted_target": 51265787.75,
+            "monthly_sip": 239667.72,
+            "status": "ok",
+            "error": null
+          },
+          "allocation_plan_json": {
+            "equity_percent": 70,
+            "debt_percent": 30,
+            "recommended_fund_categories": {
+              "equity": [
+                "Large Cap",
+                "Mid Cap",
+                "Small Cap"
+              ],
+              "debt": [
+                "Short Term Debt",
+                "Corporate Bond"
+              ],
+              "elss_optional": true
+            },
+            "notes": {
+              "very_low": "Very Low policy → Extremely conservative, e.g., 90% debt / 10% equity",
+              "low": "Low policy → Conservative, e.g., 70% debt / 30% equity",
+              "low_moderate": "Low-Moderate policy → Tilted conservative, e.g., 60% debt / 40% equity",
+              "moderate": "Moderate policy → Balanced mix, e.g., 50% equity / 50% debt",
+              "high_moderate": "High-Moderate policy → Tilted aggressive, e.g., 60% equity / 40% debt",
+              "high": "High policy → Aggressive, e.g., 70% equity / 30% debt",
+              "very_high": "Very High policy → Extremely aggressive, e.g., 90% equity / 10% debt"
+            }
+          }
+        },
+        "call_self": false,
+        "cost": 0.000352575,
+        "input_tokens": 1096.5,
+        "output_tokens": 313.5,
+        "total_tokens": 1410.0
+      },
+      "error": null,
+      "cost": 0.0,
+      "start_time": "2025-08-29T16:47:21.106801",
+      "end_time": "2025-08-29T16:47:55.794694",
+      "execution_time": 34.687893,
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "execution_result": null
+    },
+    {
+      "id": "T010",
+      "agent": "PlannerAgent",
+      "description": "Assemble SIP execution chain using outputs from T001.",
+      "agent_prompt": "Create nodes T011–T018 for retrieval → distillation → QA → chart → formatting → reporting → scheduling. T011 should use RetrieverAgent to fetch fund data. T012 uses DistillerAgent to create shortlist. T013 uses ThinkerAgent to reconcile shortlist with allocation categories. T014 uses QAAgent to validate math. T015 uses CoderAgent to generate chart_data_json and embed_snippet_html. T016 uses FormatterAgent to generate HTML structure and T017 uses ReportGeneratorAgent to package the report. T018 uses SchedulerAgent to set up a daily refresh.",
+      "reads": [
+        "T001"
+      ],
+      "writes": [
+        "T010"
+      ],
+      "status": "completed",
+      "output": {
+        "initial_thoughts": "Let me think through this. The SIPGoalPlannerAgent has already computed the necessary financial data. Now I need to create a plan to fetch relevant fund data, distill a shortlist, reconcile with the allocation categories, validate the data, generate charts, format the output, and generate a final report. The plan will be structured to ensure each step is clear and can be executed independently.",
+        "initial_plan": "Here's how I think the nodes should be called with these edges: The plan will involve fetching fund data based on the allocation plan, distilling a fund shortlist, reconciling this shortlist with allocation categories, validating data integrity, generating visual charts, structuring the final report, and finally, scheduling a refresh. Each node will perform a specific task to contribute to the final SIP goal report.",
+        "validation_thoughts": "Let me briefly go through my validation checklist: I have confirmed that the SIPGoalPlannerAgent output is available, that each step contributes meaningfully to the final goal report, and that the data flow between steps is clear. The plan includes steps for data retrieval, analysis, validation, visualization, and reporting. Also, each Agent has appropriate instructions. And there are no forbidden Agent calls.",
+        "plan_graph": {
+          "nodes": [
+            {
+              "id": "T011",
+              "agent": "RetrieverAgent",
+              "description": "Fetch fund data based on the recommended fund categories from the allocation plan.",
+              "agent_prompt": "Fetch comprehensive fund data (name, returns, expense ratio, AUM) for the following categories: Large Cap, Mid Cap, Small Cap, Short Term Debt, and Corporate Bond. Prioritize funds available in INR. Output the fund data in JSON format.",
+              "reads": [
+                "T001"
+              ],
+              "writes": [
+                "T011"
+              ]
+            },
+            {
+              "id": "T012",
+              "agent": "DistillerAgent",
+              "description": "Create a shortlist of funds based on returns, expense ratio and AUM.",
+              "agent_prompt": "Create a shortlist of top 3-5 funds for each category (Large Cap, Mid Cap, Small Cap, Short Term Debt, and Corporate Bond) based on the data retrieved in T011. Prioritize funds with higher returns, lower expense ratios, and higher AUM. Output fund_shortlist in JSON format.",
+              "reads": [
+                "T011"
+              ],
+              "writes": [
+                "T012"
+              ]
+            },
+            {
+              "id": "T013",
+              "agent": "ThinkerAgent",
+              "description": "Reconcile the fund shortlist with the allocation categories.",
+              "agent_prompt": "Analyze the fund_shortlist from T012 and ensure that the funds align with the allocation categories specified in T001 (allocation_plan_json). If any adjustments are needed to align with the allocation plan, note them. Output the reconciled fund list and adjustments in JSON format.",
+              "reads": [
+                "T012",
+                "T001"
+              ],
+              "writes": [
+                "T013"
+              ]
+            },
+            {
+              "id": "T014",
+              "agent": "QAAgent",
+              "description": "Validate the financial calculations and data.",
+              "agent_prompt": "Validate the accuracy of the calculations from T001 (inflation_adjusted_json and sip_calc_json). Also, validate that the allocation percentages (equity_percent and debt_percent) add up to 100%. Ensure fund_shortlist in T012 is not empty and contains at least 3 funds per category. Verify the presence of currency in T001 is INR. Report any discrepancies or errors found.",
+              "reads": [
+                "T001",
+                "T012"
+              ],
+              "writes": [
+                "T014"
+              ]
+            },
+            {
+              "id": "T015",
+              "agent": "CoderAgent",
+              "description": "Generate JSON for chart data and HTML snippet for embedding the chart.",
+              "agent_prompt": "Using the data from T001 (sip_calc_json, allocation_plan_json) and T013 (reconciled fund list), generate JSON data suitable for creating a pie chart showing equity vs debt allocation, and bar graphs showing sub-category allocation within equity and debt. Also, generate an HTML snippet to embed the chart in a report. Store chart_data_json and embed_snippet_html in output.",
+              "reads": [
+                "T001",
+                "T013"
+              ],
+              "writes": [
+                "T015"
+              ]
+            },
+            {
+              "id": "T016",
+              "agent": "FormatterAgent",
+              "description": "Generate well-formatted HTML structure for the final report.",
+              "agent_prompt": "Using data from T001 (goal_input_json, inflation_adjusted_json, sip_calc_json, allocation_plan_json), T013 (reconciled fund list), T014 (validation report), and T015 (embed_snippet_html), create a comprehensive and well-structured HTML report. Include sections for goal overview, inflation adjustment, SIP calculation, asset allocation, fund recommendations, and validation results. Ensure the report is visually appealing and easy to read, with charts and tables where appropriate. Embed the HTML snippet from T015. Output final HTML content to present as a report.",
+              "reads": [
+                "T001",
+                "T013",
+                "T014",
+                "T015"
+              ],
+              "writes": [
+                "T016"
+              ]
+            },
+            {
+              "id": "T017",
+              "agent": "ReportGeneratorAgent",
+              "description": "Package the final HTML report.",
+              "agent_prompt": "Using the formatted HTML content from T016, create a comprehensive HTML report. Ensure all the sections are well-organized and visually appealing. Include a table of contents for easy navigation. Call the final comprehensive report comprehensive_report.html.",
+              "reads": [
+                "T016"
+              ],
+              "writes": [
+                "T017"
+              ]
+            },
+            {
+              "id": "T018",
+              "agent": "SchedulerAgent",
+              "description": "Schedule a daily refresh of the report.",
+              "agent_prompt": "Schedule a daily refresh of the entire report generation process, starting from T011, to ensure the data is up-to-date. Configure the scheduler to run at 06:00 AM every day. Make sure the final comprehensive_report.html gets updated with the refreshed data.",
+              "reads": [
+                "T017"
+              ],
+              "writes": [
+                "T018"
+              ]
+            }
+          ],
+          "edges": [
+            {
+              "source": "T001",
+              "target": "T011"
+            },
+            {
+              "source": "T011",
+              "target": "T012"
+            },
+            {
+              "source": "T001",
+              "target": "T013"
+            },
+            {
+              "source": "T012",
+              "target": "T013"
+            },
+            {
+              "source": "T001",
+              "target": "T014"
+            },
+            {
+              "source": "T012",
+              "target": "T014"
+            },
+            {
+              "source": "T001",
+              "target": "T015"
+            },
+            {
+              "source": "T013",
+              "target": "T015"
+            },
+            {
+              "source": "T001",
+              "target": "T016"
+            },
+            {
+              "source": "T013",
+              "target": "T016"
+            },
+            {
+              "source": "T014",
+              "target": "T016"
+            },
+            {
+              "source": "T015",
+              "target": "T016"
+            },
+            {
+              "source": "T016",
+              "target": "T017"
+            },
+            {
+              "source": "T017",
+              "target": "T018"
+            }
+          ]
+        },
+        "next_step_id": "T011",
+        "cost": 0.001455975,
+        "input_tokens": 4654.5,
+        "output_tokens": 1263.0,
+        "total_tokens": 5917.5
+      },
+      "error": null,
+      "cost": 0.0,
+      "start_time": "2025-08-29T16:47:55.796326",
+      "end_time": "2025-08-29T16:48:38.992137",
+      "execution_time": 43.195811,
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "execution_result": null
+    }
+  ],
+  "links": [
+    {
+      "source": "ROOT",
+      "target": "T001"
+    },
+    {
+      "source": "T001",
+      "target": "T010"
+    }
+  ]
+}

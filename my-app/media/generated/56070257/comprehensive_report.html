@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SIP Report</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body class="bg-gray-100">
+    <div class="container mx-auto p-6">
+        <header class="mb-8">
+            <h1 class="text-3xl font-semibold text-gray-800">SIP Goal Plan</h1>
+            <p class="text-gray-600">Comprehensive report generated for your financial goals.</p>
+        </header>
+
+        <section id="executive-summary" class="mb-6">
+            <h2 class="text-xl font-semibold text-gray-700">Executive Summary</h2>
+            <p id="executive-summary-content">Executive summary will be dynamically populated here if available.</p>
+        </section>
+
+        <section id="asset-allocation" class="mb-6">
+            <h2 class="text-xl font-semibold text-gray-700">Asset Allocation</h2>
+            <div class="flex flex-col md:flex-row">
+                <div class="md:w-1/2">
+                    <canvas id="allocationChart"></canvas>
+                </div>
+                <div class="md:w-1/2">
+                    <h3 class="text-lg font-semibold text-gray-700">Allocation Details</h3>
+                    <table class="table-auto">
+                        <thead>
+                            <tr>
+                                <th class="px-4 py-2">Asset Class</th>
+                                <th class="px-4 py-2">Percentage</th>
+                            </tr>
+                        </thead>
+                        <tbody id="allocationTableBody">
+                            <!-- Allocation data will be dynamically populated here -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <section id="report-content" class="mb-6">
+            <h2 class="text-xl font-semibold text-gray-700">Detailed Report</h2>
+            <div id="report-sections">Report sections will be populated here.</div>
+        </section>
+
+        <footer class="mt-8 flex justify-between">
+            <div>
+                <button onclick="window.print()" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">Print</button>
+            </div>
+            <div>
+                <a href="data:text/html;charset=UTF-8,<!DOCTYPE html>\n" download="sip_report.html" class="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded">Download</a>
+            </div>
+        </footer>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Fallback data
+            const defaultChartData = {
+                labels: ['Equity', 'Debt'],
+                datasets: [{
+                    label: 'Allocation %',
+                    data: [60, 40],
+                    backgroundColor: ['#36A2EB', '#FFCE56'],
+                }]
+            };
+
+            const reportData = window.report_payload || {};
+            const chartDataJson = window.chart_data_json || {};
+
+            // Chart Data
+            const chartData = (chartDataJson && chartDataJson.allocation) || defaultChartData;
+
+            // Create Pie Chart
+            const ctx = document.getElementById('allocationChart').getContext('2d');
+            new Chart(ctx, {
+                type: 'pie',
+                data: chartData,
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                }
+            });
+
+            // Populate Executive Summary
+            const executiveSummaryContent = reportData.executive_summary || 'No executive summary available.';
+            document.getElementById('executive-summary-content').textContent = executiveSummaryContent;
+
+            // Populate Allocation Table
+            const allocationTableBody = document.getElementById('allocationTableBody');
+            if (reportData.allocation) {
+                reportData.allocation.forEach(item => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `<td class="border px-4 py-2">${item.asset_class}</td><td class="border px-4 py-2">${item.percentage}%</td>`;
+                    allocationTableBody.appendChild(row);
+                });
+            } else {
+                const row = document.createElement('tr');
+                row.innerHTML = '<td class="border px-4 py-2">No data available</td><td class="border px-4 py-2"></td>';
+                allocationTableBody.appendChild(row);
+            }
+
+
+            // Populate Report Sections
+            const reportSectionsDiv = document.getElementById('report-sections');
+            if (reportData.sections) {
+                reportData.sections.forEach(section => {
+                    const sectionElement = document.createElement('section');
+                    sectionElement.innerHTML = `<h3>${section.title}</h3><p>${section.content}</p>`;
+                    reportSectionsDiv.appendChild(sectionElement);
+                });
+            } else {
+                reportSectionsDiv.innerHTML = '<p>No detailed report sections available.</p>';
+            }
+
+            // Inject the full HTML for report content
+            const formattedReportT016 = `" + (T016.output.formatted_report_T016).replace(/"/g, '\"') + `";
+            document.getElementById('report-sections').innerHTML = formattedReportT016;
+        });
+    </script>
+</body>
+</html>

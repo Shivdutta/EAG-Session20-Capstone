@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>T015 — SIP Charts Embed</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+</head>
+<body class="bg-gray-50 text-gray-900">
+  <section id="sip-charts" class="py-10">
+    <div class="container mx-auto px-4">
+      <div class="mb-6">
+        <h1 class="text-3xl font-bold">SIP Projection & Allocation</h1>
+        <p class="text-gray-600">T015 • Projection (line) and Allocation (doughnut)</p>
+      </div>
+
+      <!-- Replace entire contents of this script tag with your computed chart_data_json -->
+      <script id="sip-data" type="application/json">
+        {
+          "projection": {
+            "labels": ["M1","M2","M3","M4","M5","M6","M7","M8","M9","M10","M11","M12"],
+            "datasets": {
+              "cumulative_contribution": [240293.75,480587.5,720881.25,961175.0,1201468.75,1441762.5,1682056.25,1922350.0,2162643.75,2402937.5,2643231.25,2883525.0],
+              "projected_corpus": [242696.6875,490476.784128125,743574.2738557813,1002024.313194339,1265862.1695262823,1535123.1470587985,1809832.6166898725,2090026.0565457687,2375738.9436678955,2667007.0767715744,2963867.214600264,3266355.09834653]
+            }
+          },
+          "allocation": {
+            "labels": ["Equity","Debt"],
+            "data": [80,20]
+          }
+        }
+      </script>
+
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div class="lg:col-span-2 bg-white shadow rounded-2xl p-4 h-[420px]">
+          <canvas id="sipProjectionChart" height="160" aria-label="SIP Projection"></canvas>
+        </div>
+        <div class="bg-white shadow rounded-2xl p-4 h-[420px]">
+          <canvas id="sipAllocationChart" height="160" aria-label="SIP Allocation"></canvas>
+        </div>
+      </div>
+
+      <div id="note" class="mt-4 text-sm text-red-600 hidden">Chart data not available (input error)</div>
+    </div>
+  </section>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script>
+    (function () {
+      var raw = "";
+      var data = {};
+      var note = document.getElementById("note");
+      try {
+        raw = document.getElementById("sip-data").textContent || "{}";
+        data = JSON.parse(raw);
+      } catch (e) {
+        data = {};
+        if (note) note.classList.remove("hidden");
+      }
+
+      var proj = data.projection || { labels: [], datasets: { cumulative_contribution: [], projected_corpus: [] } };
+      var alloc = data.allocation || { labels: ["Equity","Debt"], data: [60,40] };
+
+      if (!Array.isArray(proj.labels) || !proj.datasets) {
+        proj = { labels: [], datasets: { cumulative_contribution: [], projected_corpus: [] } };
+        if (note) note.classList.remove("hidden");
+      }
+      if (!Array.isArray(alloc.labels) || !Array.isArray(alloc.data)) {
+        alloc = { labels: ["Equity","Debt"], data: [60,40] };
+        if (note) note.classList.remove("hidden");
+      }
+
+      var ctx1 = document.getElementById("sipProjectionChart").getContext("2d");
+      new Chart(ctx1, {
+        type: "line",
+        data: {
+          labels: proj.labels,
+          datasets: [
+            { label: "Projected Corpus", data: (proj.datasets && proj.datasets.projected_corpus) || [], fill: false },
+            { label: "Cumulative Contribution", data: (proj.datasets && proj.datasets.cumulative_contribution) || [], fill: false }
+          ]
+        },
+        options: { responsive: true, maintainAspectRatio: false }
+      });
+
+      var ctx2 = document.getElementById("sipAllocationChart").getContext("2d");
+      new Chart(ctx2, {
+        type: "doughnut",
+        data: { labels: alloc.labels, datasets: [{ data: alloc.data }] },
+        options: { responsive: true, maintainAspectRatio: false }
+      });
+    })();
+  </script>
+</body>
+</html>

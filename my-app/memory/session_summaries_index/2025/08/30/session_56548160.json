@@ -1,0 +1,939 @@
+{
+  "directed": true,
+  "multigraph": false,
+  "graph": {
+    "session_id": "56548160",
+    "original_query": "################################################################################################# CoderAgent Prompt – File/AST Creation Specialist (patched v18-no-python, 2025‑08‑30)# Role  : Create files directly or apply AST-based edits to existing files# Output: STRICT JSON with either `files` (for new files) or `ast_updates` (for structural edits)# Format: STRICT JSON (no markdown, no prose)################################################################################################You are **CoderAgent**, the system's file creation and structural editing specialist.**Your job**: Create NEW files or apply AST-based structural modifications. **Do not generate or execute Python.**---## �� TASK SELECTION RULES (NO PYTHON)- Use **Direct File Creation** when creating new HTML/CSS/JS/config/text files.- Use **AST-Based Updates** when modifying existing HTML/CSS/JS structurally.- **Never** include a `code` key; it must always be `{}`.- **Never** attempt to run code or rely on Python execution.- **Never** create subdirectories.---## 📋 OUTPUT FORMAT (NO PYTHON)### Direct File Creation{  \"initial_thoughts\": \"<crisp thoughts>\",  \"output\": {},  \"call_self\": false,  \"files\": {    \"index.html\": \"<!DOCTYPE html><html><head><title>Page</title></head><body><h1>Hello</h1></body></html>\"  },  \"code\": {}}### AST-Based Updates{  \"initial_thoughts\": \"I need to modify existing files structurally\",  \"output\": {},  \"call_self\": false,  \"ast_updates\": {    \"index.html\": [      { \"type\": \"insert_after\", \"selector\": \"#hero\", \"content\": \"<div>New</div>\" }    ]  },  \"code\": {}}---## ✅ VALIDATION CHECKLIST (ALWAYS)- Root is a JSON object (not list/string)- Include `initial_thoughts`- Choose ONLY: `files` for NEW files; `ast_updates` for structural edits- `code` must be `{}`- NEVER create subdirectories- Use Tailwind + Lucide + Google Fonts in HTML when applicable################################################################################################# Scope: Deterministic SIP/Inflation math + chart datasets (HTML-safe strings)################################################################################################################################################################################################Math (reference only — NOT for T016):- adjusted_target_amount = target_amount * (1 + inflation_pct/100) ** time_horizon_years- SIP = FV * r / (((1 + r) ** n) - 1) where FV = adjusted_target_amount, r = monthly_return_r, n = total_monthsCharts:- Produce chart_data_json for monthly projection and equity/debt split- Provide embed_snippet_html using triple-quoted strings — NO f-strings with HTMLVariants:- Gracefully default inflation if missing and handle non-INR currencies without failing################################################################################################### PurposeSandbox-safe SIP math & validation for T004 (described in English; no raw Python here).Rules- Validate required keys exist; substitute safe defaults if missing- Numbers formatted safely; avoid unsafe built-ins in runnable code contexts- Always produce structured JSON with status/error fields################################################################################################# T015 — Chart datasets + embed HTML (FILES-ONLY v9, Single-File Guarantee)# (Supersedes prior T015 instructions; No Python execution for charts step (files-only))################################################################################################SINGLE-FILE GUARANTEE (STRICT)- Emit EXACTLY one file from this task: files = { \"T015_embed.html\": \"<section ...>...</section>\" }- Do NOT include any other keys inside `files`.- `code` MUST be an empty object: code = {}- Root MUST be a JSON object.- `output.embed_snippet_html` MUST be IDENTICAL to files.T015_embed.html.- If anything fails, still return a valid object with an empty chart section and the same contract.## CONTRACT{  \"initial_thoughts\": \"<short reasoning>\",  \"output\": {    \"chart_data_json\": {      \"projection\": {        \"labels\": [\"M1\",\"M2\", ...],        \"datasets\": {          \"cumulative_contribution\": [...],          \"projected_corpus\": [...]        }      },      \"allocation\": { \"labels\": [\"Equity\",\"Debt\"], \"data\": [<equity_pct>, <debt_pct>] }    },    \"embed_snippet_html\": \"<section id=\\\"sip-charts\\\">...</section>\"  },  \"files\": {    \"T015_embed.html\": \"<section id=\\\"sip-charts\\\">...</section>\"  },  \"code\": {},  \"call_self\": false}## INPUTS (read-only; defaults if missing/invalid)- goal_input_json → { total_months:int }- sip_config_json → { monthly_return_r:float, equity_pct:float, debt_pct:float }- sip_calc_json   → { monthly_sip:float }Defaults:- total_months → 120- monthly_return_r → 0.10/12- equity_pct → 60.0, debt_pct → 40.0- monthly_sip → 10000.0## COMPUTATION (described, not coded)- n = total_months, r = monthly_return_r, S = monthly_sip- labels: \"M1\"...\"Mn\"- cumulative_contribution: running sum of S- projected_corpus: previous_balance*(1+r) + S- allocation: labels [\"Equity\",\"Debt\"], data [equity_pct, debt_pct]## ERROR HANDLING- If n ≤ 0 or S ≤ 0 or r < 0:  - status=\"error\", error=\"missing_or_invalid_inputs\"  - projection arrays empty; allocation defaults to [60,40]  - HTML should show: “Chart data not available (input error)”## HTML TEMPLATE (must be used in both embed_snippet_html and T015_embed.html)<section id=\"sip-charts\" class=\"py-10\">  <link rel=\"preconnect\" href=\"https://fonts.googleapis.com\">  <script src=\"https://cdn.tailwindcss.com\"></script>  <script src=\"https://cdn.jsdelivr.net/npm/chart.js\"></script>  <div class=\"container mx-auto px-4\">    <div class=\"mb-6\">      <h2 class=\"text-2xl font-semibold\">SIP Projection & Allocation</h2>      <p class=\"text-gray-600\">Cumulative contributions vs projected corpus</p>    </div>    <!-- Embed computed JSON -->    <script id=\"sip-data\" type=\"application/json\">      { ... chart_data_json ... }    </script>    <div class=\"grid grid-cols-1 lg:grid-cols-3 gap-8\">      <div class=\"lg:col-span-2 bg-white shadow rounded-2xl p-4 h-[360px]\">        <canvas id=\"sipProjectionChart\" height=\"140\"></canvas>      </div>      <div class=\"bg-white shadow rounded-2xl p-4 h-[360px]\">        <canvas id=\"sipAllocationChart\" height=\"140\"></canvas>      </div>    </div>    <div id=\"note\" class=\"mt-4 text-sm text-red-600 hidden\">      Chart data not available (input error)    </div>  </div>  <script>    (function () {      var raw = \"\", data = {};      var note = document.getElementById(\"note\");      try {        raw = document.getElementById(\"sip-data\").textContent || \"{}\";        data = JSON.parse(raw);      } catch (e) { data = {}; if (note) note.classList.remove(\"hidden\"); }      var proj = data.projection || { labels: [], datasets: { cumulative_contribution: [], projected_corpus: [] }};      var alloc = data.allocation || { labels: [\"Equity\",\"Debt\"], data: [60,40] };      if (!Array.isArray(proj.labels) || !proj.datasets) {        proj = { labels: [], datasets: { cumulative_contribution: [], projected_corpus: [] }};        if (note) note.classList.remove(\"hidden\");      }      if (!Array.isArray(alloc.labels) || !Array.isArray(alloc.data)) {        alloc = { labels: [\"Equity\",\"Debt\"], data: [60,40] };        if (note) note.classList.remove(\"hidden\");      }      new Chart(document.getElementById(\"sipProjectionChart\").getContext(\"2d\"), {        type: \"line\",        data: {          labels: proj.labels,          datasets: [            { label: \"Projected Corpus\", data: proj.datasets.projected_corpus || [], fill: false },            { label: \"Cumulative Contribution\", data: proj.datasets.cumulative_contribution || [], fill: false }          ]        },        options: { responsive: true, maintainAspectRatio: false }      });      new Chart(document.getElementById(\"sipAllocationChart\").getContext(\"2d\"), {        type: \"doughnut\",        data: { labels: alloc.labels, datasets: [{ data: alloc.data }] },        options: { responsive: true, maintainAspectRatio: false }      });    })();  </script></section>################################################################################################# HOTFIX ADDENDUM (T015) — chart_data_json Files/Code Variants Guarantee# (Keep for compatibility with older runners that expect a JSON file too)################################################################################################- In addition to T015_embed.html, you MAY include files[\"chart_data.json\"] containing the stringified chart_data_json.- If you include it, do NOT remove T015_embed.html. The embed file is mandatory.################################################################################################# FINAL OVERRIDE — T016 STRICT NO-COMPUTE (CoderAgent) | 2025‑08‑30# Purpose: Fix runner error \"Code execution failed: No files or code_variants found in output\"# Behavior: Slice only FIRST 12 rows from `sip_projection_table_json` and emit a file.################################################################################################## DO ONLY (No Python execution required; files-only output)- Read `sip_projection_table_json` (array) from upstream inputs if present.- Slice the FIRST 12 rows ONLY.- Pass through fields as-is for each row:  - month  - sip_contribution (optional; if missing → 0.0)  - cumulative_contribution (optional; if missing → 0.0)  - projected_corpus (optional; if missing → 0.0)  - equity_value (optional; if missing → 0.0)  - debt_value (optional; if missing → 0.0)- If `sip_projection_table_json` is missing or empty:  - Set `output.first_12_months_table_json = []`  - Set `output.status = \"error\"` and `output.error = \"no_projection_data\"`  - STILL emit `files[\"first_12_months_table.json\"] = \"[]\"` (an empty JSON array string)## ABSOLUTE RESTRICTIONS- NO formulas, NO interest math, NO new fields.- DO NOT derive or compute any values.- DO NOT execute Python code; this task returns JSON and a file artifact only.- ROOT RESPONSE MUST BE A JSON OBJECT (not a list, not a string).## REQUIRED OUTPUT KEYS- `initial_thoughts`   : short string (e.g., \"Slice first 12 rows only; no compute.\")- `output`             : object containing ALL of:  - `first_12_months_table_json` : the sliced array (length 0–12)  - `status`            : \"ok\" or \"error\"  - `error`             : \"\" on success, or an error code like \"no_projection_data\"- `files`              : object with ONE key:  - `\"first_12_months_table.json\"` : stringified version of `first_12_months_table_json`- `code`               : MUST be an empty object `{}`- `call_self`          : MUST be `false`## NULL / MISSING FIELDS HANDLING (per-row)For any optional field that is missing or null, substitute `0.0` in both the in-memory array and the file string.## EXECUTION NOTES- This task is intentionally \"no-compute\" to avoid runner errors.- Ensure that the `files[\"first_12_months_table.json\"]` ALWAYS exists and mirrors the `output.first_12_months_table_json` (stringified).- Keep numeric values finite (no NaN/Infinity); replace invalid numbers with 0.0.{  \"id\": \"T016\",  \"description\": \"Slice first 12 rows from projection table (NO-COMPUTE, FILES-ONLY)\",  \"agent\": \"CoderAgent\",  \"agent_prompt\": \"Final override for T016 (NO PYTHON). Read `sip_projection_table_json` from T001; slice FIRST 12 rows ONLY; pass through fields as-is: month, sip_contribution, cumulative_contribution, projected_corpus, equity_value, debt_value. For any missing/invalid numeric field use 0.0. REQUIRED: set `output.first_12_months_table_json` (length 0–12), `output.status` ('ok'|'error'), `output.error` ('' or 'no_projection_data'), and emit `files['first_12_months_table.json']` with the same array stringified. Root must include `initial_thoughts`, `output`, `files`, `code` = {}, `call_self` = false. Never include `code_variants`, never execute code, never create subdirectories.\",  \"reads\": [    \"T001\"  ],  \"writes\": [    \"T016\"  ]}, `call_self` = false. Never include `code_variants`, never execute code, never create subdirectories.\",  \"reads\": [    \"T001\"  ],  \"writes\": [    \"T016\"  ]}",
+    "file_manifest": [],
+    "created_at": "2025-08-30T10:02:40.439456",
+    "status": "running",
+    "output_chain": {
+      "T001": {
+        "initial_thoughts": "I need to gather the required goal information to perform SIP calculations, inflation adjustments, and create an asset allocation plan. Since the previous output indicates that goal details are missing, I will call self to request those details.",
+        "output": {
+          "goal_input_json": null,
+          "sip_calc_json": null,
+          "inflation_adjusted_json": null,
+          "allocation_plan_json": null,
+          "final_report_html": null
+        },
+        "call_self": true,
+        "cost": 0.00044617499999999994,
+        "input_tokens": 2626.5,
+        "output_tokens": 87.0,
+        "total_tokens": 2713.5
+      },
+      "T011": {
+        "fund_data": [
+          {
+            "type": "text",
+            "text": "[{'url': 'https://duckduckgo.com/y.js?ad_domain=pgimindia.com&ad_provider=bingv7aa&ad_type=txad&click_metadata=IEVXDdr439%2DQXs8tmpSvD3OrRdmggmlHyMAlEsh3pUFEXNhBCCrqNIZsCQfro_YBh3mbRl2aGlAE7DiS19d59bH41Mx9JTxAQt0r349QNQ4KZ3qV63rkI9Uk%2D6Bt0ht6.lNBUj7vh47nQqSbyqNbXcw&rut=408248266faf2ea87ea56cd8496f962077783417e7921f539ed30cb5a82898a7&u3=https%3A%2F%2Fwww.bing.com%2Faclick%3Fld%3De8oo8rF9qgONyEJG0S7uvANTVUCUzREoqQccRWDXZ6dieBftnxOMWpuYEkJ%2D70XJ5GszETJtwwdqKn86yvPHNjoLIeUDeCUdK%2DwW6w4oJzHNl4S8jjgvZuFfaR70iR%2D9WlCjGiI00biomttILRMVCIpVf55mb9FBaQSqaaR2yHO%2DuIvW0%2DS8QoL_VO0U8b%2DHyq2HOsMA%26u%3DaHR0cHMlM2ElMmYlMmZ3d3cucGdpbWluZGlhLmNvbSUyZm11dHVhbC1mdW5kcyUyZiUzZnV0bV9zb3VyY2UlM2RiaW5nJTI2dXRtX21lZGl1bSUzZGNwYyUyNnV0bV9jYW1wYWlnbiUzZHByX3BnaW1tZl9iaW5nX2JyYW5kJTI2dXRtX3Rlcm0lM2RtdXR1YWwlMjUyMGZ1bmQlMjZ1dG1fY29udGVudCUzZDEzMzgxMDYwMTIyNzA4MjMlMjZtc2Nsa2lkJTNkOWFjMzk1ZGE4N2RmMWRmZjIyNmJmZDY4NGI3ZGJkMjk%26rlid%3D9ac395da87df1dff226bfd684b7dbd29&vqd=4-189435787187769563150998565173731089268&iurl=%7B1%7DIG%3D347255768DC24E33844CCBE5C68F025A%26CID%3D39BF752F963A62042900637797C2630D%26ID%3DDevEx%2C5046.1', 'content': 'Mutual Funds | Invest in Mutual Funds Online | PGIM India MF OUR FUNDS RESOURCES INSIGHTS OUR BUSINESS MONEY & ME RETIREMANTRA ABOUT US INVESTOR PARTNER QUICK INVEST Send Hi on +91 9136208205 You Can Trust Us 26,600 Cr+ Mutual Fund AUM 26 Lakh+ Folios 5 Lakh+ SIPs 45,000+ Partners 27 Branches *As on 1st July 2025 Our Funds, Your Success Equity Funds International FoF Hybrid Funds Debt Funds VIEW ALL PGIM India Flexi Cap Fund Equity | Growth NAV (29 Aug 2025) 41.96 -0.38% 1Y 3Y 5Y Since Inception Annualised Return 14.85% Benchmark Return 12.89% Risk Factor: Very High 2.39 lakh people have invested in this fund KNOW MORE INVEST NOW PGIM India Midcap Fund Equity | Growth NAV (29 Aug 2025) 74.84 -0.39% 1Y 3Y 5Y Since Inception Annualised Return 18.90% Benchmark Return 21.35% Risk Factor: Very High 6.11 lakh people have invested in this fund KNOW MORE INVEST NOW PGIM India Large and Mid Cap Fund Equity | Growth NAV (29 Aug 2025) 12.68 -0.47% 1Y 3Y 5Y Since Inception Annualised Return 18.34% Benchmark Return 13.32% Risk Factor: Very High 37.74 K people have invested in this fund KNOW MORE INVEST NOW PGIM India Large Cap Fund Equity | Growth NAV (29 Aug 2025) 398.18 -0.32% 1Y 3Y 5Y Since Inception Annualised Return 13.91% Benchmark Return 13.69% Risk Factor: Very High 21.77 K people have invested in this fund KNOW MORE INVEST NOW PGIM India ELSS Tax Saver Fund Equity | Growth NAV (29 Aug 2025) 39.22 -0.36% 1Y 3Y 5Y Since Inception Annualised Return 15.44% Benchmark Return 15.38% Risk Factor: Very High 70.33 K people have invested in this fund KNOW MORE INVEST NOW PGIM India Small Cap Fund Equity | Growth NAV (29 Aug 2025) 17.14 -0.12% 1Y 3Y 5Y Since Inception Annualised Return 15.02% Benchmark Return 18.06% Risk Factor: Very High 74.75 K people have invested in this fund KNOW MORE INVEST NOW PGIM India Retirement Fund Equity | Growth NAV (29 Aug 2025) 12.16 -0.41% 1Y 3Y 5Y Since Inception Annualised Return 17.95% Benchmark Return 9.95% Risk Factor: Very High 9.50 K people have invested in this fund KNOW MORE INVEST NOW PGIM India Multi Cap Fund Equity | Growth NAV (29 Aug 2025) 9.82 -0.20% 1Y 3Y 5Y Since Inception Annualised Return -1.01% Benchmark Return -3.11% Risk Factor: Very High 26.47 K people have invested in this fund KNOW MORE INVEST NOW PGIM India Healthcare Fund Equity | Growth NAV (29 Aug 2025) 9.86 -0.20% 1Y 3Y 5Y Since Inception Annualised Return 3.85% Benchmark Return 3.71% Risk Factor: Very High 7.10 K people have invested in this fund KNOW MORE INVEST NOW CALCULATE RETURN on your investments Calculate the return on your investment with these easy-to-use financial planning calculators. Start planning for your life goals today. ALL CALCULATORS Explore Calculators Goal SIP Calculator Top-up SIP Calculator Impact of Inflation Calculator Liquid Fund Calculator Emergency Fund Calculator SIP Calculator Lumpsum Calculator INSIGHTS Domestic Insights CEO Letters ALL INSIGHTS Reducing Retirement corpus anxieties The PGIM India Retirement Readiness Survey 2023 revealed some interesting insights that I thought would be helpful for people to know who are considering building their retirement corpus. The surprising truth behind wealth creation Everyone dreams of high investment returns doubling money overnight, finding the next big stock or riding a crypto wave to riches. What is sequence of return risk Imagine your cricket team is chasing a big target and loses 5 wickets early. Even if the middle order plays well, the team is under pressure. Time-tested strategy to tackle volatile markets Eddy Elfenbein is a Washington DC-based portfolio manager and editor of the blog Crossing Wall Street. He shared this interesting take on equities which I take the liberty to reproduce here Do drawdowns mean you end up with negative returns? The Indian stock market has demonstrated remarkable resilience over the years, if we look at the historical performance of the BSE Sensex and the Nifty Midcap 100 indexes. Whats In The News VIEW ALL', 'images': [{'url': 'https://www.pgimindia.com/api/v1/insights/download/image/Podcastthumbnail933x531.webp', 'alt_text': 'cxo-message', 'class': 'cxo-thumbnail pe-none', 'confidence': 0.7999999999999999}], 'rank': 1}, {'url': 'https://www.amfiindia.com/investor-corner/online-center/monthlyfactsheets', 'content': 'AMFI Press Release Know about AMFI Useful Links Contact Us Careers KYC Home Take me to... Investor Corner Distributor Corner Research & Information Take me to... New to Mutual Funds Already an MF Investor Intermediary Research & Information World Investor Week Nov 22-28, 2021 Message from Chairman, SEBI Message from Shri Ajay Tyagi, Chairman, SEBI, on the occasion of World Investor Week - 2021  202      DOWNLOAD MONTHLY MF FACT SHEETS Click on the logo to go to respective AMCs Website Back Download NAV | Schedule of Investor Awareness Program | Districts Adopted | AMC Branches | Mutual Fund Summit | Videos | Web Help | Downloads | SEBI | NISM | Sitemap TERMS OF USE | PRIVACY NOTICE 2022 AMFI. All Rights Reserved', 'images': [], 'rank': 2}, {'url': 'https://www.valueresearchonline.com/funds/fund-category/', 'content': 'Just a moment... Enable JavaScript and cookies to continue', 'images': [], 'rank': 3}, {'url': 'https://www.morningstar.in/funds/factsheets.aspx', 'content': 'Mutual Fund Factsheets | Morningstar India Home Mutual Funds Funds Home NEW Medalist Rating NEW Factsheets NEW Fund News NEW Screen Funds NEW Compare Funds NEW Instant X-Ray NEW Rank ETFs NEW Equities Equities Home NEW Stocks Quickrank NEW Indexes NEW Personal Finance Finance Home NEW Insurance NEW Star Ratings NEW Rank Insurance Funds NEW Tools Archives Archives NEW Videos NEW Adviser Menu Site Search Welcome! Products & Services Login My Account My Profile Notifications Sign Out My Account My Profile Notifications Sign Out Home Mutual Funds Equities Personal Finance Tools Archives Adviser Funds Home NEW Medalist Rating NEW Factsheets NEW Fund News NEW Screen Funds NEW Compare Funds NEW Instant X-Ray NEW Rank ETFs NEW ADVERTISEMENT Fund Factsheets Fund House Aditya Birla Sun Life AMC Ltd Angel One Asset Management Company Limited Axis Asset Management Company Limited Bajaj Finserv Asset Management Limited Bandhan Asset Management Company Limited Baroda BNP Paribas Asset Management India Pvt. Ltd. Bank of India Investment Managers Private Limited Canara Robeco Asset Management Co. Ltd. Capitalmind Asset Management Private Ltd DSP Asset Managers Private Limited Edelweiss Asset Management Limited Franklin Templeton Asst Mgmt(IND)Pvt Ltd Groww Asset Management Ltd. HDFC Asset Management Company Limited Helios Capital Asset Management (India) Private Limited HSBC Asset Management(India)Private Ltd ICICI Prudential Asset Management Company Limited 360 ONE Asset Management Limited Invesco Asset Management (India) Private Ltd ITI Asset Management Limited Jio BlackRock Asset Management Pvt Ltd JM Financial Asset Management Limited Kotak Mahindra Asset Management Co Ltd LIC Mutual Fund Asset Mgmt Co Ltd Mahindra Manulife Investment Management Pvt. Ltd. Mirae Asset Investment Managers (India) Private Limited Motilal Oswal Asset Management Co. Ltd Navi AMC Limited Nippon Life India Asset Management Ltd NJ Asset Management Private Limited Old Bridge Asset Management Private Limited PGIM India Asset Management Private Limited PPFAS Asset Management Pvt. Ltd Quant Money Managers Limited Quantum Asset Management Co Pvt. Ltd. Samco Asset Management Pvt Ltd SBI Funds Management Ltd Shriram Assets Management Ltd Sundaram Asset Management Company Ltd Tata Asset Management Limited Taurus Asset Management Company Limited Trust Asset Management Private Limited Unifi Asset Management Private Limited Union Asset Management Co. Pvt. Ltd. UTI Asset Management Company Ltd WhiteOak Capital Asset Management Limited Zerodha Asset Management Private Limited Category All Categories 10 yr Government Bond Aggressive Allocation Arbitrage Fund Balanced Allocation Banking & PSU Children Conservative Allocation Contra Corporate Bond Credit Risk Dividend Yield Dynamic Asset Allocation Dynamic Bond ELSS (Tax Savings) Equity - Consumption Equity - ESG Equity - Other Equity- Infrastructure Equity Savings Fixed Maturity Intermediate-Term Bond Fixed Maturity Short-Term Bond Fixed Maturity Ultrashort Bond Flexi Cap Floating Rate Focused Fund Fund of Funds Global - Other Government Bond Index Funds Index Funds - Fixed Income Large & Mid- Cap Large-Cap Liquid Long Duration Low Duration Medium Duration Medium to Long Duration Mid-Cap Money Market Multi Asset Allocation Multi-Cap Other Bond Overnight Retirement Sector - Energy Sector - Financial Services Sector - FMCG Sector - Healthcare Sector - Precious Metals Sector - Technology Short Duration Small-Cap Ultra Short Duration Value Distribution All Distributions Dividend/Bonus Growth Structure All Structures Closed Ended Open Ended Select Sort Field Fund Name Category Latest NAV NAV Date Select Sort Order Asc Desc Fund Name Category Latest NAV NAV Date Action Axis Aggresive Hybrid Fund Direct Growth Category : Aggressive Allocation Latest NAV : 21.9800 NAV Date : Aug 29, 2025 Action : Factsheet Axis Aggresive Hybrid Fund Direct Monthly Pyt of Inc Dis cum Cap Wdrl Category : Aggressive Allocation Latest NAV : 16.0600 NAV Dat', 'images': [], 'rank': 4}, {'url': 'https://www.amfiindia.com/investor-corner/online-center/trackmfinvestment.html', 'content': \"Association of Mutual Funds in India About Us Contact Us Home Online Centre / Track your MF Investments using Fund Fact Sheet. Back KNOWLEDGE CENTRE All About Mutual Funds What Are Mutual Funds? History of Mutual Funds in India Myths & Facts about Mutual Funds Understanding Risk and Returns From Mutual Funds Equity Funds Debt Funds Liquid Funds Balanced Funds Exchange Traded Funds (ETFs) Funds of Funds Gold ETFs Tax Regime for Mutual Funds Direct Plan Expense Ratio INVESTOR CENTRE How to invest in Mutual Funds Know Your Customer(KYC) FATCA & CRS How to withdraw your money (redeem your Units)in a Mutual Fund SIP(Systematic Investment Plan) Consolidated Acct. Statement(CAS) Nomination Track your MF Investments using Fund Fact Sheet. Download Various Forms Investor Service FAQs Register / Change Bank Account Details Procedure to Claim Units / Proceeds upon death of a Unitholder ONLINE CENTRE Service platform for investors to trace inactive and unclaimed Mutual Fund folios- MITRA Check out Unclaimed Dividend amount Check out Unclaimed Redemption amount Net Asset Value (NAV) Locate an AMC Branch Invest Online in Mutual Funds Locate a Mutual Fund Distributor Locate a MFU POS (Service Centre ) Download Consolidated Account Statement Download Monthly MF Fact Sheets Check your PAN e-File your Income Tax Return Check/Download your e-Aadhaar Card SEBI Complaints Redress System Risk-o-Meter related information INVESTOR AWARENESS PROGRAMS Download Monthly MF Fact Sheets Click on the logo to go to respective AMC's Website Factsheet Page 2017 AMFI,All Rights Reserved Terms Of Use Privacy Notice\", 'images': [], 'rank': 5}, {'url': 'https://finance.yahoo.com/research-hub/screener/mutualfunds/', 'content': '[not extracted] Content limit reached', 'rank': 6}, {'url': 'https://www.valueresearchonline.com/funds/', 'content': '[not extracted] Content limit reached', 'rank': 7}, {'url': 'https://www.amfiindia.com/research-information/amfi-monthly', 'content': '[not extracted] Content limit reached', 'rank': 8}]",
+            "annotations": null
+          }
+        ]
+      },
+      "T012": {
+        "initial_thoughts": "I need to condense the fund shortlist obtained from T011 to only include the most relevant funds for the investment strategy. I will extract the fund names, categories, and any available ratings from the text and structure them into a JSON format. I will prioritize funds with more detailed information.",
+        "output": {
+          "fund_shortlist": [
+            {
+              "fund_name": "PGIM India Flexi Cap Fund",
+              "category": "Equity | Growth",
+              "indicative_rating": null,
+              "source_url": "https://www.pgimindia.com/mutual-funds/?utm_source=bing&utm_medium=cpc&utm_campaign=pr_pgimmf_bing_brand&utm_term=mutual%20fund&utm_content=1338106012270823&msclkid=9ac395da87df1dff226bfd684b7dbd29",
+              "notes": "Equity fund with growth NAV.  Annualized return information available."
+            },
+            {
+              "fund_name": "PGIM India Midcap Fund",
+              "category": "Equity | Growth",
+              "indicative_rating": null,
+              "source_url": "https://www.pgimindia.com/mutual-funds/?utm_source=bing&utm_medium=cpc&utm_campaign=pr_pgimmf_bing_brand&utm_term=mutual%20fund&utm_content=1338106012270823&msclkid=9ac395da87df1dff226bfd684b7dbd29",
+              "notes": "Equity fund focused on mid-cap companies. Annualized return information available."
+            },
+            {
+              "fund_name": "PGIM India Large and Mid Cap Fund",
+              "category": "Equity | Growth",
+              "indicative_rating": null,
+              "source_url": "https://www.pgimindia.com/mutual-funds/?utm_source=bing&utm_medium=cpc&utm_campaign=pr_pgimmf_bing_brand&utm_term=mutual%20fund&utm_content=1338106012270823&msclkid=9ac395da87df1dff226bfd684b7dbd29",
+              "notes": "Equity fund investing in both large and mid-cap companies. Annualized return information available."
+            },
+            {
+              "fund_name": "PGIM India Large Cap Fund",
+              "category": "Equity | Growth",
+              "indicative_rating": null,
+              "source_url": "https://www.pgimindia.com/mutual-funds/?utm_source=bing&utm_medium=cpc&utm_campaign=pr_pgimmf_bing_brand&utm_term=mutual%20fund&utm_content=1338106012270823&msclkid=9ac395da87df1dff226bfd684b7dbd29",
+              "notes": "Equity fund focused on large-cap companies. Annualized return information available."
+            },
+            {
+              "fund_name": "PGIM India ELSS Tax Saver Fund",
+              "category": "Equity | Growth",
+              "indicative_rating": null,
+              "source_url": "https://www.pgimindia.com/mutual-funds/?utm_source=bing&utm_medium=cpc&utm_campaign=pr_pgimmf_bing_brand&utm_term=mutual%20fund&utm_content=1338106012270823&msclkid=9ac395da87df1dff226bfd684b7dbd29",
+              "notes": "Equity Linked Savings Scheme for tax benefits. Annualized return information available."
+            },
+            {
+              "fund_name": "PGIM India Small Cap Fund",
+              "category": "Equity | Growth",
+              "indicative_rating": null,
+              "source_url": "https://www.pgimindia.com/mutual-funds/?utm_source=bing&utm_medium=cpc&utm_campaign=pr_pgimmf_bing_brand&utm_term=mutual%20fund&utm_content=1338106012270823&msclkid=9ac395da87df1dff226bfd684b7dbd29",
+              "notes": "Equity fund investing in small-cap companies. Annualized return information available."
+            },
+            {
+              "fund_name": "PGIM India Retirement Fund",
+              "category": "Equity | Growth",
+              "indicative_rating": null,
+              "source_url": "https://www.pgimindia.com/mutual-funds/?utm_source=bing&utm_medium=cpc&utm_campaign=pr_pgimmf_bing_brand&utm_term=mutual%20fund&utm_content=1338106012270823&msclkid=9ac395da87df1dff226bfd684b7dbd29",
+              "notes": "Equity fund designed for retirement planning. Annualized return information available."
+            },
+            {
+              "fund_name": "PGIM India Multi Cap Fund",
+              "category": "Equity | Growth",
+              "indicative_rating": null,
+              "source_url": "https://www.pgimindia.com/mutual-funds/?utm_source=bing&utm_medium=cpc&utm_campaign=pr_pgimmf_bing_brand&utm_term=mutual%20fund&utm_content=1338106012270823&msclkid=9ac395da87df1dff226bfd684b7dbd29",
+              "notes": "Equity fund investing across multiple market capitalizations. Annualized return information available."
+            },
+            {
+              "fund_name": "PGIM India Healthcare Fund",
+              "category": "Equity | Growth",
+              "indicative_rating": null,
+              "source_url": "https://www.pgimindia.com/mutual-funds/?utm_source=bing&utm_medium=cpc&utm_campaign=pr_pgimmf_bing_brand&utm_term=mutual%20fund&utm_content=1338106012270823&msclkid=9ac395da87df1dff226bfd684b7dbd29",
+              "notes": "Equity fund focused on the healthcare sector. Annualized return information available."
+            }
+          ]
+        },
+        "processing_status": {
+          "file_accessible": true,
+          "content_readable": true,
+          "extraction_method": "direct_text",
+          "content_completeness": "partial"
+        },
+        "quality_assessment": {
+          "task_completion_score": 8,
+          "confidence_level": "high",
+          "data_reliability": "high",
+          "limitations": [
+            "Could not extract detailed fund information from the provided text.",
+            "The text primarily contained fund names and categories with brief descriptions."
+          ],
+          "recommendations": [
+            "Access fund fact sheets for more comprehensive details.",
+            "Use a more structured data source to extract fund information efficiently."
+          ]
+        },
+        "call_self": false,
+        "cost": 0.001302075,
+        "input_tokens": 6418.5,
+        "output_tokens": 565.5,
+        "total_tokens": 6984.0
+      },
+      "T013": {
+        "output": {
+          "initial_thoughts": {
+            "entity_1": "Let me think through this: I need to reconcile the fund shortlist (T012) with the allocation categories and percentages (T001) and create a config object for downstream math and an allocation plan. The T012 output contains a list of PGIM India funds categorized as 'Equity | Growth'. T001's output is null, indicating missing goal details. I will assume a moderate risk profile to proceed with a basic allocation plan.",
+            "entity_2": "Let me think through this: Since T001 is calling self for goal details, a precise risk profile and corresponding annual return percentage are unavailable. I will default to a 'Moderate' risk profile for initial SIP configuration and fund allocation, implying a 50/50 equity/debt allocation.",
+            "overall_observations": "Let me think through this: Given the limited information (specifically, the lack of a defined risk profile from T001), the allocation plan will be a preliminary one, with a 50/50 split as per the Moderate risk assumption. Further refinements will be required once T001 provides more data. The current plan focuses solely on the equity side given the available funds."
+          },
+          "review_checklist": {
+            "alignment_with_goal": "Let me think through this: The output provides a preliminary fund allocation based on the available equity funds, aligned with a default 'Moderate' risk profile due to missing data from T001. The goal is addressed under data constraints.",
+            "what_was_missed": "Let me think through this: The allocation lacks a debt component due to the absence of debt fund options in the provided fund shortlist. Also, the specific percentages within the equity allocation (i.e., how to split the 50% across the various equity funds) are not defined. The geographical diversification is limited since all funds are from PGIM India. I am also not making use of fund ratings since these were not available in T012.",
+            "risk_of_misleading": "Let me think through this: The 'Moderate' risk assumption could be misleading if the user has a different risk tolerance. Downstream agents should flag this as requiring user confirmation once T001 completes. The absence of debt funds in the allocation also presents a risk.",
+            "improvement_opportunities": "Let me think through this: The allocation plan can be improved by (1) incorporating debt funds, (2) assigning specific percentages to each equity fund based on factors like market cap (e.g., higher allocation to large-cap funds for stability), and (3) including diversification aspects if other fund families were available. Furthermore, the rationale behind the Moderate risk selection should be clearly stated."
+          },
+          "final_report": {
+            "summary": "Preliminary fund allocation based on available equity funds and a default 'Moderate' risk profile due to missing data. Requires user confirmation and incorporation of debt funds.",
+            "detailed": "Let me think through this: The task involves reconciling a fund shortlist (from T012) with allocation categories and percentages (expected from T001). However, T001 is awaiting goal details and does not provide any allocation information. Therefore, a 'Moderate' risk profile is assumed, leading to a 50/50 equity/debt allocation strategy. Given that the fund shortlist (T012) exclusively contains 'Equity | Growth' funds from PGIM India, the preliminary allocation plan focuses solely on the equity component. This initial allocation necessitates refinement once T001 obtains user-defined goal and risk parameters. The allocation plan is a preliminary one due to the data constraints. The next step would be to refine this by incorporating debt funds and fine-tuning the percentages of equity vs. debt based on the user's actual risk tolerance.",
+            "tables": [
+              {
+                "title": "Preliminary Fund Allocation Plan (Based on Moderate Risk and Available Funds)",
+                "columns": [
+                  "Fund Name",
+                  "Category",
+                  "Allocation Percentage (Equity Portion)"
+                ],
+                "rows": [
+                  [
+                    "PGIM India Flexi Cap Fund",
+                    "Equity | Growth",
+                    "5.56%"
+                  ],
+                  [
+                    "PGIM India Midcap Fund",
+                    "Equity | Growth",
+                    "5.56%"
+                  ],
+                  [
+                    "PGIM India Large and Mid Cap Fund",
+                    "Equity | Growth",
+                    "5.56%"
+                  ],
+                  [
+                    "PGIM India Large Cap Fund",
+                    "Equity | Growth",
+                    "5.56%"
+                  ],
+                  [
+                    "PGIM India ELSS Tax Saver Fund",
+                    "Equity | Growth",
+                    "5.56%"
+                  ],
+                  [
+                    "PGIM India Small Cap Fund",
+                    "Equity | Growth",
+                    "5.56%"
+                  ],
+                  [
+                    "PGIM India Retirement Fund",
+                    "Equity | Growth",
+                    "5.56%"
+                  ],
+                  [
+                    "PGIM India Multi Cap Fund",
+                    "Equity | Growth",
+                    "5.56%"
+                  ],
+                  [
+                    "PGIM India Healthcare Fund",
+                    "Equity | Growth",
+                    "5.56%"
+                  ]
+                ]
+              }
+            ],
+            "recommendations": [
+              "Obtain user-defined risk profile and investment goals via T001 for accurate allocation.",
+              "Incorporate debt funds into the allocation plan to achieve the 50/50 equity/debt target.",
+              "Diversify fund selection beyond PGIM India to reduce concentration risk.",
+              "Fine-tune equity allocation percentages based on fund characteristics (e.g., market cap, past performance).",
+              "Seek further refinement from T001 to update user risk and goals."
+            ],
+            "risks_or_warnings": [
+              "Moderate risk assumption may not align with user's actual risk tolerance.",
+              "Lack of debt funds in the allocation plan increases overall portfolio risk.",
+              "Concentration risk due to exclusive selection of PGIM India funds."
+            ],
+            "key_factors_considered": [
+              "Available fund categories (Equity | Growth).",
+              "Absence of risk profile data (defaulting to Moderate).",
+              "Need for incorporating debt funds.",
+              "Preliminary nature of the allocation plan due to missing data."
+            ],
+            "task_completion_score": 0.75
+          }
+        },
+        "call_self": false,
+        "sip_config_json": {
+          "annual_return_pct": 10,
+          "monthly_return_r": 0.008333333333333333,
+          "inflation_pct": 5.5,
+          "formula_notes": "SIP = FV*r/((1+r)^n - 1); FV_inflated = FV*(1+i)^years"
+        },
+        "allocation_plan_json": {
+          "rationale": [
+            "Moderate risk profile assumed (T001 is incomplete).",
+            "50/50 equity/debt allocation based on Moderate risk.",
+            "Equity portion allocated equally among available equity funds (T012).",
+            "Debt portion will be filled once T001 provides more data and suitable debt funds are identified."
+          ],
+          "equity_funds": [
+            {
+              "fund_name": "PGIM India Flexi Cap Fund",
+              "allocation_percentage": 5.56
+            },
+            {
+              "fund_name": "PGIM India Midcap Fund",
+              "allocation_percentage": 5.56
+            },
+            {
+              "fund_name": "PGIM India Large and Mid Cap Fund",
+              "allocation_percentage": 5.56
+            },
+            {
+              "fund_name": "PGIM India Large Cap Fund",
+              "allocation_percentage": 5.56
+            },
+            {
+              "fund_name": "PGIM India ELSS Tax Saver Fund",
+              "allocation_percentage": 5.56
+            },
+            {
+              "fund_name": "PGIM India Small Cap Fund",
+              "allocation_percentage": 5.56
+            },
+            {
+              "fund_name": "PGIM India Retirement Fund",
+              "allocation_percentage": 5.56
+            },
+            {
+              "fund_name": "PGIM India Multi Cap Fund",
+              "allocation_percentage": 5.56
+            },
+            {
+              "fund_name": "PGIM India Healthcare Fund",
+              "allocation_percentage": 5.56
+            }
+          ],
+          "debt_funds": []
+        },
+        "cost": 0.0015052499999999999,
+        "input_tokens": 4107.0,
+        "output_tokens": 1482.0,
+        "total_tokens": 5589.0
+      },
+      "T014": {
+        "initial_thoughts": "I need to validate the asset allocation in T013, which relies on T001 for goal details. Since T001 is still pending and defaults are used, I'll check if the allocation percentages add up to 100% and if the fund shortlist is empty. I will also confirm the presence of a currency and its consistency.",
+        "output": {
+          "issues": [
+            {
+              "step_id": "T013",
+              "agent": "Unknown",
+              "problem": "The allocation plan lacks a debt component, leading to an incomplete asset allocation. The equity allocation sums to 50.04%, but a 50% debt allocation is missing.",
+              "severity": "medium",
+              "recommendation": "Incorporate debt funds into the allocation plan to achieve the 50/50 equity/debt target or align with the user's risk profile from T001."
+            },
+            {
+              "step_id": "T013",
+              "agent": "Unknown",
+              "problem": "Since T001 is calling self for goal details, a precise risk profile and corresponding annual return percentage are unavailable. The allocation percentages should align with user risk goals.",
+              "severity": "medium",
+              "recommendation": "Obtain user-defined risk profile and investment goals via T001 for accurate allocation."
+            },
+            {
+              "step_id": "T013",
+              "agent": "Unknown",
+              "problem": "The fund shortlist only contains equity funds and therefore creates a concentration risk since the allocations are focused on one asset class.",
+              "severity": "medium",
+              "recommendation": "Diversify fund selection beyond PGIM India to reduce concentration risk."
+            }
+          ],
+          "verdict": "needs_revision",
+          "validation_summary": "The allocation plan is incomplete due to the absence of debt funds and reliance on default assumptions. User-defined goals and risk profile are needed for accurate allocation.",
+          "overall_quality_score": 6
+        },
+        "call_self": false,
+        "cost": 0.0009751499999999999,
+        "input_tokens": 5007.0,
+        "output_tokens": 373.5,
+        "total_tokens": 5380.5
+      }
+    },
+    "validation_results": {
+      "is_valid": true,
+      "is_dag": true,
+      "cycles": [],
+      "disconnected_components": [],
+      "orphaned_nodes": [],
+      "root_nodes": [],
+      "leaf_nodes": [
+        "T016",
+        "T019"
+      ],
+      "warnings": [],
+      "errors": []
+    }
+  },
+  "nodes": [
+    {
+      "description": "Initial Query",
+      "agent": "System",
+      "status": "completed",
+      "id": "ROOT"
+    },
+    {
+      "id": "T001",
+      "description": "Normalize inputs, compute horizon, inflation, SIP math, allocation",
+      "agent": "SIPGoalPlannerAgent",
+      "agent_prompt": "Collect investment inputs, compute SIP with inflation adjustment, map risk-based allocation, and prepare structured outputs for downstream agents. Ensure to output sip_projection_table_json.",
+      "reads": [],
+      "writes": [
+        "T001"
+      ],
+      "status": "completed",
+      "output": {
+        "initial_thoughts": "I need to gather the required goal information to perform SIP calculations, inflation adjustments, and create an asset allocation plan. Since the previous output indicates that goal details are missing, I will call self to request those details.",
+        "output": {
+          "goal_input_json": null,
+          "sip_calc_json": null,
+          "inflation_adjusted_json": null,
+          "allocation_plan_json": null,
+          "final_report_html": null
+        },
+        "call_self": true,
+        "cost": 0.00044617499999999994,
+        "input_tokens": 2626.5,
+        "output_tokens": 87.0,
+        "total_tokens": 2713.5
+      },
+      "error": null,
+      "cost": 0.0,
+      "start_time": "2025-08-30T10:02:40.451991",
+      "end_time": "2025-08-30T10:03:45.064845",
+      "execution_time": 64.612854,
+      "iterations": [
+        {
+          "iteration": 1,
+          "output": {
+            "initial_thoughts": "Okay, I need to collect the goal details, calculate the SIP amount, adjust for inflation, create an allocation plan based on risk appetite, and then structure the output into JSON format for other agents to consume. Since I don't have the goal details yet, I'll output a call_self = true with a request for the missing goal details.",
+            "output": {
+              "goal_input_json": null,
+              "sip_calc_json": null,
+              "inflation_adjusted_json": null,
+              "allocation_plan_json": null,
+              "final_report_html": null
+            },
+            "call_self": true,
+            "cost": 0.000450675,
+            "input_tokens": 2536.5,
+            "output_tokens": 117.0,
+            "total_tokens": 2653.5
+          }
+        },
+        {
+          "iteration": 2,
+          "output": {
+            "initial_thoughts": "I need to gather the required goal information to perform SIP calculations, inflation adjustments, and create an asset allocation plan. Since the previous output indicates that goal details are missing, I will call self to request those details.",
+            "output": {
+              "goal_input_json": null,
+              "sip_calc_json": null,
+              "inflation_adjusted_json": null,
+              "allocation_plan_json": null,
+              "final_report_html": null
+            },
+            "call_self": true,
+            "cost": 0.00044617499999999994,
+            "input_tokens": 2626.5,
+            "output_tokens": 87.0,
+            "total_tokens": 2713.5
+          }
+        }
+      ],
+      "call_self_used": true,
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "execution_result": null
+    },
+    {
+      "id": "T011",
+      "description": "Fetch raw fund data based on T001 allocation categories & risk",
+      "agent": "RetrieverAgent",
+      "agent_prompt": "Fetch raw fund data based on the allocation categories and risk assessment provided in the output of T001.",
+      "reads": [
+        "T001"
+      ],
+      "writes": [
+        "T011"
+      ],
+      "status": "completed",
+      "output": {
+        "fund_data": [
+          {
+            "type": "text",
+            "text": "[{'url': 'https://duckduckgo.com/y.js?ad_domain=pgimindia.com&ad_provider=bingv7aa&ad_type=txad&click_metadata=IEVXDdr439%2DQXs8tmpSvD3OrRdmggmlHyMAlEsh3pUFEXNhBCCrqNIZsCQfro_YBh3mbRl2aGlAE7DiS19d59bH41Mx9JTxAQt0r349QNQ4KZ3qV63rkI9Uk%2D6Bt0ht6.lNBUj7vh47nQqSbyqNbXcw&rut=408248266faf2ea87ea56cd8496f962077783417e7921f539ed30cb5a82898a7&u3=https%3A%2F%2Fwww.bing.com%2Faclick%3Fld%3De8oo8rF9qgONyEJG0S7uvANTVUCUzREoqQccRWDXZ6dieBftnxOMWpuYEkJ%2D70XJ5GszETJtwwdqKn86yvPHNjoLIeUDeCUdK%2DwW6w4oJzHNl4S8jjgvZuFfaR70iR%2D9WlCjGiI00biomttILRMVCIpVf55mb9FBaQSqaaR2yHO%2DuIvW0%2DS8QoL_VO0U8b%2DHyq2HOsMA%26u%3DaHR0cHMlM2ElMmYlMmZ3d3cucGdpbWluZGlhLmNvbSUyZm11dHVhbC1mdW5kcyUyZiUzZnV0bV9zb3VyY2UlM2RiaW5nJTI2dXRtX21lZGl1bSUzZGNwYyUyNnV0bV9jYW1wYWlnbiUzZHByX3BnaW1tZl9iaW5nX2JyYW5kJTI2dXRtX3Rlcm0lM2RtdXR1YWwlMjUyMGZ1bmQlMjZ1dG1fY29udGVudCUzZDEzMzgxMDYwMTIyNzA4MjMlMjZtc2Nsa2lkJTNkOWFjMzk1ZGE4N2RmMWRmZjIyNmJmZDY4NGI3ZGJkMjk%26rlid%3D9ac395da87df1dff226bfd684b7dbd29&vqd=4-189435787187769563150998565173731089268&iurl=%7B1%7DIG%3D347255768DC24E33844CCBE5C68F025A%26CID%3D39BF752F963A62042900637797C2630D%26ID%3DDevEx%2C5046.1', 'content': 'Mutual Funds | Invest in Mutual Funds Online | PGIM India MF OUR FUNDS RESOURCES INSIGHTS OUR BUSINESS MONEY & ME RETIREMANTRA ABOUT US INVESTOR PARTNER QUICK INVEST Send Hi on +91 9136208205 You Can Trust Us 26,600 Cr+ Mutual Fund AUM 26 Lakh+ Folios 5 Lakh+ SIPs 45,000+ Partners 27 Branches *As on 1st July 2025 Our Funds, Your Success Equity Funds International FoF Hybrid Funds Debt Funds VIEW ALL PGIM India Flexi Cap Fund Equity | Growth NAV (29 Aug 2025) 41.96 -0.38% 1Y 3Y 5Y Since Inception Annualised Return 14.85% Benchmark Return 12.89% Risk Factor: Very High 2.39 lakh people have invested in this fund KNOW MORE INVEST NOW PGIM India Midcap Fund Equity | Growth NAV (29 Aug 2025) 74.84 -0.39% 1Y 3Y 5Y Since Inception Annualised Return 18.90% Benchmark Return 21.35% Risk Factor: Very High 6.11 lakh people have invested in this fund KNOW MORE INVEST NOW PGIM India Large and Mid Cap Fund Equity | Growth NAV (29 Aug 2025) 12.68 -0.47% 1Y 3Y 5Y Since Inception Annualised Return 18.34% Benchmark Return 13.32% Risk Factor: Very High 37.74 K people have invested in this fund KNOW MORE INVEST NOW PGIM India Large Cap Fund Equity | Growth NAV (29 Aug 2025) 398.18 -0.32% 1Y 3Y 5Y Since Inception Annualised Return 13.91% Benchmark Return 13.69% Risk Factor: Very High 21.77 K people have invested in this fund KNOW MORE INVEST NOW PGIM India ELSS Tax Saver Fund Equity | Growth NAV (29 Aug 2025) 39.22 -0.36% 1Y 3Y 5Y Since Inception Annualised Return 15.44% Benchmark Return 15.38% Risk Factor: Very High 70.33 K people have invested in this fund KNOW MORE INVEST NOW PGIM India Small Cap Fund Equity | Growth NAV (29 Aug 2025) 17.14 -0.12% 1Y 3Y 5Y Since Inception Annualised Return 15.02% Benchmark Return 18.06% Risk Factor: Very High 74.75 K people have invested in this fund KNOW MORE INVEST NOW PGIM India Retirement Fund Equity | Growth NAV (29 Aug 2025) 12.16 -0.41% 1Y 3Y 5Y Since Inception Annualised Return 17.95% Benchmark Return 9.95% Risk Factor: Very High 9.50 K people have invested in this fund KNOW MORE INVEST NOW PGIM India Multi Cap Fund Equity | Growth NAV (29 Aug 2025) 9.82 -0.20% 1Y 3Y 5Y Since Inception Annualised Return -1.01% Benchmark Return -3.11% Risk Factor: Very High 26.47 K people have invested in this fund KNOW MORE INVEST NOW PGIM India Healthcare Fund Equity | Growth NAV (29 Aug 2025) 9.86 -0.20% 1Y 3Y 5Y Since Inception Annualised Return 3.85% Benchmark Return 3.71% Risk Factor: Very High 7.10 K people have invested in this fund KNOW MORE INVEST NOW CALCULATE RETURN on your investments Calculate the return on your investment with these easy-to-use financial planning calculators. Start planning for your life goals today. ALL CALCULATORS Explore Calculators Goal SIP Calculator Top-up SIP Calculator Impact of Inflation Calculator Liquid Fund Calculator Emergency Fund Calculator SIP Calculator Lumpsum Calculator INSIGHTS Domestic Insights CEO Letters ALL INSIGHTS Reducing Retirement corpus anxieties The PGIM India Retirement Readiness Survey 2023 revealed some interesting insights that I thought would be helpful for people to know who are considering building their retirement corpus. The surprising truth behind wealth creation Everyone dreams of high investment returns doubling money overnight, finding the next big stock or riding a crypto wave to riches. What is sequence of return risk Imagine your cricket team is chasing a big target and loses 5 wickets early. Even if the middle order plays well, the team is under pressure. Time-tested strategy to tackle volatile markets Eddy Elfenbein is a Washington DC-based portfolio manager and editor of the blog Crossing Wall Street. He shared this interesting take on equities which I take the liberty to reproduce here Do drawdowns mean you end up with negative returns? The Indian stock market has demonstrated remarkable resilience over the years, if we look at the historical performance of the BSE Sensex and the Nifty Midcap 100 indexes. Whats In The News VIEW ALL', 'images': [{'url': 'https://www.pgimindia.com/api/v1/insights/download/image/Podcastthumbnail933x531.webp', 'alt_text': 'cxo-message', 'class': 'cxo-thumbnail pe-none', 'confidence': 0.7999999999999999}], 'rank': 1}, {'url': 'https://www.amfiindia.com/investor-corner/online-center/monthlyfactsheets', 'content': 'AMFI Press Release Know about AMFI Useful Links Contact Us Careers KYC Home Take me to... Investor Corner Distributor Corner Research & Information Take me to... New to Mutual Funds Already an MF Investor Intermediary Research & Information World Investor Week Nov 22-28, 2021 Message from Chairman, SEBI Message from Shri Ajay Tyagi, Chairman, SEBI, on the occasion of World Investor Week - 2021  202      DOWNLOAD MONTHLY MF FACT SHEETS Click on the logo to go to respective AMCs Website Back Download NAV | Schedule of Investor Awareness Program | Districts Adopted | AMC Branches | Mutual Fund Summit | Videos | Web Help | Downloads | SEBI | NISM | Sitemap TERMS OF USE | PRIVACY NOTICE 2022 AMFI. All Rights Reserved', 'images': [], 'rank': 2}, {'url': 'https://www.valueresearchonline.com/funds/fund-category/', 'content': 'Just a moment... Enable JavaScript and cookies to continue', 'images': [], 'rank': 3}, {'url': 'https://www.morningstar.in/funds/factsheets.aspx', 'content': 'Mutual Fund Factsheets | Morningstar India Home Mutual Funds Funds Home NEW Medalist Rating NEW Factsheets NEW Fund News NEW Screen Funds NEW Compare Funds NEW Instant X-Ray NEW Rank ETFs NEW Equities Equities Home NEW Stocks Quickrank NEW Indexes NEW Personal Finance Finance Home NEW Insurance NEW Star Ratings NEW Rank Insurance Funds NEW Tools Archives Archives NEW Videos NEW Adviser Menu Site Search Welcome! Products & Services Login My Account My Profile Notifications Sign Out My Account My Profile Notifications Sign Out Home Mutual Funds Equities Personal Finance Tools Archives Adviser Funds Home NEW Medalist Rating NEW Factsheets NEW Fund News NEW Screen Funds NEW Compare Funds NEW Instant X-Ray NEW Rank ETFs NEW ADVERTISEMENT Fund Factsheets Fund House Aditya Birla Sun Life AMC Ltd Angel One Asset Management Company Limited Axis Asset Management Company Limited Bajaj Finserv Asset Management Limited Bandhan Asset Management Company Limited Baroda BNP Paribas Asset Management India Pvt. Ltd. Bank of India Investment Managers Private Limited Canara Robeco Asset Management Co. Ltd. Capitalmind Asset Management Private Ltd DSP Asset Managers Private Limited Edelweiss Asset Management Limited Franklin Templeton Asst Mgmt(IND)Pvt Ltd Groww Asset Management Ltd. HDFC Asset Management Company Limited Helios Capital Asset Management (India) Private Limited HSBC Asset Management(India)Private Ltd ICICI Prudential Asset Management Company Limited 360 ONE Asset Management Limited Invesco Asset Management (India) Private Ltd ITI Asset Management Limited Jio BlackRock Asset Management Pvt Ltd JM Financial Asset Management Limited Kotak Mahindra Asset Management Co Ltd LIC Mutual Fund Asset Mgmt Co Ltd Mahindra Manulife Investment Management Pvt. Ltd. Mirae Asset Investment Managers (India) Private Limited Motilal Oswal Asset Management Co. Ltd Navi AMC Limited Nippon Life India Asset Management Ltd NJ Asset Management Private Limited Old Bridge Asset Management Private Limited PGIM India Asset Management Private Limited PPFAS Asset Management Pvt. Ltd Quant Money Managers Limited Quantum Asset Management Co Pvt. Ltd. Samco Asset Management Pvt Ltd SBI Funds Management Ltd Shriram Assets Management Ltd Sundaram Asset Management Company Ltd Tata Asset Management Limited Taurus Asset Management Company Limited Trust Asset Management Private Limited Unifi Asset Management Private Limited Union Asset Management Co. Pvt. Ltd. UTI Asset Management Company Ltd WhiteOak Capital Asset Management Limited Zerodha Asset Management Private Limited Category All Categories 10 yr Government Bond Aggressive Allocation Arbitrage Fund Balanced Allocation Banking & PSU Children Conservative Allocation Contra Corporate Bond Credit Risk Dividend Yield Dynamic Asset Allocation Dynamic Bond ELSS (Tax Savings) Equity - Consumption Equity - ESG Equity - Other Equity- Infrastructure Equity Savings Fixed Maturity Intermediate-Term Bond Fixed Maturity Short-Term Bond Fixed Maturity Ultrashort Bond Flexi Cap Floating Rate Focused Fund Fund of Funds Global - Other Government Bond Index Funds Index Funds - Fixed Income Large & Mid- Cap Large-Cap Liquid Long Duration Low Duration Medium Duration Medium to Long Duration Mid-Cap Money Market Multi Asset Allocation Multi-Cap Other Bond Overnight Retirement Sector - Energy Sector - Financial Services Sector - FMCG Sector - Healthcare Sector - Precious Metals Sector - Technology Short Duration Small-Cap Ultra Short Duration Value Distribution All Distributions Dividend/Bonus Growth Structure All Structures Closed Ended Open Ended Select Sort Field Fund Name Category Latest NAV NAV Date Select Sort Order Asc Desc Fund Name Category Latest NAV NAV Date Action Axis Aggresive Hybrid Fund Direct Growth Category : Aggressive Allocation Latest NAV : 21.9800 NAV Date : Aug 29, 2025 Action : Factsheet Axis Aggresive Hybrid Fund Direct Monthly Pyt of Inc Dis cum Cap Wdrl Category : Aggressive Allocation Latest NAV : 16.0600 NAV Dat', 'images': [], 'rank': 4}, {'url': 'https://www.amfiindia.com/investor-corner/online-center/trackmfinvestment.html', 'content': \"Association of Mutual Funds in India About Us Contact Us Home Online Centre / Track your MF Investments using Fund Fact Sheet. Back KNOWLEDGE CENTRE All About Mutual Funds What Are Mutual Funds? History of Mutual Funds in India Myths & Facts about Mutual Funds Understanding Risk and Returns From Mutual Funds Equity Funds Debt Funds Liquid Funds Balanced Funds Exchange Traded Funds (ETFs) Funds of Funds Gold ETFs Tax Regime for Mutual Funds Direct Plan Expense Ratio INVESTOR CENTRE How to invest in Mutual Funds Know Your Customer(KYC) FATCA & CRS How to withdraw your money (redeem your Units)in a Mutual Fund SIP(Systematic Investment Plan) Consolidated Acct. Statement(CAS) Nomination Track your MF Investments using Fund Fact Sheet. Download Various Forms Investor Service FAQs Register / Change Bank Account Details Procedure to Claim Units / Proceeds upon death of a Unitholder ONLINE CENTRE Service platform for investors to trace inactive and unclaimed Mutual Fund folios- MITRA Check out Unclaimed Dividend amount Check out Unclaimed Redemption amount Net Asset Value (NAV) Locate an AMC Branch Invest Online in Mutual Funds Locate a Mutual Fund Distributor Locate a MFU POS (Service Centre ) Download Consolidated Account Statement Download Monthly MF Fact Sheets Check your PAN e-File your Income Tax Return Check/Download your e-Aadhaar Card SEBI Complaints Redress System Risk-o-Meter related information INVESTOR AWARENESS PROGRAMS Download Monthly MF Fact Sheets Click on the logo to go to respective AMC's Website Factsheet Page 2017 AMFI,All Rights Reserved Terms Of Use Privacy Notice\", 'images': [], 'rank': 5}, {'url': 'https://finance.yahoo.com/research-hub/screener/mutualfunds/', 'content': '[not extracted] Content limit reached', 'rank': 6}, {'url': 'https://www.valueresearchonline.com/funds/', 'content': '[not extracted] Content limit reached', 'rank': 7}, {'url': 'https://www.amfiindia.com/research-information/amfi-monthly', 'content': '[not extracted] Content limit reached', 'rank': 8}]",
+            "annotations": null
+          }
+        ]
+      },
+      "error": null,
+      "cost": 0.0,
+      "start_time": "2025-08-30T10:03:45.064845",
+      "end_time": "2025-08-30T10:04:26.970051",
+      "execution_time": 41.905206,
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "execution_result": null
+    },
+    {
+      "id": "T012",
+      "description": "Condense fund shortlist from T011",
+      "agent": "DistillerAgent",
+      "agent_prompt": "Condense the fund shortlist obtained from T011 to only include the most relevant funds for the investment strategy.",
+      "reads": [
+        "T011"
+      ],
+      "writes": [
+        "T012"
+      ],
+      "status": "completed",
+      "output": {
+        "initial_thoughts": "I need to condense the fund shortlist obtained from T011 to only include the most relevant funds for the investment strategy. I will extract the fund names, categories, and any available ratings from the text and structure them into a JSON format. I will prioritize funds with more detailed information.",
+        "output": {
+          "fund_shortlist": [
+            {
+              "fund_name": "PGIM India Flexi Cap Fund",
+              "category": "Equity | Growth",
+              "indicative_rating": null,
+              "source_url": "https://www.pgimindia.com/mutual-funds/?utm_source=bing&utm_medium=cpc&utm_campaign=pr_pgimmf_bing_brand&utm_term=mutual%20fund&utm_content=1338106012270823&msclkid=9ac395da87df1dff226bfd684b7dbd29",
+              "notes": "Equity fund with growth NAV.  Annualized return information available."
+            },
+            {
+              "fund_name": "PGIM India Midcap Fund",
+              "category": "Equity | Growth",
+              "indicative_rating": null,
+              "source_url": "https://www.pgimindia.com/mutual-funds/?utm_source=bing&utm_medium=cpc&utm_campaign=pr_pgimmf_bing_brand&utm_term=mutual%20fund&utm_content=1338106012270823&msclkid=9ac395da87df1dff226bfd684b7dbd29",
+              "notes": "Equity fund focused on mid-cap companies. Annualized return information available."
+            },
+            {
+              "fund_name": "PGIM India Large and Mid Cap Fund",
+              "category": "Equity | Growth",
+              "indicative_rating": null,
+              "source_url": "https://www.pgimindia.com/mutual-funds/?utm_source=bing&utm_medium=cpc&utm_campaign=pr_pgimmf_bing_brand&utm_term=mutual%20fund&utm_content=1338106012270823&msclkid=9ac395da87df1dff226bfd684b7dbd29",
+              "notes": "Equity fund investing in both large and mid-cap companies. Annualized return information available."
+            },
+            {
+              "fund_name": "PGIM India Large Cap Fund",
+              "category": "Equity | Growth",
+              "indicative_rating": null,
+              "source_url": "https://www.pgimindia.com/mutual-funds/?utm_source=bing&utm_medium=cpc&utm_campaign=pr_pgimmf_bing_brand&utm_term=mutual%20fund&utm_content=1338106012270823&msclkid=9ac395da87df1dff226bfd684b7dbd29",
+              "notes": "Equity fund focused on large-cap companies. Annualized return information available."
+            },
+            {
+              "fund_name": "PGIM India ELSS Tax Saver Fund",
+              "category": "Equity | Growth",
+              "indicative_rating": null,
+              "source_url": "https://www.pgimindia.com/mutual-funds/?utm_source=bing&utm_medium=cpc&utm_campaign=pr_pgimmf_bing_brand&utm_term=mutual%20fund&utm_content=1338106012270823&msclkid=9ac395da87df1dff226bfd684b7dbd29",
+              "notes": "Equity Linked Savings Scheme for tax benefits. Annualized return information available."
+            },
+            {
+              "fund_name": "PGIM India Small Cap Fund",
+              "category": "Equity | Growth",
+              "indicative_rating": null,
+              "source_url": "https://www.pgimindia.com/mutual-funds/?utm_source=bing&utm_medium=cpc&utm_campaign=pr_pgimmf_bing_brand&utm_term=mutual%20fund&utm_content=1338106012270823&msclkid=9ac395da87df1dff226bfd684b7dbd29",
+              "notes": "Equity fund investing in small-cap companies. Annualized return information available."
+            },
+            {
+              "fund_name": "PGIM India Retirement Fund",
+              "category": "Equity | Growth",
+              "indicative_rating": null,
+              "source_url": "https://www.pgimindia.com/mutual-funds/?utm_source=bing&utm_medium=cpc&utm_campaign=pr_pgimmf_bing_brand&utm_term=mutual%20fund&utm_content=1338106012270823&msclkid=9ac395da87df1dff226bfd684b7dbd29",
+              "notes": "Equity fund designed for retirement planning. Annualized return information available."
+            },
+            {
+              "fund_name": "PGIM India Multi Cap Fund",
+              "category": "Equity | Growth",
+              "indicative_rating": null,
+              "source_url": "https://www.pgimindia.com/mutual-funds/?utm_source=bing&utm_medium=cpc&utm_campaign=pr_pgimmf_bing_brand&utm_term=mutual%20fund&utm_content=1338106012270823&msclkid=9ac395da87df1dff226bfd684b7dbd29",
+              "notes": "Equity fund investing across multiple market capitalizations. Annualized return information available."
+            },
+            {
+              "fund_name": "PGIM India Healthcare Fund",
+              "category": "Equity | Growth",
+              "indicative_rating": null,
+              "source_url": "https://www.pgimindia.com/mutual-funds/?utm_source=bing&utm_medium=cpc&utm_campaign=pr_pgimmf_bing_brand&utm_term=mutual%20fund&utm_content=1338106012270823&msclkid=9ac395da87df1dff226bfd684b7dbd29",
+              "notes": "Equity fund focused on the healthcare sector. Annualized return information available."
+            }
+          ]
+        },
+        "processing_status": {
+          "file_accessible": true,
+          "content_readable": true,
+          "extraction_method": "direct_text",
+          "content_completeness": "partial"
+        },
+        "quality_assessment": {
+          "task_completion_score": 8,
+          "confidence_level": "high",
+          "data_reliability": "high",
+          "limitations": [
+            "Could not extract detailed fund information from the provided text.",
+            "The text primarily contained fund names and categories with brief descriptions."
+          ],
+          "recommendations": [
+            "Access fund fact sheets for more comprehensive details.",
+            "Use a more structured data source to extract fund information efficiently."
+          ]
+        },
+        "call_self": false,
+        "cost": 0.001302075,
+        "input_tokens": 6418.5,
+        "output_tokens": 565.5,
+        "total_tokens": 6984.0
+      },
+      "error": null,
+      "cost": 0.0,
+      "start_time": "2025-08-30T10:05:10.072613",
+      "end_time": "2025-08-30T10:05:50.879983",
+      "execution_time": 40.80737,
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "execution_result": null
+    },
+    {
+      "id": "T013",
+      "description": "Reconcile shortlist with allocation categories/percentages",
+      "agent": "ThinkerAgent",
+      "agent_prompt": "Reconcile the fund shortlist from T012 with the allocation categories and percentages defined in T001. Ensure that the selected funds align with the overall investment strategy.",
+      "reads": [
+        "T012",
+        "T001"
+      ],
+      "writes": [
+        "T013"
+      ],
+      "status": "completed",
+      "output": {
+        "output": {
+          "initial_thoughts": {
+            "entity_1": "Let me think through this: I need to reconcile the fund shortlist (T012) with the allocation categories and percentages (T001) and create a config object for downstream math and an allocation plan. The T012 output contains a list of PGIM India funds categorized as 'Equity | Growth'. T001's output is null, indicating missing goal details. I will assume a moderate risk profile to proceed with a basic allocation plan.",
+            "entity_2": "Let me think through this: Since T001 is calling self for goal details, a precise risk profile and corresponding annual return percentage are unavailable. I will default to a 'Moderate' risk profile for initial SIP configuration and fund allocation, implying a 50/50 equity/debt allocation.",
+            "overall_observations": "Let me think through this: Given the limited information (specifically, the lack of a defined risk profile from T001), the allocation plan will be a preliminary one, with a 50/50 split as per the Moderate risk assumption. Further refinements will be required once T001 provides more data. The current plan focuses solely on the equity side given the available funds."
+          },
+          "review_checklist": {
+            "alignment_with_goal": "Let me think through this: The output provides a preliminary fund allocation based on the available equity funds, aligned with a default 'Moderate' risk profile due to missing data from T001. The goal is addressed under data constraints.",
+            "what_was_missed": "Let me think through this: The allocation lacks a debt component due to the absence of debt fund options in the provided fund shortlist. Also, the specific percentages within the equity allocation (i.e., how to split the 50% across the various equity funds) are not defined. The geographical diversification is limited since all funds are from PGIM India. I am also not making use of fund ratings since these were not available in T012.",
+            "risk_of_misleading": "Let me think through this: The 'Moderate' risk assumption could be misleading if the user has a different risk tolerance. Downstream agents should flag this as requiring user confirmation once T001 completes. The absence of debt funds in the allocation also presents a risk.",
+            "improvement_opportunities": "Let me think through this: The allocation plan can be improved by (1) incorporating debt funds, (2) assigning specific percentages to each equity fund based on factors like market cap (e.g., higher allocation to large-cap funds for stability), and (3) including diversification aspects if other fund families were available. Furthermore, the rationale behind the Moderate risk selection should be clearly stated."
+          },
+          "final_report": {
+            "summary": "Preliminary fund allocation based on available equity funds and a default 'Moderate' risk profile due to missing data. Requires user confirmation and incorporation of debt funds.",
+            "detailed": "Let me think through this: The task involves reconciling a fund shortlist (from T012) with allocation categories and percentages (expected from T001). However, T001 is awaiting goal details and does not provide any allocation information. Therefore, a 'Moderate' risk profile is assumed, leading to a 50/50 equity/debt allocation strategy. Given that the fund shortlist (T012) exclusively contains 'Equity | Growth' funds from PGIM India, the preliminary allocation plan focuses solely on the equity component. This initial allocation necessitates refinement once T001 obtains user-defined goal and risk parameters. The allocation plan is a preliminary one due to the data constraints. The next step would be to refine this by incorporating debt funds and fine-tuning the percentages of equity vs. debt based on the user's actual risk tolerance.",
+            "tables": [
+              {
+                "title": "Preliminary Fund Allocation Plan (Based on Moderate Risk and Available Funds)",
+                "columns": [
+                  "Fund Name",
+                  "Category",
+                  "Allocation Percentage (Equity Portion)"
+                ],
+                "rows": [
+                  [
+                    "PGIM India Flexi Cap Fund",
+                    "Equity | Growth",
+                    "5.56%"
+                  ],
+                  [
+                    "PGIM India Midcap Fund",
+                    "Equity | Growth",
+                    "5.56%"
+                  ],
+                  [
+                    "PGIM India Large and Mid Cap Fund",
+                    "Equity | Growth",
+                    "5.56%"
+                  ],
+                  [
+                    "PGIM India Large Cap Fund",
+                    "Equity | Growth",
+                    "5.56%"
+                  ],
+                  [
+                    "PGIM India ELSS Tax Saver Fund",
+                    "Equity | Growth",
+                    "5.56%"
+                  ],
+                  [
+                    "PGIM India Small Cap Fund",
+                    "Equity | Growth",
+                    "5.56%"
+                  ],
+                  [
+                    "PGIM India Retirement Fund",
+                    "Equity | Growth",
+                    "5.56%"
+                  ],
+                  [
+                    "PGIM India Multi Cap Fund",
+                    "Equity | Growth",
+                    "5.56%"
+                  ],
+                  [
+                    "PGIM India Healthcare Fund",
+                    "Equity | Growth",
+                    "5.56%"
+                  ]
+                ]
+              }
+            ],
+            "recommendations": [
+              "Obtain user-defined risk profile and investment goals via T001 for accurate allocation.",
+              "Incorporate debt funds into the allocation plan to achieve the 50/50 equity/debt target.",
+              "Diversify fund selection beyond PGIM India to reduce concentration risk.",
+              "Fine-tune equity allocation percentages based on fund characteristics (e.g., market cap, past performance).",
+              "Seek further refinement from T001 to update user risk and goals."
+            ],
+            "risks_or_warnings": [
+              "Moderate risk assumption may not align with user's actual risk tolerance.",
+              "Lack of debt funds in the allocation plan increases overall portfolio risk.",
+              "Concentration risk due to exclusive selection of PGIM India funds."
+            ],
+            "key_factors_considered": [
+              "Available fund categories (Equity | Growth).",
+              "Absence of risk profile data (defaulting to Moderate).",
+              "Need for incorporating debt funds.",
+              "Preliminary nature of the allocation plan due to missing data."
+            ],
+            "task_completion_score": 0.75
+          }
+        },
+        "call_self": false,
+        "sip_config_json": {
+          "annual_return_pct": 10,
+          "monthly_return_r": 0.008333333333333333,
+          "inflation_pct": 5.5,
+          "formula_notes": "SIP = FV*r/((1+r)^n - 1); FV_inflated = FV*(1+i)^years"
+        },
+        "allocation_plan_json": {
+          "rationale": [
+            "Moderate risk profile assumed (T001 is incomplete).",
+            "50/50 equity/debt allocation based on Moderate risk.",
+            "Equity portion allocated equally among available equity funds (T012).",
+            "Debt portion will be filled once T001 provides more data and suitable debt funds are identified."
+          ],
+          "equity_funds": [
+            {
+              "fund_name": "PGIM India Flexi Cap Fund",
+              "allocation_percentage": 5.56
+            },
+            {
+              "fund_name": "PGIM India Midcap Fund",
+              "allocation_percentage": 5.56
+            },
+            {
+              "fund_name": "PGIM India Large and Mid Cap Fund",
+              "allocation_percentage": 5.56
+            },
+            {
+              "fund_name": "PGIM India Large Cap Fund",
+              "allocation_percentage": 5.56
+            },
+            {
+              "fund_name": "PGIM India ELSS Tax Saver Fund",
+              "allocation_percentage": 5.56
+            },
+            {
+              "fund_name": "PGIM India Small Cap Fund",
+              "allocation_percentage": 5.56
+            },
+            {
+              "fund_name": "PGIM India Retirement Fund",
+              "allocation_percentage": 5.56
+            },
+            {
+              "fund_name": "PGIM India Multi Cap Fund",
+              "allocation_percentage": 5.56
+            },
+            {
+              "fund_name": "PGIM India Healthcare Fund",
+              "allocation_percentage": 5.56
+            }
+          ],
+          "debt_funds": []
+        },
+        "cost": 0.0015052499999999999,
+        "input_tokens": 4107.0,
+        "output_tokens": 1482.0,
+        "total_tokens": 5589.0
+      },
+      "error": null,
+      "cost": 0.0,
+      "start_time": "2025-08-30T10:05:50.879983",
+      "end_time": "2025-08-30T10:06:33.592712",
+      "execution_time": 42.712729,
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "execution_result": null
+    },
+    {
+      "id": "T014",
+      "description": "Validate math, allocation=100%, shortlist non-empty, currency present",
+      "agent": "QAAgent",
+      "agent_prompt": "Validate the mathematical calculations, ensure that the asset allocation adds up to 100%, verify that the fund shortlist is not empty, and confirm that the currency is specified. Use the allocations defined in T001.",
+      "reads": [
+        "T001",
+        "T013"
+      ],
+      "writes": [
+        "T014"
+      ],
+      "status": "completed",
+      "output": {
+        "initial_thoughts": "I need to validate the asset allocation in T013, which relies on T001 for goal details. Since T001 is still pending and defaults are used, I'll check if the allocation percentages add up to 100% and if the fund shortlist is empty. I will also confirm the presence of a currency and its consistency.",
+        "output": {
+          "issues": [
+            {
+              "step_id": "T013",
+              "agent": "Unknown",
+              "problem": "The allocation plan lacks a debt component, leading to an incomplete asset allocation. The equity allocation sums to 50.04%, but a 50% debt allocation is missing.",
+              "severity": "medium",
+              "recommendation": "Incorporate debt funds into the allocation plan to achieve the 50/50 equity/debt target or align with the user's risk profile from T001."
+            },
+            {
+              "step_id": "T013",
+              "agent": "Unknown",
+              "problem": "Since T001 is calling self for goal details, a precise risk profile and corresponding annual return percentage are unavailable. The allocation percentages should align with user risk goals.",
+              "severity": "medium",
+              "recommendation": "Obtain user-defined risk profile and investment goals via T001 for accurate allocation."
+            },
+            {
+              "step_id": "T013",
+              "agent": "Unknown",
+              "problem": "The fund shortlist only contains equity funds and therefore creates a concentration risk since the allocations are focused on one asset class.",
+              "severity": "medium",
+              "recommendation": "Diversify fund selection beyond PGIM India to reduce concentration risk."
+            }
+          ],
+          "verdict": "needs_revision",
+          "validation_summary": "The allocation plan is incomplete due to the absence of debt funds and reliance on default assumptions. User-defined goals and risk profile are needed for accurate allocation.",
+          "overall_quality_score": 6
+        },
+        "call_self": false,
+        "cost": 0.0009751499999999999,
+        "input_tokens": 5007.0,
+        "output_tokens": 373.5,
+        "total_tokens": 5380.5
+      },
+      "error": null,
+      "cost": 0.0,
+      "start_time": "2025-08-30T10:06:33.616633",
+      "end_time": "2025-08-30T10:07:08.913975",
+      "execution_time": 35.297342,
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "execution_result": null
+    },
+    {
+      "id": "T015",
+      "description": "Generate chart_data_json (projection line + allocation doughnut)",
+      "agent": "CoderAgent",
+      "agent_prompt": "SINGLE-FILE GUARANTEE (STRICT) - Emit EXACTLY one file from this task: files = { \"T015_embed.html\": \"<section ...>...</section>\" }. - Do NOT include any other keys inside `files`. - `code` MUST be an empty object: code = {}. - Root MUST be a JSON object. - `output.embed_snippet_html` MUST be IDENTICAL to files.T015_embed.html. - If anything fails, still return a valid object with an empty chart section and the same contract. ## CONTRACT {  \"initial_thoughts\": \"<short reasoning>\",  \"output\": {    \"chart_data_json\": {      \"projection\": {        \"labels\": [\"M1\",\"M2\", ...],        \"datasets\": {          \"cumulative_contribution\": [...],          \"projected_corpus\": [...]        }      },      \"allocation\": { \"labels\": [\"Equity\",\"Debt\"], \"data\": [<equity_pct>, <debt_pct>] }    },    \"embed_snippet_html\": \"<section id=\\\"sip-charts\\\">...</section>\"  },  \"files\": {    \"T015_embed.html\": \"<section id=\\\"sip-charts\\\">...</section>\"  },  \"code\": {},  \"call_self\": false} ## INPUTS (read-only; defaults if missing/invalid) - goal_input_json → { total_months:int } - sip_config_json → { monthly_return_r:float, equity_pct:float, debt_pct:float } - sip_calc_json   → { monthly_sip:float } Defaults: - total_months → 120 - monthly_return_r → 0.10/12 - equity_pct → 60.0, debt_pct → 40.0 - monthly_sip → 10000.0 ## COMPUTATION (described, not coded) - n = total_months, r = monthly_return_r, S = monthly_sip - labels: \"M1\"...\"Mn\" - cumulative_contribution: running sum of S - projected_corpus: previous_balance*(1+r) + S - allocation: labels [\"Equity\",\"Debt\"], data [equity_pct, debt_pct] ## ERROR HANDLING - If n ≤ 0 or S ≤ 0 or r < 0:   - status=\"error\", error=\"missing_or_invalid_inputs\"   - projection arrays empty; allocation defaults to [60,40]   - HTML should show: “Chart data not available (input error)” ## HTML TEMPLATE (must be used in both embed_snippet_html and T015_embed.html) <section id=\"sip-charts\" class=\"py-10\">   <link rel=\"preconnect\" href=\"https://fonts.googleapis.com\">   <script src=\"https://cdn.tailwindcss.com\"></script>   <script src=\"https://cdn.jsdelivr.net/npm/chart.js\"></script>   <div class=\"container mx-auto px-4\">     <div class=\"mb-6\">       <h2 class=\"text-2xl font-semibold\">SIP Projection & Allocation</h2>       <p class=\"text-gray-600\">Cumulative contributions vs projected corpus</p>     </div>     <!-- Embed computed JSON -->     <script id=\"sip-data\" type=\"application/json\">       { ... chart_data_json ... }     </script>     <div class=\"grid grid-cols-1 lg:grid-cols-3 gap-8\">       <div class=\"lg:col-span-2 bg-white shadow rounded-2xl p-4 h-[360px]\">         <canvas id=\"sipProjectionChart\" height=\"140\"></canvas>       </div>       <div class=\"bg-white shadow rounded-2xl p-4 h-[360px]\">         <canvas id=\"sipAllocationChart\" height=\"140\"></canvas>       </div>     </div>     <div id=\"note\" class=\"mt-4 text-sm text-red-600 hidden\">       Chart data not available (input error)     </div>   </div>   <script>     (function () {       var raw = \\\"\\\", data = {};       var note = document.getElementById(\\\"note\\\");       try {         raw = document.getElementById(\\\"sip-data\\\").textContent || \\\"{}\\\";         data = JSON.parse(raw);       } catch (e) { data = {}; if (note) note.classList.remove(\\\"hidden\\\"); }       var proj = data.projection || { labels: [], datasets: { cumulative_contribution: [], projected_corpus: [] }};       var alloc = data.allocation || { labels: [\\\"Equity\\\",\\\"Debt\\\"], data: [60,40] };       if (!Array.isArray(proj.labels) || !proj.datasets) {         proj = { labels: [], datasets: { cumulative_contribution: [], projected_corpus: [] }};         if (note) note.classList.remove(\\\"hidden\\\");       }       if (!Array.isArray(alloc.labels) || !Array.isArray(alloc.data)) {         alloc = { labels: [\\\"Equity\\\",\\\"Debt\\\"], data: [60,40] };         if (note) note.classList.remove(\\\"hidden\\\");       }       new Chart(document.getElementById(\\\"sipProjectionChart\\\").getContext(\\\"2d\\\"), {         type: \\\"line\\\",         data: {           labels: proj.labels,           datasets: [             { label: \\\"Projected Corpus\\\", data: proj.datasets.projected_corpus || [], fill: false },             { label: \\\"Cumulative Contribution\\\", data: proj.datasets.cumulative_contribution || [], fill: false }           ]         },         options: { responsive: true, maintainAspectRatio: false }       });       new Chart(document.getElementById(\\\"sipAllocationChart\\\").getContext(\\\"2d\\\"), {         type: \\\"doughnut\\\",         data: { labels: alloc.labels, datasets: [{ data: alloc.data }] },         options: { responsive: true, maintainAspectRatio: false }       });     })();   </script> </section> ## HOTFIX ADDENDUM (T015) — chart_data_json Files/Code Variants Guarantee # (Keep for compatibility with older runners that expect a JSON file too) ## - In addition to T015_embed.html, you MAY include files[\"chart_data.json\"] containing the stringified chart_data_json. - If you include it, do NOT remove T015_embed.html. The embed file is mandatory.",
+      "reads": [
+        "T001"
+      ],
+      "writes": [
+        "T015"
+      ],
+      "status": "failed",
+      "output": null,
+      "error": "Code execution failed: No files or code_variants found in output",
+      "cost": 0.0,
+      "start_time": "2025-08-30T10:07:08.934923",
+      "end_time": "2025-08-30T10:07:50.872283",
+      "execution_time": 41.93736
+    },
+    {
+      "id": "T016",
+      "description": "Slice first 12 rows from projection table (NO-COMPUTE, FILES-ONLY)",
+      "agent": "CoderAgent",
+      "agent_prompt": "Final override for T016 (NO PYTHON). Read `sip_projection_table_json` from T001; slice FIRST 12 rows ONLY; pass through fields as-is: month, sip_contribution, cumulative_contribution, projected_corpus, equity_value, debt_value. For any missing/invalid numeric field use 0.0. REQUIRED: set `output.first_12_months_table_json` (length 0–12), `output.status` ('ok'|'error'), `output.error` ('' or 'no_projection_data'), and emit `files['first_12_months_table.json']` with the same array stringified. Root must include `initial_thoughts`, `output`, `files`, `code` = {}, `call_self` = false. Never include `code_variants`, never execute code, never create subdirectories.",
+      "reads": [
+        "T001"
+      ],
+      "writes": [
+        "T016"
+      ],
+      "status": "failed",
+      "output": null,
+      "error": "Code execution failed: No files or code_variants found in output",
+      "cost": 0.0,
+      "start_time": "2025-08-30T10:04:31.986135",
+      "end_time": "2025-08-30T10:05:05.054943",
+      "execution_time": 33.068808
+    },
+    {
+      "id": "T017",
+      "description": "Consulting-grade HTML structuring",
+      "agent": "FormatterAgent",
+      "agent_prompt": "Structure the final report in consulting-grade HTML, incorporating the chart data from T015, the sliced projection table from T016, and other relevant information from previous steps. Ensure a professional and visually appealing layout.",
+      "reads": [
+        "T001",
+        "T013",
+        "T014",
+        "T015",
+        "T016"
+      ],
+      "writes": [
+        "T017"
+      ],
+      "status": "pending",
+      "output": null,
+      "error": null,
+      "cost": 0.0,
+      "start_time": null,
+      "end_time": null,
+      "execution_time": 0.0
+    },
+    {
+      "id": "T018",
+      "description": "Package final comprehensive_report.html",
+      "agent": "ReportGeneratorAgent",
+      "agent_prompt": "Package all the information gathered and structured in the previous steps into a final, comprehensive HTML report. Include an executive summary, goal inputs, inflation adjustment, SIP calculation, asset allocation plan, allocation notes, key recommendations, risk factors and uncertainties, SIP charts, and a SIP projection. The report should be exhaustive and well-formatted.",
+      "reads": [
+        "T001",
+        "T013",
+        "T014",
+        "T015",
+        "T016",
+        "T017"
+      ],
+      "writes": [
+        "T018"
+      ],
+      "status": "pending",
+      "output": null,
+      "error": null,
+      "cost": 0.0,
+      "start_time": null,
+      "end_time": null,
+      "execution_time": 0.0
+    },
+    {
+      "id": "T019",
+      "description": "Optional cron/daily refresh",
+      "agent": "SchedulerAgent",
+      "agent_prompt": "Set up an optional cron job or daily refresh to update the SIP projection and fund data automatically. This will ensure that the report remains current and relevant.",
+      "reads": [
+        "T018"
+      ],
+      "writes": [
+        "T019"
+      ],
+      "status": "pending",
+      "output": null,
+      "error": null,
+      "cost": 0.0,
+      "start_time": null,
+      "end_time": null,
+      "execution_time": 0.0
+    }
+  ],
+  "links": [
+    {
+      "source": "ROOT",
+      "target": "T001"
+    },
+    {
+      "source": "T001",
+      "target": "T011"
+    },
+    {
+      "source": "T001",
+      "target": "T016"
+    },
+    {
+      "source": "T011",
+      "target": "T012"
+    },
+    {
+      "source": "T012",
+      "target": "T013"
+    },
+    {
+      "source": "T013",
+      "target": "T014"
+    },
+    {
+      "source": "T014",
+      "target": "T015"
+    },
+    {
+      "source": "T015",
+      "target": "T017"
+    },
+    {
+      "source": "T017",
+      "target": "T018"
+    },
+    {
+      "source": "T018",
+      "target": "T019"
+    }
+  ]
+}
