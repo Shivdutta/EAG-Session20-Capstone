@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tic Tac Toe</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css"><style>
+        body {
+            font-family: 'Roboto', sans-serif;
+            background-color: #f0f0f0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+
+        #game-container {
+            background-color: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+
+        #game-board {
+            display: grid;
+            grid-template-columns: repeat(3, 100px);
+            grid-gap: 5px;
+            margin-bottom: 20px;
+        }
+
+        .cell {
+            width: 100px;
+            height: 100px;
+            background-color: #e0e0e0;
+            border: 1px solid #ccc;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 2em;
+            cursor: pointer;
+            border-radius: 5px;
+        }
+
+        #reset-button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1em;
+        }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <header class="text-center mb-4">
+            <h1 class="text-2xl font-bold">Tic Tac Toe</h1>
+        </header>
+
+        <main>
+            <div id="game-board">
+                <div class="cell" id="cell-1"></div>
+                <div class="cell" id="cell-2"></div>
+                <div class="cell" id="cell-3"></div>
+                <div class="cell" id="cell-4"></div>
+                <div class="cell" id="cell-5"></div>
+                <div class="cell" id="cell-6"></div>
+                <div class="cell" id="cell-7"></div>
+                <div class="cell" id="cell-8"></div>
+                <div class="cell" id="cell-9"></div>
+            </div>
+            <!-- GAME_BOARD_END -->
+        </main>
+
+        <footer class="text-center">
+            <button id="reset-button">Reset</button>
+        </footer>
+    </div>
+    
+<script>
+    // Game variables
+    let currentPlayer = 'X';
+    let gameBoard = ['', '', '', '', '', '', '', '', ''];
+    let gameActive = true;
+    let winMessage = () => `Player ${currentPlayer} has won!`
+    let drawMessage = () => `Game ended in a draw!`
+    let currentPlayerTurn = () => `It's ${currentPlayer}'s turn`
+
+    // Winning conditions
+    const winningConditions = [
+        [0, 1, 2],
+        [3, 4, 5],
+        [6, 7, 8],
+        [0, 3, 6],
+        [1, 4, 7],
+        [2, 5, 8],
+        [0, 4, 8],
+        [2, 4, 6]
+    ];
+
+    // Function to handle cell clicks
+    function handleCellClick(clickedCellEvent) {
+        const clickedCell = clickedCellEvent.target;
+        const clickedCellIndex = parseInt(clickedCell.id.replace('cell-', '')) - 1;
+
+        // If cell has already been clicked, ignore
+        if (gameBoard[clickedCellIndex] !== '' || !gameActive) {
+            return;
+        }
+
+        // Update game board and cell
+        gameBoard[clickedCellIndex] = currentPlayer;
+        clickedCell.textContent = currentPlayer;
+        clickedCell.classList.add(currentPlayer === 'X' ? 'text-blue-500' : 'text-red-500');
+
+        // Check if game ended
+        handleResultValidation();
+        
+    }
+
+    function handleResultValidation() {
+        let roundWon = false;
+        for (let i = 0; i <= 7; i++) {
+            const winCondition = winningConditions[i];
+            let a = gameBoard[winCondition[0]];
+            let b = gameBoard[winCondition[1]];
+            let c = gameBoard[winCondition[2]];
+            if (a === '' || b === '' || c === '') {
+                continue;
+            }
+            if (a === b && b === c) {
+                roundWon = true;
+                break
+            }
+        }
+
+    if (roundWon) {
+            statusDisplay.textContent = winMessage();
+            gameActive = false;
+            return;
+        }
+
+        let roundDraw = !gameBoard.includes("");
+        if (roundDraw) {
+            statusDisplay.textContent = drawMessage();
+            gameActive = false;
+            return;
+        }
+
+        handlePlayerChange();
+    }
+
+    function handlePlayerChange() {
+        currentPlayer = currentPlayer === "X" ? "O" : "X";
+        statusDisplay.textContent = currentPlayerTurn();
+    }
+
+    // Function to switch players
+    function switchPlayer() {
+        currentPlayer = currentPlayer === 'X' ? 'O' : 'X';
+    }
+
+    // Function to reset the game
+    function handleResetGame() {
+        currentPlayer = 'X';
+        gameBoard = ['', '', '', '', '', '', '', '', ''];
+        gameActive = true;
+        statusDisplay.textContent = currentPlayerTurn();
+        document.querySelectorAll('.cell')
+                .forEach(cell => {
+                    cell.textContent = '';
+                    cell.classList.remove('text-blue-500', 'text-red-500');
+                });
+    }
+
+    // Add event listeners to cells
+    document.querySelectorAll('.cell').forEach(cell => {
+        cell.addEventListener('click', handleCellClick);
+    });
+
+    // Add event listener to reset button
+    document.getElementById('reset-button').addEventListener('click', handleResetGame);
+
+    const statusDisplay = document.createElement('div');
+    statusDisplay.classList.add('game--status');
+    statusDisplay.textContent = currentPlayerTurn();
+    const gameContainer = document.getElementById('game-container')
+    gameContainer.insertBefore(statusDisplay, document.querySelector('main'));
+
+</script>
+
+</body>
+</html>
