@@ -29,12 +29,58 @@ client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
 mcp = FastMCP("ddg-search")
 
 @mcp.tool()
-async def search_web_with_text_content(input: SearchInput, ctx: Context) -> dict:
-    """Search web and return URLs with extracted text content. Gets both URLs and readable text from top search results."""
+async def search_web_with_text_content(*args, **kwargs) -> dict:
+    """Search web and return URLs with extracted text content. 
+    Handles multiple calling patterns for maximum compatibility:
+    - search_web_with_text_content(SearchInput(...), ctx)
+    - search_web_with_text_content('query', max_results) 
+    - search_web_with_text_content(query='query', max_results=8)
+    """
     
     try:
+        # Handle different calling patterns and extract SearchInput + Context
+        input_obj = None
+        ctx = None
+        
+        if len(args) >= 1 and isinstance(args[0], SearchInput):
+            # Standard MCP pattern: search_web_with_text_content(SearchInput(...), Context(...))
+            input_obj = args[0]
+            ctx = args[1] if len(args) > 1 else None
+            
+        elif len(args) >= 2 and isinstance(args[0], str):
+            # Positional pattern: search_web_with_text_content('query', 8)
+            query, max_results = args[0], args[1]
+            input_obj = SearchInput(query=query, max_results=max_results)
+            ctx = args[2] if len(args) > 2 else None
+            
+        elif len(args) == 1 and isinstance(args[0], str) and kwargs:
+            # Mixed pattern: search_web_with_text_content('query', max_results=8)
+            query = args[0]
+            max_results = kwargs.get('max_results', 10)
+            input_obj = SearchInput(query=query, max_results=max_results)
+            ctx = kwargs.get('ctx')
+            
+        elif 'query' in kwargs:
+            # Keyword pattern: search_web_with_text_content(query='query', max_results=8)
+            query = kwargs['query']
+            max_results = kwargs.get('max_results', 10)
+            input_obj = SearchInput(query=query, max_results=max_results)
+            ctx = kwargs.get('ctx')
+            
+        elif len(args) == 1 and isinstance(args[0], str):
+            # Single string pattern: search_web_with_text_content('query')
+            query = args[0]
+            input_obj = SearchInput(query=query, max_results=10)
+            ctx = None
+            
+        else:
+            raise ValueError(f"Invalid arguments. Expected SearchInput or query string. Got args: {args}, kwargs: {kwargs}")
+        
+        if not input_obj:
+            raise ValueError("Could not construct SearchInput from provided arguments")
+        
         # Step 1: Get URLs using existing function
-        urls = await smart_search(input.query, input.max_results)
+        urls = await smart_search(input_obj.query, input_obj.max_results)
         
         if not urls:
             return {
@@ -60,7 +106,7 @@ async def search_web_with_text_content(input: SearchInput, ctx: Context) -> dict
                 results.append({
                     "url": url,
                     "content": text_content if text_content.strip() else "[error] No readable content found",
-                    "images": web_result.get("images", []),  # ✅ NEW: Include images
+                    "images": web_result.get("images", []),  # Include images
                     "rank": i + 1
                 })
                 
@@ -105,6 +151,84 @@ async def search_web_with_text_content(input: SearchInput, ctx: Context) -> dict
                 )
             ]
         }
+
+# @mcp.tool()
+# async def search_web_with_text_content(input: SearchInput, ctx: Context) -> dict:
+#     """Search web and return URLs with extracted text content. Gets both URLs and readable text from top search results."""
+    
+#     try:
+#         # Step 1: Get URLs using existing function
+#         urls = await smart_search(input.query, input.max_results)
+        
+#         if not urls:
+#             return {
+#                 "content": [
+#                     TextContent(
+#                         type="text",
+#                         text="[error] No search results found"
+#                     )
+#                 ]
+#             }
+        
+#         # Step 2: Extract text content from each URL
+#         results = []
+#         max_extracts = min(len(urls), 5)  # Limit to avoid timeout
+        
+#         for i, url in enumerate(urls[:max_extracts]):
+#             try:
+#                 # Use existing web extraction function
+#                 web_result = await asyncio.wait_for(smart_web_extract(url), timeout=15)
+#                 text_content = web_result.get("best_text", "")[:4000]  # Limit length
+#                 text_content = text_content.replace('\n', ' ').replace('  ', ' ').strip()
+                
+#                 results.append({
+#                     "url": url,
+#                     "content": text_content if text_content.strip() else "[error] No readable content found",
+#                     "images": web_result.get("images", []),  # ✅ NEW: Include images
+#                     "rank": i + 1
+#                 })
+                
+#             except asyncio.TimeoutError:
+#                 results.append({
+#                     "url": url,
+#                     "content": "[error] Timeout while extracting content",
+#                     "rank": i + 1
+#                 })
+#             except Exception as e:
+#                 results.append({
+#                     "url": url,
+#                     "content": f"[error] {str(e)}",
+#                     "rank": i + 1
+#                 })
+        
+#         # Add remaining URLs without content extraction
+#         for i, url in enumerate(urls[max_extracts:], start=max_extracts):
+#             results.append({
+#                 "url": url,
+#                 "content": "[not extracted] Content limit reached",
+#                 "rank": i + 1
+#             })
+        
+#         # Return structured results
+#         return {
+#             "content": [
+#                 TextContent(
+#                     type="text",
+#                     text=str(results)  # RetrieverAgent can parse this
+#                 )
+#             ]
+#         }
+        
+#     except Exception as e:
+#         traceback.print_exc(file=sys.stderr)
+#         return {
+#             "content": [
+#                 TextContent(
+#                     type="text",
+#                     text=f"[error] {str(e)}"
+#                 )
+#             ]
+#         }
 
 
 # Duckduck not responding? Check this: https://html.duckduckgo.com/html?q=Model+Context+Protocol

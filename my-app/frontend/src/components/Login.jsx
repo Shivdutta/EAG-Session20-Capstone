@@ -196,13 +196,13 @@ function LoginForm({ onSuccess }) {
             </form>
 
             <div className="login-footer">
-              <div className="demo-credentials">
+              {/* <div className="demo-credentials">
                 <p className="demo-title">Demo Credentials:</p>
                 <div className="demo-info">
-                  <span><strong>User ID:</strong> admin</span>
-                  <span><strong>Password:</strong> Admin@123</span>
+                  <span><strong>User ID:</strong> </span>
+                  <span><strong>Password:</strong> </span>
                 </div>
-              </div>
+              </div> */}
               <p className="session-info">
                 Session auto-expires in {SESSION_MINUTES} minutes
               </p>

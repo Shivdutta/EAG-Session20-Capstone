@@ -196,101 +196,6 @@ def create_dynamic_enums():
 # Create enums
 create_dynamic_enums()
 
-# Enhanced helper functions for file operations and session management
-def extract_session_id_from_path(file_path: str) -> Optional[str]:
-    """Extract session ID from file path following pattern: media/generated/{SESSION_ID}/filename.html"""
-    try:
-        # Handle both Windows and Unix path separators
-        normalized_path = file_path.replace('\\', '/')
-        
-        # Look for pattern: media/generated/{SESSION_ID}/
-        pattern = r'media[/\\]generated[/\\]([^/\\]+)[/\\]'
-        match = re.search(pattern, normalized_path)
-        
-        if match:
-            session_id = match.group(1)
-            print(f"✅ Extracted session ID: {session_id} from path: {file_path}")
-            return session_id
-        else:
-            print(f"⚠️ Could not extract session ID from path: {file_path}")
-            return None
-    except Exception as e:
-        print(f"❌ Error extracting session ID: {e}")
-        return None
-
-def construct_standard_file_path(session_id: str, filename: str) -> str:
-    """Construct standardized file path using session ID"""
-    return f"media/generated/{session_id}/{filename}"
-
-def find_latest_report_file_by_session(session_id: str = None) -> Optional[tuple]:
-    """Find the most recently generated HTML report, optionally filtered by session ID"""
-    try:
-        if session_id:
-            # Look for specific session files first
-            session_pattern = f"media/generated/{session_id}/comprehensive_report.html"
-            session_files = glob.glob(session_pattern)
-            if session_files:
-                latest_file = max(session_files, key=os.path.getmtime)
-                filename = os.path.basename(latest_file)
-                return filename, latest_file
-        
-        # Fallback to general search
-        media_pattern = "media/generated/*/comprehensive_report.html"
-        html_files = glob.glob(media_pattern)
-        
-        if not html_files:
-            # Also try without media prefix in case of different structure
-            alt_pattern = "*/comprehensive_report.html"
-            html_files = glob.glob(alt_pattern)
-        
-        if not html_files:
-            return None
-        
-        # Get the most recently modified file
-        latest_file = max(html_files, key=os.path.getmtime)
-        filename = os.path.basename(latest_file)
-        
-        return filename, latest_file
-    except Exception as e:
-        print(f"Error finding report file: {e}")
-        return None
-
-def find_latest_fund_recommendation_file_by_session(session_id: str = None) -> Optional[tuple]:
-    """Find the most recently generated fund recommendation HTML report"""
-    try:
-        patterns = []
-        
-        if session_id:
-            # Look for specific session files first
-            patterns.extend([
-                f"media/generated/{session_id}/fund_recommendation_report.html",
-                f"media/generated/{session_id}/fund_recommendations.html",
-                f"media/generated/{session_id}/fund_recommendation*.html"
-            ])
-        
-        # General patterns
-        patterns.extend([
-            "media/generated/*/fund_recommendation_report.html",
-            "media/generated/*/fund_recommendations.html", 
-            "*/fund_recommendation*.html"
-        ])
-        
-        html_files = []
-        for pattern in patterns:
-            html_files.extend(glob.glob(pattern))
-        
-        if not html_files:
-            return None
-        
-        # Get the most recently modified file
-        latest_file = max(html_files, key=os.path.getmtime)
-        filename = os.path.basename(latest_file)
-        
-        return filename, latest_file
-    except Exception as e:
-        print(f"Error finding fund recommendation file: {e}")
-        return None
-
 # Pydantic models for request/response
 class FormDataBase(BaseModel):
     goal_type: str  # Changed from GoalType to str for flexibility
@@ -357,6 +262,56 @@ class FormSubmissionResponse(BaseModel):
     message: str
     calculation_result: Optional[SIPCalculationResult] = None
     form_data: Dict[str, Any]
+
+# Helper functions for file operations
+def find_latest_report_file() -> Optional[tuple]:
+    """Find the most recently generated HTML report"""
+    try:
+        media_pattern = "media/generated/*/comprehensive_report.html"
+        html_files = glob.glob(media_pattern)
+        
+        if not html_files:
+            # Also try without media prefix in case of different structure
+            alt_pattern = "*/comprehensive_report.html"
+            html_files = glob.glob(alt_pattern)
+        
+        if not html_files:
+            return None
+        
+        # Get the most recently modified file
+        latest_file = max(html_files, key=os.path.getmtime)
+        filename = os.path.basename(latest_file)
+        
+        return filename, latest_file
+    except Exception as e:
+        print(f"Error finding report file: {e}")
+        return None
+
+def find_latest_fund_recommendation_file() -> Optional[tuple]:
+    """Find the most recently generated fund recommendation HTML report"""
+    try:
+        # Look for fund recommendation report patterns
+        patterns = [
+            "media/generated/*/fund_recommendation_report.html",
+            "media/generated/*/fund_recommendations.html", 
+            "*/fund_recommendation*.html"
+        ]
+        
+        html_files = []
+        for pattern in patterns:
+            html_files.extend(glob.glob(pattern))
+        
+        if not html_files:
+            return None
+        
+        # Get the most recently modified file
+        latest_file = max(html_files, key=os.path.getmtime)
+        filename = os.path.basename(latest_file)
+        
+        return filename, latest_file
+    except Exception as e:
+        print(f"Error finding fund recommendation file: {e}")
+        return None
 
 def calculate_time_horizon(form_data: Dict[str, Any]) -> int:
     """Calculate time horizon based on goal type using computed_fields from JSON config"""
@@ -739,10 +694,72 @@ async def validate_form_data(form_data: Dict[str, Any] = Body(...)):
             "errors": [str(e)]
         }
 
-# Enhanced streaming endpoint with better file detection and path normalization
+# HTML Report Serving Endpoints
+@app.get("/api/download-report", response_class=HTMLResponse)
+async def download_report(filepath: str = Query(..., description="File path to the HTML report")):
+    """Serve generated HTML reports"""
+    try:
+        # Convert to Path object and normalize
+        file_path = Path(filepath)
+        
+        # Security check: ensure file is HTML
+        if not str(file_path).endswith('.html'):
+            raise HTTPException(status_code=400, detail="Only HTML files are allowed")
+        
+        # Check if file exists
+        if not file_path.exists():
+            raise HTTPException(status_code=404, detail=f"Report file not found: {filepath}")
+        
+        # Read and return the HTML content
+        with open(file_path, 'r', encoding='utf-8') as f:
+            html_content = f.read()
+        
+        print(f"📄 Served HTML report: {filepath}")
+        return HTMLResponse(content=html_content, status_code=200)
+        
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail="Report file not found")
+    except PermissionError:
+        raise HTTPException(status_code=403, detail="Permission denied accessing report file")
+    except Exception as e:
+        print(f"Error serving HTML report: {e}")
+        raise HTTPException(status_code=500, detail=f"Error reading report file: {str(e)}")
+
+@app.get("/api/reports/{filename}")
+async def get_report_by_filename(filename: str):
+    """Alternative endpoint to get report by filename (searches in media directory)"""
+    try:
+        # Security check: ensure filename is HTML
+        if not filename.endswith('.html'):
+            raise HTTPException(status_code=400, detail="Only HTML files are allowed")
+        
+        # Look in the media/generated directory
+        media_dir = Path("media/generated")
+        
+        if not media_dir.exists():
+            raise HTTPException(status_code=404, detail="Media directory not found")
+        
+        # Search for the file in subdirectories
+        for report_dir in media_dir.rglob("*"):
+            if report_dir.is_dir():
+                report_file = report_dir / filename
+                if report_file.exists():
+                    with open(report_file, 'r', encoding='utf-8') as f:
+                        html_content = f.read()
+                    
+                    print(f"📄 Served HTML report by filename: {filename}")
+                    return HTMLResponse(content=html_content, status_code=200)
+        
+        raise HTTPException(status_code=404, detail=f"Report file {filename} not found")
+        
+    except Exception as e:
+        print(f"Error serving HTML report by filename: {e}")
+        raise HTTPException(status_code=500, detail=f"Error reading report: {str(e)}")
+
+# Enhanced streaming endpoint with file detection
 @app.post("/api/calculate-sip")
 async def calculate_sip_stream(request: Request, form_data: Dict[str, Any] = Body(...)):
-    """Stream SIP calculation progress with enhanced HTML report detection and path handling"""
+    """Stream SIP calculation progress with HTML report detection"""
     
     async def event_generator():
         try:
@@ -775,7 +792,6 @@ async def calculate_sip_stream(request: Request, form_data: Dict[str, Any] = Bod
             # Track generated file information
             generated_file_path = None
             generated_filename = None
-            session_id = None
             
             # Stream the agent execution
             try:
@@ -800,11 +816,11 @@ async def calculate_sip_stream(request: Request, form_data: Dict[str, Any] = Bod
                                 message = event_json["data"]["message"]
                                 print(f"Detected file generation in message: {message}")
                                 
-                                # Enhanced: Look for file path patterns with session ID extraction
+                                # Look for file path patterns
                                 path_patterns = [
-                                    r'media[\\\/]generated[\\\/]([^\\\/]+)[\\\/]comprehensive_report\.html',
-                                    r'([^\\\/]+[\\\/])*media[\\\/]generated[\\\/]([^\\\/]+)[\\\/]comprehensive_report\.html',
-                                    r'[\w\\/.-]+comprehensive_report\.html'
+                                    r'\\my-app\\media\\generated\\[\w\\]+\\comprehensive_report\.html',
+                                    r'media[\\/]generated[\\/][\w\\/]+[\\/]comprehensive_report\.html',
+                                    r'[\w\\/]+comprehensive_report\.html'
                                 ]
                                 
                                 for pattern in path_patterns:
@@ -813,24 +829,12 @@ async def calculate_sip_stream(request: Request, form_data: Dict[str, Any] = Bod
                                         generated_file_path = path_match.group(0)
                                         generated_filename = "comprehensive_report.html"
                                         
-                                        # Extract session ID
-                                        session_id = extract_session_id_from_path(generated_file_path)
-                                        
-                                        # Normalize path for consistency
-                                        if session_id:
-                                            normalized_path = construct_standard_file_path(session_id, "comprehensive_report.html")
-                                            print(f"📁 Normalized path: {normalized_path}")
-                                        else:
-                                            normalized_path = generated_file_path
-                                        
-                                        # Emit file generated event with both original and normalized paths
+                                        # Emit file generated event
                                         file_event = {
                                             "type": "file_generated",
                                             "data": {
                                                 "filename": generated_filename,
-                                                "filepath": generated_file_path,
-                                                "normalized_path": normalized_path,
-                                                "session_id": session_id
+                                                "filepath": generated_file_path
                                             },
                                             "timestamp": time.time()
                                         }
@@ -862,22 +866,17 @@ async def calculate_sip_stream(request: Request, form_data: Dict[str, Any] = Bod
             if not generated_file_path:
                 print("No file detected during streaming, searching for generated reports...")
                 
-                # Look for recently generated files, preferably with session ID
-                found_file = find_latest_report_file_by_session(session_id)
+                # Look for recently generated files
+                found_file = find_latest_report_file()
                 if found_file:
                     generated_filename, generated_file_path = found_file
-                    
-                    # Extract session ID if not already available
-                    if not session_id:
-                        session_id = extract_session_id_from_path(generated_file_path)
                     
                     # Emit file generated event
                     file_event = {
                         "type": "file_generated",
                         "data": {
                             "filename": generated_filename,
-                            "filepath": generated_file_path,
-                            "session_id": session_id
+                            "filepath": generated_file_path
                         },
                         "timestamp": time.time()
                     }
@@ -889,11 +888,7 @@ async def calculate_sip_stream(request: Request, form_data: Dict[str, Any] = Bod
             # Send completion event
             completion_event = {
                 "type": "stream_complete",
-                "data": {
-                    "message": "Stream completed successfully",
-                    "generated_file_path": generated_file_path,
-                    "session_id": session_id
-                },
+                "data": {"message": "Stream completed successfully"},
                 "timestamp": time.time()
             }
             yield f"data: {json.dumps(completion_event)}\n\n"
@@ -932,7 +927,7 @@ async def calculate_sip_stream(request: Request, form_data: Dict[str, Any] = Bod
 # Enhanced Fund Recommendation Streaming Endpoint
 @app.post("/api/fund-recommendation")
 async def fund_recommendation_stream(request: Request, fund_request: Dict[str, Any] = Body(...)):
-    """Stream fund recommendation progress with enhanced HTML report analysis and path handling"""
+    """Stream fund recommendation progress with HTML report analysis"""
     
     async def event_generator():
         try:
@@ -944,24 +939,17 @@ async def fund_recommendation_stream(request: Request, fund_request: Dict[str, A
             }
             yield f"data: {json.dumps(initial_event)}\n\n"
             
-            # Extract report file path and session ID
+            # Extract report file path
             report_file_path = fund_request.get("report_file_path")
             form_data = fund_request.get("form_data", {})
             
             if not report_file_path:
                 raise ValueError("Report file path is required")
             
-            # Extract session ID from the SIP report path
-            session_id = extract_session_id_from_path(report_file_path)
-            print(f"📊 Using session ID for fund recommendation: {session_id}")
-            
             # Read HTML report content (mimicking file upload to ChatGPT)
             report_read_event = {
                 "type": "report_reading",
-                "data": {
-                    "message": f"Reading HTML report file: {report_file_path}",
-                    "session_id": session_id
-                },
+                "data": {"message": f"Reading HTML report file: {report_file_path}"},
                 "timestamp": time.time()
             }
             yield f"data: {json.dumps(report_read_event)}\n\n"
@@ -1032,19 +1020,19 @@ async def fund_recommendation_stream(request: Request, fund_request: Dict[str, A
                             event_json = json.loads(clean_data)
                             
                             # Check if this is a fund recommendation file generation event
-                            message_content = str(event_json.get("data", {}).get("message", "")).lower()
                             if (event_json.get("type") == "agent_response" and 
-                                any(keyword in message_content for keyword in ["fund_recommendation", "fund_recommendations.html", "fund_analysis"])):
+                                any(keyword in str(event_json.get("data", {}).get("message", "")).lower() 
+                                    for keyword in ["fund_recommendation", "fund_recommendations.html", "fund_analysis"])):
                                 
                                 # Extract file path from agent response
                                 message = event_json["data"]["message"]
                                 print(f"Detected fund recommendation file generation in message: {message}")
                                 
-                                # Enhanced: Look for fund recommendation file patterns with session awareness
+                                # Look for fund recommendation file patterns
                                 fund_patterns = [
-                                    r'media[\\\/]generated[\\\/]([^\\\/]+)[\\\/]fund_recommendation.*\.html',
-                                    r'([^\\\/]+[\\\/])*media[\\\/]generated[\\\/]([^\\\/]+)[\\\/]fund_recommendation.*\.html',
-                                    r'[\w\\/.-]+fund_recommendation.*\.html'
+                                    r'\\my-app\\media\\generated\\[\w\\]+\\fund_recommendation.*\.html',
+                                    r'media[\\/]generated[\\/][\w\\/]+[\\/]fund_recommendation.*\.html',
+                                    r'[\w\\/]+fund_recommendation.*\.html'
                                 ]
                                 
                                 for pattern in fund_patterns:
@@ -1053,16 +1041,12 @@ async def fund_recommendation_stream(request: Request, fund_request: Dict[str, A
                                         generated_fund_file_path = path_match.group(0)
                                         generated_fund_filename = os.path.basename(generated_fund_file_path)
                                         
-                                        # Use same session ID or extract from path
-                                        fund_session_id = session_id or extract_session_id_from_path(generated_fund_file_path)
-                                        
                                         # Emit fund recommendation file generated event
                                         fund_file_event = {
                                             "type": "file_generated",
                                             "data": {
                                                 "filename": generated_fund_filename,
-                                                "filepath": generated_fund_file_path,
-                                                "session_id": fund_session_id
+                                                "filepath": generated_fund_file_path
                                             },
                                             "timestamp": time.time()
                                         }
@@ -1105,8 +1089,8 @@ async def fund_recommendation_stream(request: Request, fund_request: Dict[str, A
             if not generated_fund_file_path:
                 print("No fund recommendation file detected during streaming, searching for generated fund reports...")
                 
-                # Look for recently generated fund recommendation files, preferably with session ID
-                found_fund_file = find_latest_fund_recommendation_file_by_session(session_id)
+                # Look for recently generated fund recommendation files
+                found_fund_file = find_latest_fund_recommendation_file()
                 if found_fund_file:
                     generated_fund_filename, generated_fund_file_path = found_fund_file
                     
@@ -1115,8 +1099,7 @@ async def fund_recommendation_stream(request: Request, fund_request: Dict[str, A
                         "type": "file_generated",
                         "data": {
                             "filename": generated_fund_filename,
-                            "filepath": generated_fund_file_path,
-                            "session_id": session_id
+                            "filepath": generated_fund_file_path
                         },
                         "timestamp": time.time()
                     }
@@ -1142,8 +1125,7 @@ async def fund_recommendation_stream(request: Request, fund_request: Dict[str, A
                         "status": "completed",
                         "report_path": report_file_path,
                         "fund_recommendation_file": generated_fund_file_path,
-                        "fund_recommendation_filename": generated_fund_filename,
-                        "session_id": session_id
+                        "fund_recommendation_filename": generated_fund_filename
                     }
                 },
                 "timestamp": time.time()
@@ -1180,153 +1162,6 @@ async def fund_recommendation_stream(request: Request, fund_request: Dict[str, A
             "X-Accel-Buffering": "no"
         }
     )
-
-# Enhanced HTML Report Serving with better error handling
-@app.get("/api/download-report", response_class=HTMLResponse)
-async def download_report(filepath: str = Query(..., description="File path to the HTML report")):
-    """Serve generated HTML reports with enhanced error handling and path normalization"""
-    try:
-        # Convert to Path object and normalize
-        file_path = Path(filepath)
-        
-        # Security check: ensure file is HTML
-        if not str(file_path).endswith('.html'):
-            raise HTTPException(status_code=400, detail="Only HTML files are allowed")
-        
-        # Try multiple path resolution strategies
-        possible_paths = [
-            file_path,  # Original path
-            Path(str(file_path).replace('\\', '/')),  # Unix-style path
-            Path(str(file_path).replace('/', '\\')),  # Windows-style path
-        ]
-        
-        # Add relative path variations
-        if not file_path.is_absolute():
-            possible_paths.extend([
-                Path.cwd() / file_path,
-                Path(__file__).parent / file_path
-            ])
-        
-        resolved_path = None
-        for path_option in possible_paths:
-            if path_option.exists():
-                resolved_path = path_option
-                break
-        
-        if not resolved_path:
-            # Log available files for debugging
-            print(f"❌ File not found: {filepath}")
-            print(f"Tried paths: {[str(p) for p in possible_paths]}")
-            
-            # List available files in media/generated for debugging
-            media_generated = Path("media/generated")
-            if media_generated.exists():
-                print("Available files in media/generated:")
-                for file in media_generated.rglob("*.html"):
-                    print(f"  - {file}")
-            
-            raise HTTPException(status_code=404, detail=f"Report file not found: {filepath}")
-        
-        # Read and return the HTML content
-        with open(resolved_path, 'r', encoding='utf-8') as f:
-            html_content = f.read()
-        
-        print(f"📄 Served HTML report: {resolved_path}")
-        return HTMLResponse(content=html_content, status_code=200)
-        
-    except FileNotFoundError:
-        raise HTTPException(status_code=404, detail="Report file not found")
-    except PermissionError:
-        raise HTTPException(status_code=403, detail="Permission denied accessing report file")
-    except UnicodeDecodeError:
-        raise HTTPException(status_code=400, detail="Unable to decode HTML file - invalid encoding")
-    except Exception as e:
-        print(f"Error serving HTML report: {e}")
-        raise HTTPException(status_code=500, detail=f"Error reading report file: {str(e)}")
-
-@app.get("/api/reports/{filename}")
-async def get_report_by_filename(filename: str):
-    """Alternative endpoint to get report by filename (searches in media directory)"""
-    try:
-        # Security check: ensure filename is HTML
-        if not filename.endswith('.html'):
-            raise HTTPException(status_code=400, detail="Only HTML files are allowed")
-        
-        # Look in the media/generated directory
-        media_dir = Path("media/generated")
-        
-        if not media_dir.exists():
-            raise HTTPException(status_code=404, detail="Media directory not found")
-        
-        # Search for the file in subdirectories
-        for report_dir in media_dir.rglob("*"):
-            if report_dir.is_dir():
-                report_file = report_dir / filename
-                if report_file.exists():
-                    with open(report_file, 'r', encoding='utf-8') as f:
-                        html_content = f.read()
-                    
-                    print(f"📄 Served HTML report by filename: {filename}")
-                    return HTMLResponse(content=html_content, status_code=200)
-        
-        raise HTTPException(status_code=404, detail=f"Report file {filename} not found")
-        
-    except Exception as e:
-        print(f"Error serving HTML report by filename: {e}")
-        raise HTTPException(status_code=500, detail=f"Error reading report: {str(e)}")
-
-# Enhanced utility endpoints with session awareness
-@app.get("/api/check-reports")
-async def check_reports(session_id: str = Query(None, description="Session ID to filter reports")):
-    """Check for available generated reports, optionally filtered by session ID"""
-    try:
-        found_file = find_latest_report_file_by_session(session_id)
-        if found_file:
-            filename, filepath = found_file
-            extracted_session_id = extract_session_id_from_path(filepath)
-            return {
-                "found": True,
-                "filename": filename,
-                "filepath": filepath,
-                "session_id": extracted_session_id,
-                "timestamp": os.path.getmtime(filepath)
-            }
-        else:
-            return {
-                "found": False,
-                "message": f"No reports found{' for session ' + session_id if session_id else ''}"
-            }
-    except Exception as e:
-        return {
-            "found": False,
-            "error": str(e)
-        }
-
-@app.get("/api/check-fund-reports")
-async def check_fund_reports(session_id: str = Query(None, description="Session ID to filter fund reports")):
-    """Check for available generated fund recommendation reports, optionally filtered by session ID"""
-    try:
-        found_file = find_latest_fund_recommendation_file_by_session(session_id)
-        if found_file:
-            filename, filepath = found_file
-            extracted_session_id = extract_session_id_from_path(filepath)
-            return {
-                "found": True,
-                "filename": filename,
-                "filepath": filepath,
-                "session_id": extracted_session_id,
-                "timestamp": os.path.getmtime(filepath)
-            }
-        else:
-            return {
-                "found": False,
-                "message": f"No fund recommendation reports found{' for session ' + session_id if session_id else ''}"
-            }
-    except Exception as e:
-        return {
-            "found": False,
-            "error": str(e)
-        }
 
 @app.get("/api/sample-data")
 async def get_sample_data():
@@ -1390,46 +1225,55 @@ async def get_risk_profiles():
         except:
             pass
 
-    # Default risk profiles if config doesn't have them
-    return {
-        "risk_profiles": [
-            {
-                "value": "very_low",
-                "label": "Very Low Risk",
-                "expected_return": "5%",
-                "description": "Conservative investment approach",
-                "risk_level": 1
-            },
-            {
-                "value": "low",
-                "label": "Low Risk", 
-                "expected_return": "7%",
-                "description": "Low risk with stable returns",
-                "risk_level": 2
-            },
-            {
-                "value": "moderate",
-                "label": "Moderate Risk",
-                "expected_return": "10%",
-                "description": "Balanced risk and return",
-                "risk_level": 3
-            },
-            {
-                "value": "high",
-                "label": "High Risk",
-                "expected_return": "12%",
-                "description": "Higher risk for better returns",
-                "risk_level": 4
-            },
-            {
-                "value": "very_high",
-                "label": "Very High Risk",
-                "expected_return": "15%",
-                "description": "Aggressive investment strategy",
-                "risk_level": 5
+# Utility endpoint to check for generated reports
+@app.get("/api/check-reports")
+async def check_reports():
+    """Check for available generated reports"""
+    try:
+        found_file = find_latest_report_file()
+        if found_file:
+            filename, filepath = found_file
+            return {
+                "found": True,
+                "filename": filename,
+                "filepath": filepath,
+                "timestamp": os.path.getmtime(filepath)
             }
-        ]
-    }
+        else:
+            return {
+                "found": False,
+                "message": "No reports found"
+            }
+    except Exception as e:
+        return {
+            "found": False,
+            "error": str(e)
+        }
+
+# New endpoint to check for fund recommendation reports
+@app.get("/api/check-fund-reports")
+async def check_fund_reports():
+    """Check for available generated fund recommendation reports"""
+    try:
+        found_file = find_latest_fund_recommendation_file()
+        if found_file:
+            filename, filepath = found_file
+            return {
+                "found": True,
+                "filename": filename,
+                "filepath": filepath,
+                "timestamp": os.path.getmtime(filepath)
+            }
+        else:
+            return {
+                "found": False,
+                "message": "No fund recommendation reports found"
+            }
+    except Exception as e:
+        return {
+            "found": False,
+            "error": str(e)
+        }
 
 if __name__ == "__main__":
     import uvicorn
@@ -1464,7 +1308,7 @@ if __name__ == "__main__":
     print("📖 API Documentation: http://localhost:8000/docs")
     print("📄 Reload config: POST http://localhost:8000/api/reload-config")
     print("📄 HTML Reports: GET http://localhost:8000/api/download-report?filepath=<path>")
-    print("📁 Static Media: http://localhost:8000/media/")
+    print("🔍 Static Media: http://localhost:8000/media/")
     print("💰 Fund Recommendation: POST http://localhost:8000/api/fund-recommendation")
     print("📊 Check SIP Reports: GET http://localhost:8000/api/check-reports")
     print("📈 Check Fund Reports: GET http://localhost:8000/api/check-fund-reports")
