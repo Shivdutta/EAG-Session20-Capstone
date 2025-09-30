@@ -408,7 +408,8 @@ flowchart LR
   Q2 --> RG2[ReportGeneratorAgent]
   RG2 --> OUT2["media/generated/session_id/Fund_Recommendation_comprehensive_report.html"]
 
-# 🚀 Deployment & Sync Scripts
+
+## Deployment & Sync Scripts
 
 This project includes **PowerShell automation scripts** to build, deploy, and sync the SIP Goal Planning & Fund Recommendation platform.
 
