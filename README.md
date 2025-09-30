@@ -494,3 +494,5 @@ Replace `<your-app-name>` with the `$APP` variable from the script.
   ```powershell
   az webapp log tail --name <APP_NAME> --resource-group <RG>
   ```
+
+  ❤️✨ Made with love by ❤️Claude and Gemini 2.5 Pro 🤖💡
