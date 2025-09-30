@@ -381,6 +381,7 @@ Key responsibilities: demo authentication store + login UI.
 ---
 
 ## 🔁 Example Agent Call Flow (Mermaid)
+### Example Agent Call Flow (Mermaid)
 
 ```mermaid
 flowchart LR
@@ -388,28 +389,30 @@ flowchart LR
   B --> C[AgentStreamService.run]
   C --> D[PlannerAgent]
 
-  %% --- SIP flow (branch 1) ---
-  D -->|Keyword Route: SIP| SIP[SIPGoalPlannerAgent]
-  SIP --> R1[RetrieverAgent]
-  R1 --> D1[DistillerAgent]
-  D1 --> T1[ThinkerAgent]
-  T1 --> Q1[QAAgent]
-  Q1 --> CO1[CoderAgent]
-  CO1 --> F1[FormatterAgent]
-  F1 --> RG1[ReportGeneratorAgent]
-  RG1 --> OUT1["media/generated/session_id/SIP_Goal_Planning_comprehensive_report.html"]
+  subgraph SIP_Flow["SIP Flow"]
+    D -->|Keyword Route: SIP| SIP[SIPGoalPlannerAgent]
+    SIP --> R1[RetrieverAgent]
+    R1 --> D1[DistillerAgent]
+    D1 --> T1[ThinkerAgent]
+    T1 --> Q1[QAAgent]
+    Q1 --> CO1[CoderAgent]
+    CO1 --> F1[FormatterAgent]
+    F1 --> RG1[ReportGeneratorAgent]
+    RG1 --> OUT1["media/generated/{session_id}/SIP_Goal_Planning_comprehensive_report.html"]
+  end
 
-  %% --- Fund flow (branch 2) ---
-  D -->|Keyword Route: FUND| FUND[FundRecommendationAgent]
-  FUND --> R2[RetrieverAgent]
-  R2 --> D2[DistillerAgent]
-  D2 --> T2[ThinkerAgent]
-  T2 --> Q2[QAAgent]
-  Q2 --> RG2[ReportGeneratorAgent]
-  RG2 --> OUT2["media/generated/session_id/Fund_Recommendation_comprehensive_report.html"]
+  subgraph FUND_Flow["Fund Flow"]
+    D -->|Keyword Route: FUND| FUND[FundRecommendationAgent]
+    FUND --> R2[RetrieverAgent]
+    R2 --> D2[DistillerAgent]
+    D2 --> T2[ThinkerAgent]
+    T2 --> Q2[QAAgent]
+    Q2 --> RG2[ReportGeneratorAgent]
+    RG2 --> OUT2["media/generated/{session_id}/Fund_Recommendation_comprehensive_report.html"]
+  end
+```
 
-
-## Deployment & Sync Scripts
+# 🚀 Deployment & Sync Scripts
 
 This project includes **PowerShell automation scripts** to build, deploy, and sync the SIP Goal Planning & Fund Recommendation platform.
 
