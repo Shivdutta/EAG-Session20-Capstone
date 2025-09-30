@@ -407,7 +407,9 @@ flowchart LR
     R2 --> D2[DistillerAgent]
     D2 --> T2[ThinkerAgent]
     T2 --> Q2[QAAgent]
-    Q2 --> RG2[ReportGeneratorAgent]
+    Q2 --> CO2[CoderAgent]
+    CO2 --> F2[FormatterAgent]
+    F2 --> RG2[ReportGeneratorAgent]
     RG2 --> OUT2["media/generated/{session_id}/Fund_Recommendation_comprehensive_report.html"]
   end
 ```
