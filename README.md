@@ -160,6 +160,66 @@ The platform combines:
 | 📑 ReportGeneratorAgent      | `report_prompt_sip_patched_v16.txt`     | Gemini   | None            |
 
 ---
+![alt text](image-1.png)
+# 📌 System Architecture Breakdown
+
+## 1. User Interaction
+- User interacts with the system through a **Frontend Application** (web/mobile UI).  
+- This is where the inputs (**queries, requirements, fund/SIP requests, etc.**) are entered.  
+- The results (**reports, recommendations, clarifications**) are displayed back to the user.  
+
+---
+
+## 2. Frontend Layer
+- The **Frontend** (likely built in React, Angular, or another framework) provides the **UI/UX** for interaction.  
+- It communicates with the **Backend** via APIs.  
+- Deployed on **Azure App Service** for scalability and easy Azure ecosystem integration.  
+
+---
+
+## 3. Backend Layer
+- The **Backend** handles the business logic, connects with agents, and orchestrates workflows.  
+- Manages **API calls, authentication, and request routing** between user inputs and agents.  
+- Backend components are **containerized** and pushed to **Azure Container Registry (ACR)**.  
+- From ACR, container images are deployed on **Azure App Service**, enabling automated builds and CI/CD deployment.  
+
+---
+
+## 4. Orchestrator Agent
+- Acts as the **“conductor”** of the multi-agent system.  
+- **Responsibilities:**
+  - Receives requests from the Backend.  
+  - Decides which agents (**Base Agents** or **Domain-Specific Agents**) should handle the request.  
+  - Ensures correct sequencing, delegation, and collaboration between agents.  
+  - Handles workflow management, retries, and coordination.  
+
+---
+
+## 5. Domain-Specific Agents
+- **SIP Agent** → Specialized for handling **Systematic Investment Plan (SIP)** queries such as goal planning, amount calculation, and schedule optimization.  
+- **Fund Agent** → Handles **fund-related queries** like filtering mutual funds, risk evaluation, portfolio overlap analysis, and performance scoring.  
+- These agents rely on the **Base Agents** for foundational capabilities but bring **domain knowledge**.  
+
+---
+
+## 6. Base Agents
+Reusable, general-purpose **AI/LLM-powered agents** that perform core tasks:
+
+- **Planner Agent** → Breaks down a user’s query into sub-tasks and creates a structured execution plan.  
+- **Coder Agent** → Handles code generation, scripting, and automation logic.  
+- **Formatter Agent** → Structures responses, reports, and outputs (tables, JSON, Markdown, PDF).  
+- **Report Generator Agent** → Creates full project reports, fund analysis reports, or summaries.  
+- **Clarification Agent** → Engages with the user if input is ambiguous (asks clarifying questions).  
+- **QA Agent** → Ensures correctness, validation, and quality before sending outputs to users.  
+- **Thinker Agent** → Handles reasoning, decision-making, and complex problem-solving (multi-step logic).  
+
+---
+
+## 7. Storage Layer
+Provides **persistent storage** for:  
+- User inputs  
+- Generated reports  
+- Intermediate workflow states  
 
 ## 🚀 Future Enhancements
 
@@ -311,7 +371,7 @@ Key responsibilities: demo authentication store + login UI.
 - `logout()` → clear token  
 - `getToken()`, `isAuthed()`, `getUser()`, `msRemaining()` → token utilities  
 
----
+--- 
 
 ## 🗂 Prompts & Templates
 - `SIP_Orchestrator_Prompt_Template_patched_v4.txt` — SIP orchestrator template  
@@ -325,7 +385,7 @@ Key responsibilities: demo authentication store + login UI.
 ```mermaid
 flowchart LR
   A[User via UI] -->|POST /api/calculate-sip| B[FastAPI: calculate-sip endpoint]
-  B --> C[AgentStreamService.run()] 
+  B --> C[AgentStreamService > run] 
   C --> D[PlannerAgent] 
   D -->|Keyword Route| SIP[SIPGoalPlannerAgent]
   D -->|Keyword Route| FUND[FundRecommendationAgent]
