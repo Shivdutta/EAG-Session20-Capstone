@@ -397,7 +397,7 @@ flowchart LR
   Q1 --> CO1[CoderAgent]
   CO1 --> F1[FormatterAgent]
   F1 --> RG1[ReportGeneratorAgent]
-  RG1 --> OUT1["media/generated/{session_id}/SIP_Goal_Planning_comprehensive_report.html"]
+  RG1 --> OUT1["media/generated/session_id/SIP_Goal_Planning_comprehensive_report.html"]
 
   %% --- Fund flow (branch 2) ---
   D -->|Keyword Route: FUND| FUND[FundRecommendationAgent]
@@ -406,7 +406,7 @@ flowchart LR
   D2 --> T2[ThinkerAgent]
   T2 --> Q2[QAAgent]
   Q2 --> RG2[ReportGeneratorAgent]
-  RG2 --> OUT2["media/generated/{session_id}/Fund_Recommendation_comprehensive_report.html"]
+  RG2 --> OUT2["media/generated/session_id/Fund_Recommendation_comprehensive_report.html"]
 
 # 🚀 Deployment & Sync Scripts
 
