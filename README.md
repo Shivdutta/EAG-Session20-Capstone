@@ -382,6 +382,7 @@ Key responsibilities: demo authentication store + login UI.
 
 ## 🔁 Example Agent Call Flow (Mermaid)
 
+```mermaid
 flowchart LR
   A[User via UI] -->|POST /api/calculate-sip| B[FastAPI: calculate-sip]
   B --> C[AgentStreamService.run]
