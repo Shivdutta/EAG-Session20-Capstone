@@ -1,233 +1,417 @@
-# EAG18 - Agentic Query Assistant System
+# 🌟 SIP Goal Planning & Fund Recommendation Platform
 
-A sophisticated multi-agent AI system built with NetworkX graph architecture that processes complex user queries through a coordinated pipeline of specialized agents. The system combines multiple AI agents with external tools to handle tasks ranging from document analysis to code generation and web research.
+An **AI-powered financial planning system** that enables users to:  
+- Plan **Systematic Investment Plans (SIP)**  
+- Receive **fund recommendations**  
+- View **consulting-grade reports** with projections, allocations, and strategy  
 
-## 🏗️ System Architecture
+The platform combines:  
+- **React UI** for user interactions  
+- **FastAPI backend** for orchestration and APIs  
+- **AgentLoop engine** with **Gemini LLM** for multi-agent workflows  
+- **Session-aware storage** with per-user HTML reports  
 
-### Core Components
+---
 
-- **NetworkX Graph Engine**: Manages execution flow and dependencies
-- **Multi-Agent Pipeline**: 10 specialized agents working in coordination
-- **MCP (Model Context Protocol) Servers**: External tool integration
-- **Rich CLI Interface**: Interactive command-line experience
-- **Web API**: RESTful interface for web integration
+## ✨ Features
 
-### Execution Flow
+### 🔹 FastAPI Services
+- **`agent_stream_service.py`** → Streaming orchestration with **Server-Sent Events (SSE)** for real-time logs.  
+- **`fastapi_sip_service.py`** → APIs for **SIP calculations** and **fund recommendations**.  
 
-```
-User Query → File Upload → File Profiling → Planning → Multi-Agent Execution → Result Analysis → Output
+### 🔹 AgentLoop Framework
+- Modular **multi-agent orchestration** (`agentLoop/flow.py`, `agentLoop/agents.py`).  
+- **Graph-based execution** with debugging & validation tools.  
+- **Session-aware execution** (`agentLoop/session_reader.py`).  
+
+### 🔹 MultiMCP Servers
+- Connects to **multiple MCP endpoints** (`mcp_servers/`).  
+- Provides **document retrieval, captioning, and external knowledge integrations**.  
+- Uses **FAISS index** for semantic fund/document search.  
+
+### 🔹 Heuristics & Utilities
+- **Heuristics engine** (`heuristics/heuristics.py`) for business rules.  
+- **JSON parsing helpers** (`utils/json_parser.py`).  
+- **Utility functions** (`utils/utils.py`).  
+
+### 🔹 Streaming Reports
+- **Real-time progress logs** streamed to the UI.  
+- **Reports saved per session** under:  
+  `media/generated/{session_id}/`  
+- Two possible reports:  
+  - `SIP_Goal_Planning_comprehensive_report.html`  
+  - `Fund_Recommendation_comprehensive_report.html`  
+
+### 🔹 Frontend (UI)
+- Built on **React 18**.  
+- **Login (Login.jsx)** → Captures user identity + IP for session tracking.  
+- **SIP Form (react_sip_form.js)** → Collects details like goal type, age, horizon, risk appetite.  
+- **Streaming Logs** → Live updates from agents via SSE.  
+- **Reports** → Interactive HTML previews with **Previous/Next navigation**.  
+
+---
+
+## 🔁 End-to-End Flow
+
+### 🟨 Login
+- User logs in via **Login.jsx**.  
+- Captures **user IP** + creates **session UUID**.  
+
+### 🟨 SIP Goal Planning
+- User enters SIP details (goal, age, horizon, currency, risk).  
+- API dynamically fills **`SIP_Orchestrator_Prompt_Template_patched_v4.txt`** using via Jinja2 parsing.  
+- **Planner** redirects to **SIPGoalPlannerAgent** to get domain specific instruction 
+- Different agen are executed as per planner graph  → streamed logs to UI.  
+- Generates report:  
+  📑 `media/generated/{session_id}/comprehensive_report.html`  
+
+---
+
+### 🟨 Fund Recommendation
+- After SIP completion, user clicks **“Fund Recommendation”**.  
+- SIP report used to populate **`Fund_Recommendation_Orchestrator_Prompt_Template_v4.txt`**. This  is done passing sip report as context along and template to LLM .
+- **FundRecommendationAgent** processes funds, applies **risk-weighted rankings**, and generates 
+- Different agen are executed as per planner graph  → streamed logs to UI.  allocation.  
+- Generates report:  
+  📑 `media/generated/{session_id}/Fund_Recommendation_comprehensive_report.html`  
+
+---
+
+### 🟨 Navigation
+- User navigates **back/forward** between SIP and Fund reports.  
+- Reports include:  
+  - Charts 📊  
+  - Allocations 🪙  
+  - Projections ⏳  
+  - Rebalancing 🔄  
+  - Tax optimization 💰  
+
+---
+
+## 📂 Project Structure
+
+```plaintext
+├── backend/
+│   ├── agent_stream_service.py
+│   ├── fastapi_sip_service.py
+│
+├── agentLoop/
+│   ├── agents.py
+│   ├── flow.py
+│   ├── contextManager.py
+│   ├── model_manager.py
+│   └── session_reader.py
+│
+├── prompts/
+│   ├── orchestrator_agent/
+│   │   ├── SIP_Orchestrator_Prompt_Template_patched_v4.txt
+│   │   └── Fund_Recommendation_Orchestrator_Prompt_Template_v1.txt
+│   ├── planner_prompt_sip_patched_v12.txt
+│   ├── retriever_prompt_sip_patched_v8.txt
+│   ├── thinker_prompt_sip_patched_v5.txt
+│   ├── qaagent_prompt_sip_patched_v4.txt
+│   ├── distiller_prompt_sip_patched_v4.txt
+│   ├── formatter_prompt_sip_patched_v9.txt
+│   ├── coder_prompt_sip_patched_v32.txt
+│   ├── executor_prompt.txt
+│   ├── clarification_prompt_sip_patched_v4.txt
+│   ├── scheduler_prompt_sip_patched_v4.txt
+│   ├── sip_goal_planner_prompt_v4.txt
+│   ├── fund_recommendation_agent_prompt_v4.txt
+│   └── report_prompt_sip_patched_v16.txt
+│
+├── media/
+│   └── generated/
+│       ├── <session_uuid>/SIP_Goal_Planning_comprehensive_report.html
+│       └── <session_uuid>/Fund_Recommendation_comprehensive_report.html
+│
+├── frontend/
+│   ├── components/
+│   │   ├── Login.jsx
+│   │   └── react_sip_form.js
+│   ├── App.js
+│   ├── App.css
+│   ├── index.js
+│   ├── index.css
+│   └── public/
+│
+├── requirements.txt
+├── package.json
+└── README.md
 ```
 
 ---
 
-## 🎥 Demo Video
+## 🤖 Agent → Prompt Mapping
 
-Watch a walkthrough of the EAG18 Agentic Query Assistant in action:
-
-[![Demo Video](https://img.youtube.com/vi/A0kznksbOiU/0.jpg)](https://www.youtube.com/watch?v=A0kznksbOiU)
-
-> _Replace the link above with your actual demo video URL._
-
----
-
-## 📝 Sample Prompts
-
-Try these example queries to explore the system's capabilities:
-
-**Research & Analysis:**
-
-- You are a stock researcher, prepare a very detailed and comprehensive report on Asian Paints. 
-- Conduct a basic market research on electric vehicle trends and create a detailed analysis report without visualizations
-
-**Research & Analysis:**
-
-You are a professional equity research analyst. Prepare a very detailed, data-backed, and visually rich equity research report on Asian Paints Ltd (NSE: ASIANPAINT).
-
-Requirements:
-
-Scope & Depth – Include:
-
-Company Overview (history, business model, revenue streams)
-
-Financial Performance (latest annual and quarterly results, 5-year trend)
-
-Stock Performance (price trend, returns, volatility)
-
-Peer Comparison (Berge Paints, Kansai Nerolac, Indigo Paints)
-
-Industry Overview & Market Position
-
-Key Risks and Opportunities
-
-Data Presentation – Use tables, graphs, and charts wherever possible.
-
-Visuals – Include historical price charts, cumulative returns, peer comparison graphs, and key metrics tables.
-
-Formatting – Output should be a well-formatted, polished HTML report with clear headings, subheadings, and a professional layout.
-
-Accuracy – Ensure all data sources are reliable and clearly cited. Use the correct NSE ticker (ASIANPAINT.NS).
-
-Error Handling – If data for a section is unavailable, skip it gracefully and indicate that data is unavailable.
-
-The final HTML must be ready to view in a browser, styled for readability, and contain embedded charts as base64 images.
-
-**Coding:**
-- Create a modern Tic Tac Toe game with HTML, CSS, and JavaScript
-
-**File Analysis:**
-- Analyze the sales data provided in the file and prepare a report
-
-> _Feel free to experiment with your own queries!_
+| **Agent**                | **Prompt File**                          | **Model** | **MCP Servers** |
+|---------------------------|------------------------------------------|-----------|-----------------|
+| 🟨 PlannerAgent              | `planner_prompt_sip_patched_v12.txt`    | Gemini    | None            |
+| 🟨 SIPGoalPlannerAgent       | `sip_goal_planner_prompt_v4.txt`        | Gemini    | None            |
+| 🟨 FundRecommendationAgent   | `fund_recommendation_agent_prompt_v4.txt`| Gemini   | None            |
+| 🔎 RetrieverAgent            | `retriever_prompt_sip_patched_v8.txt`   | Gemini   | websearch       |
+| 📘 DistillerAgent            | `distiller_prompt_sip_patched_v4.txt`   | Gemini   | None            |
+| 💻 CoderAgent                | `coder_prompt_sip_patched_v32.txt`      | Gemini   | websearch       |
+| 🧠 ThinkerAgent              | `thinker_prompt_sip_patched_v5.txt`     | Gemini   | None            |
+| ✅ QAAgent                   | `qaagent_prompt_sip_patched_v4.txt`     | Gemini   | websearch       |
+| ❓ ClarificationAgent        | `clarification_prompt_sip_patched_v4.txt`| Gemini  | websearch       |
+| ⏰ SchedulerAgent            | `scheduler_prompt_sip_patched_v4.txt`   | Gemini   | None            |
+| 🎨 FormatterAgent            | `formatter_prompt_sip_patched_v9.txt`   | Gemini   | None            |
+| 📑 ReportGeneratorAgent      | `report_prompt_sip_patched_v16.txt`     | Gemini   | None            |
 
 ---
 
-## 🤖 Multi-Agent System
+## 🚀 Future Enhancements
 
-The system uses a **graph-based execution model** where specialized agents work together to solve complex tasks:
-
-### Agent Types & Responsibilities
-
-#### 1. **PlannerAgent** 🧠
-- **Role**: Strategic planning and task decomposition
-- **Capabilities**: 
-  - Converts user queries into execution graphs
-  - Implements meta-planning for unknown data discovery
-  - Creates dependency-aware task sequences
-  - Uses executive-grade planning strategies
-
-#### 2. **DistillerAgent** 📊
-- **Role**: File analysis and content summarization
-- **Capabilities**:
-  - Analyzes uploaded file structures and content
-  - Extracts key information from documents
-  - Creates file profiles for downstream agents
-  - Handles multiple file formats (PDF, CSV, Excel, etc.)
-
-#### 3. **RetrieverAgent** 🔍
-- **Role**: Web search and information gathering
-- **Capabilities**:
-  - Performs internet searches
-  - Extracts content from web pages
-  - Handles document retrieval
-  - Supports multiple iterations for comprehensive research
-
-#### 4. **ThinkerAgent** 💭
-- **Role**: Analysis and reasoning
-- **Capabilities**:
-  - Processes and synthesizes information
-  - Performs logical analysis
-  - Generates insights from data
-  - Supports complex reasoning tasks
-
-#### 5. **QAAgent** ❓
-- **Role**: Question answering and validation
-- **Capabilities**:
-  - Validates generated content
-  - Answers specific questions
-  - Quality assurance checks
-  - Cross-references information
-
-#### 6. **CoderAgent** 💻
-- **Role**: Code generation and file creation
-- **Capabilities**:
-  - Generates Python, HTML, CSS, JavaScript code
-  - Creates complete applications
-  - Supports AST-based file modifications
-  - Handles multiple file creation scenarios
-
-#### 7. **ExecutorAgent** ⚡
-- **Role**: Code execution and testing
-- **Capabilities**:
-  - Runs generated code in sandboxed environment
-  - Tests functionality
-  - Handles execution errors
-  - Manages file operations
-
-#### 8. **FormatterAgent** 📝
-- **Role**: Output formatting and presentation
-- **Capabilities**:
-  - Formats results for presentation
-  - Creates reports and summaries
-  - Handles different output formats
-  - Ensures consistent styling
-
-#### 9. **ClarificationAgent** 🔍
-- **Role**: Query refinement and clarification
-- **Capabilities**:
-  - Asks clarifying questions
-  - Refines ambiguous queries
-  - Ensures task understanding
-  - Improves execution accuracy
-
-#### 10. **SchedulerAgent** ⏰
-- **Role**: Task scheduling and optimization
-- **Capabilities**:
-  - Optimizes execution order
-  - Manages resource allocation
-  - Handles task dependencies
-  - Improves performance
-
-### Agent Coordination
-
-Agents communicate through a **NetworkX graph structure** where:
-- **Nodes** represent individual tasks assigned to specific agents
-- **Edges** represent data flow and dependencies between tasks
-- **Execution** follows topological sorting of the graph
-- **Data** flows from one agent to the next through the graph structure
-
-### Key Features
-
-#### 🔄 **Iterative Execution**
-- Agents can call themselves multiple times (`call_self=true`)
-- Supports refinement and improvement cycles
-- Enables complex multi-step reasoning
-
-#### 🛠️ **Tool Integration**
-- MCP servers provide external capabilities
-- Web search, document processing, and more
-- Extensible tool ecosystem
-
-#### 📁 **File Management**
-- Drag-and-drop file upload support
-- Automatic file type detection
-- Secure file processing
-
-#### 🎯 **Meta-Planning**
-- Automatic discovery of unknown data requirements
-- Strategic planning for complex tasks
-- Executive-grade task decomposition
+1. Integration with Orchestration Tools
+    - Add Airflow for scheduled SIP/fund workflows
+    - Use Kafka/RabbitMQ for event-driven consistency
+2. Fault tolerance (retries, checkpointing)  
+    - Implement retries and circuit breakers
+    - Add checkpointing to resume flows on failure
+3. Retriever Agent Optimization
+    - Offload to a RAG-based system with daily refreshed cached embeddings
+    - Process only delta updates for efficiency
+4. Distiller Agent Optimization
+    - Apply RAG-based caching to reduce redundant summarization
+5. Native Code Offloading
+    - Implement fixed SIP formulas in native code for speed
+    - Offload chart/graph generation logic to native implementations
+6. Memory Enhancements
+    - Introduce short-term memory for session continuity
+    - Explore persistent memory for long-term user context
+7. Research **context engineering** to reduce token usage  and also introduce personas
+8. Collaborate with **domain experts** for fine-tuning & new features  
+9. Session Tracking & Database Integration
+    - Link user sessions ↔ SIP agent ↔ Fund agent in a database
+    - Provide admin dashboard for monitoring & compliance 
 
 ---
 
-## 🚀 Getting Started
+## ⚠️ Known Issues
 
-### Prerequisites
-- Python 3.11+
-- Required dependencies (see `pyproject.toml`)
+1. **Azure WebApp Stability**  
+   - Running on **Basic tier**, sometimes hangs.  
+   - Needs scaling/migration to resilient hosting (e.g., Kubernetes).  
 
-### Installation
-```bash
-# Clone the repository
-git clone <repository-url>
-cd eag18/code
+2. **Gemini API Key Expiry**  
+   - Using **Gemini 2.5 Pro**.  
+   - API key observed to **expire daily** in recent days.  
+   - Planned: Raise support ticket with Google.  
 
-# Install dependencies
-pip install -e .
+
+# 📚 Detailed Classes & Methods (Reference)
+
+> **Note:** each entry shows the class / module and important methods or functions found in your codebase, with short descriptions and the file(s) where they appear. Use these as the authoritative developer reference for extending, testing or integrating components.
+
+---
+
+## 🔧 Backend — FastAPI services
+
+### `fastapi_sip_service.py` — FastAPI application & helpers
+Key responsibilities: application lifecycle, configuration loading, endpoints for SIP calculation, streaming orchestration integration, report serving and session-aware utilities.
+
+**Important functions / endpoints**
+
+- `lifespan(app: FastAPI)`  
+  - Lifespan async context manager — initializes and shuts down the `agent_stream_service` during app startup/shutdown.
+
+- `load_sip_config() -> Dict[str, Any]`  
+  - Load SIP UI binding configuration from `sip_ui_binding.json`. Raises HTTPException if missing.
+
+- `load_fund_recommendation_template() -> str`  
+  - Reads the Jinja-style fund orchestrator prompt template `prompts/orchestrator_agent/Fund_Recommendation_Orchestrator_Prompt_Template_v1.txt`.
+
+- `@app.get("/")` (root)  
+  - Health check / metadata endpoint returning config status and model manager availability.
+
+- `@app.get("/api/reports/{filename}")`  
+  - Serves HTML report by filename by searching under `media/generated/**`. Includes security check (only `.html`) and error handling (404/403/500).
+
+- `@app.get("/api/check-reports")` / `@app.get("/api/check-fund-reports")`  
+  - Utility endpoints for checking generated reports filtered by session ID. Returns found filename, filepath and timestamp.
+
+- `@app.get("/api/sample-data")`  
+  - Returns sample form data for UI testing and fallback.
+
+- `@app.post("/api/terminate-process")`  
+  - Terminate/abort currently running agent processes; triggers `agent_stream_service.abort_current_process()` if present.
+
+**Notes**
+- `ModelManager` is initialized at module load — used for fund recommendation template processing. If ModelManager fails to initialize the app still runs with a warning.
+- Static files are mounted for `media/` to serve generated assets.
+
+---
+
+## 🤖 Agent Streaming / Orchestration
+
+### `agent_stream_service.py` — `AgentStreamService` (streaming orchestration)
+Key responsibilities: orchestrate AgentLoop execution, capture streaming logs, redirect stdout into stream callbacks, manage initialization/shutdown, and return analysis summary.
+
+**Primary class & methods**
+
+- `class AgentStreamService`  
+  - `async initialize(self)`: initialize agent loop, MCP servers, model manager etc.  
+  - `async run(query, file_manifest, uploaded_files, callback)`: run the agent loop for a query while streaming logs to `callback`.  
+  - `async shutdown(self)`: gracefully shutdown helper services (MCPs, etc.) and set `initialized = False`.  
+
+- `agent_stream_service` (global singleton instance)  
+  - Created at module level to be used by FastAPI lifespan and endpoints.
+
+**Behavioral notes**
+- Streams boundary markers and agent-level messages so the UI can parse which agent is currently active (PlannerAgent, RetrieverAgent, ReportGeneratorAgent, etc.). This is relied upon by UI parsing logic.
+
+---
+
+## 🧩 AgentLoop (core orchestration)
+Files: `agentLoop/flow.py`, `agentLoop/agents.py`, `agentLoop/session_reader.py`, `agentLoop/model_manager.py`.
+
+**Key responsibilities / conceptual classes**
+- `PlannerAgent` — creates task graphs, routes requests to domain-specific agents (SIPGoalPlannerAgent vs FundRecommendationAgent) depending on keywords and context.  
+- `SIPGoalPlannerAgent` — deterministic SIP math, produces `sip_projection_table_json`, `allocation_plan_json`, etc.  
+- `FundRecommendationAgent` — consumes SIP context, performs fund screening, scoring and emits fund ranking JSONs.  
+- Supporting agents: `RetrieverAgent`, `DistillerAgent`, `ThinkerAgent`, `CoderAgent`, `FormatterAgent`, `QAAgent`, `ClarificationAgent`, `SchedulerAgent`, `ReportGeneratorAgent` — each with roles described in planner prompts.
+
+**Session tracking**
+- `session_reader.py`: track session UUIDs and map agent outputs to `media/generated/{session_id}/`.
+
+---
+
+## 🧾 Report Generation
+
+### `ReportGeneratorAgent`
+- Role: consolidate upstream outputs (projections, fund ranking, charts, narratives) and produce `comprehensive_report.html`.
+
+### Output & Storage
+- Reports saved under `media/generated/{session_uuid}/` as:  
+  - `SIP_Goal_Planning_comprehensive_report.html`  
+  - `Fund_Recommendation_comprehensive_report.html`
+
+---
+
+## 🖥️ Frontend — React
+
+### `SIPGoalPlanningForm` (`react_sip_form.js`)
+Key responsibilities: gather inputs, call backend, stream logs, fetch HTML reports, manage session IDs, UI state.
+
+**Key methods**
+- `handleValidation()` → POST `/api/validate-form`  
+- `handleCalculation()` → POST `/api/calculate-sip` (streams results)  
+- `handleFundRecommendation(reportPath)` → POST `/api/fund-recommendation`  
+- `handleStreamEvent(eventData)` / `handleFundRecommendationStreamEvent(eventData)` → parse SSE events  
+- `fetchHtmlReport(filePath)` / `fetchFundRecommendationHtmlReport(filePath)` → fetch HTML reports  
+- `analyzeLogsForSIPProgress(logs)` / `analyzeLogsForFundProgress(logs)` → progress heuristics  
+- `stopStreaming()` / `stopFundRecommendationStreaming()` → abort + terminate backend process  
+
+### `Login.jsx`
+Key responsibilities: demo authentication store + login UI.
+
+**AuthStore methods**
+- `login(username, password)` → demo login with localStorage token  
+- `logout()` → clear token  
+- `getToken()`, `isAuthed()`, `getUser()`, `msRemaining()` → token utilities  
+
+---
+
+## 🗂 Prompts & Templates
+- `SIP_Orchestrator_Prompt_Template_patched_v4.txt` — SIP orchestrator template  
+- `Fund_Recommendation_Orchestrator_Prompt_Template_v1.txt` — Fund orchestrator template  
+- `planner_prompt_sip_patched_v12.txt` — PlannerAgent routing logic  
+
+---
+
+## 🔁 Example Agent Call Flow (Mermaid)
+
+```mermaid
+flowchart LR
+  A[User via UI] -->|POST /api/calculate-sip| B[FastAPI: calculate-sip endpoint]
+  B --> C[AgentStreamService.run()] 
+  C --> D[PlannerAgent] 
+  D -->|Keyword Route| SIP[SIPGoalPlannerAgent]
+  D -->|Keyword Route| FUND[FundRecommendationAgent]
+  SIP --> RetrieverAgent --> DistillerAgent --> ThinkerAgent --> QAAgent --> CoderAgent --> FormatterAgent --> ReportGeneratorAgent
+  ReportGeneratorAgent --> E[save media/generated/{session_id}/SIP_Goal_Planning_comprehensive_report.html]
+  E -->|User clicks Fund Recommendation| F[POST /api/fund-recommendation]
+  F --> FundRecommendationAgent --> RetrieverAgent --> DistillerAgent --> ThinkerAgent --> QAAgent --> ReportGeneratorAgent
+  ReportGeneratorAgent --> G[save media/generated/{session_id}/Fund_Recommendation_comprehensive_report.html]
+```
+# 🚀 Deployment & Sync Scripts
+
+This project includes **PowerShell automation scripts** to build, deploy, and sync the SIP Goal Planning & Fund Recommendation platform.
+
+---
+
+## 📂 Scripts Overview
+
+### 🔹 `deploy.ps1`
+Automates the full deployment of the application to **Azure App Service with ACR (Azure Container Registry)**.
+
+**Key Steps:**
+1. Build local Docker image (`retail-streamlit:v1` or your chosen tag).  
+2. Create **Azure Resource Group**.  
+3. Create & enable **Azure Container Registry (ACR)**.  
+4. Push Docker image to ACR.  
+5. Create **App Service Plan** (Linux).  
+6. Deploy containerized app to **Azure WebApp**.  
+
+**Parameters to configure inside script:**
+- `$RG` → Resource Group name  
+- `$LOC` → Azure location (e.g., `eastus`, `centralindia`)  
+- `$ACR` → Azure Container Registry name (must be unique)  
+- `$IMAGE` → Local image name (e.g., `retail-streamlit`)  
+- `$TAG` → Image tag (`v1`, `latest`, etc.)  
+- `$PLAN` → App Service Plan name  
+- `$APP` → WebApp name (must be unique)  
+- `$PORT` → Container port (e.g., `8501`)  
+- `$OPENAI` → Your OpenAI API key (if required for runtime)  
+
+**Run command:**
+```powershell
+.\deploy.ps1
 ```
 
-### Running the System
-```bash
-uv run web_api.py
+---
+
+### 🔹 `sync-up.ps1`
+Synchronizes updates and redeploys the container when you make changes.
+
+**Typical workflow:**
+1. Rebuild local Docker image.  
+2. Retag & push the new image to ACR.  
+3. Trigger WebApp to pull and restart with the updated image.  
+
+Useful for **incremental updates** without recreating all resources.
+
+**Run command:**
+```powershell
+.\sync-up.ps1
 ```
 
-### Usage
-1. **Upload Files** (optional): Drag and drop files for analysis
-2. **Ask Questions**: Provide natural language queries
-3. **Get Results**: Receive comprehensive, multi-agent processed responses
-4. **Open the Web Interface**:  
-   Open your browser and go to [http://localhost:5000](http://localhost:5000) (or `http://<your-ec2-ip>:5000` if running on EC2) to interact with the system via the web UI. Type your query and submit
+---
 
+## ✅ Prerequisites
+- **Azure CLI** installed and logged in (`az login`)  
+- **Docker** installed and running locally  
+- **PowerShell 7+** recommended  
+- An **Azure subscription** with permissions to create resource groups, ACR, and App Services  
 
+---
 
+## 🌐 Deployed Application
+After deployment, your app will be accessible at:
 
+```
+https://<your-app-name>.azurewebsites.net
+```
 
+Replace `<your-app-name>` with the `$APP` variable from the script.
+
+---
+
+## ⚠️ Troubleshooting
+- **`401 Unauthorized` during docker push** → Run `az acr login --name <ACR_NAME>` before pushing.  
+- **`AuthorizationFailed` on Data Factory / App Service** → Ensure your account has Contributor role on the subscription.  
+- **`GatewayTimeout (504)`** → Scale up the App Service Plan (`B1` → `S1`) or check logs with:
+  ```powershell
+  az webapp log tail --name <APP_NAME> --resource-group <RG>
+  ```
