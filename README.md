@@ -495,4 +495,6 @@ Replace `<your-app-name>` with the `$APP` variable from the script.
   az webapp log tail --name <APP_NAME> --resource-group <RG>
   ```
 
-  ❤️✨ Made with love by ❤️Claude and Gemini 2.5 Pro 🤖💡
+  ❤️✨ Made with love by ❤️Claude , Gemini 2.5 Pro and Azure Cloud 🤖💡
+
+
