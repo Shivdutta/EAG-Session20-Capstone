@@ -390,10 +390,10 @@ flowchart LR
   D -->|Keyword Route| SIP[SIPGoalPlannerAgent]
   D -->|Keyword Route| FUND[FundRecommendationAgent]
   SIP --> RetrieverAgent --> DistillerAgent --> ThinkerAgent --> QAAgent --> CoderAgent --> FormatterAgent --> ReportGeneratorAgent
-  ReportGeneratorAgent --> E[save media/generated/{session_id}/comprehensive_report.html]
+  ReportGeneratorAgent --> E[save media/generated/session_id/comprehensive_report.html]
   E -->|User clicks Fund Recommendation| F[POST /api/fund-recommendation]
   F --> FundRecommendationAgent --> RetrieverAgent --> DistillerAgent --> ThinkerAgent --> QAAgent --> ReportGeneratorAgent
-  ReportGeneratorAgent --> G[save media/generated/{session_id}/comprehensive_report.html]
+  ReportGeneratorAgent --> G[save media/generated/session_id/comprehensive_report.html]
 ```
 # 🚀 Deployment & Sync Scripts
 
